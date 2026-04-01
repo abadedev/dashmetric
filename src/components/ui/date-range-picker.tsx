@@ -8,7 +8,7 @@ import { Calendar as CalendarIcon } from "lucide-react"
 import { DateRange } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
   Popover,
@@ -69,15 +69,14 @@ export function DatePickerWithRange({
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover open={isOpen} onOpenChange={handleOpenChange}>
-        <PopoverTrigger asChild>
-          <Button
-            id="date"
-            variant={"outline"}
-            className={cn(
-              "w-[300px] justify-start text-left font-normal",
-              !displayDate && "text-muted-foreground"
-            )}
-          >
+        <PopoverTrigger
+          id="date"
+          className={cn(
+            buttonVariants({ variant: "outline" }),
+            "w-[300px] justify-start text-left font-normal",
+            !displayDate && "text-muted-foreground"
+          )}
+        >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {displayDate?.from ? (
               displayDate.to ? (
@@ -91,8 +90,7 @@ export function DatePickerWithRange({
             ) : (
               <span>Selecione um período</span>
             )}
-          </Button>
-        </PopoverTrigger>
+          </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             initialFocus

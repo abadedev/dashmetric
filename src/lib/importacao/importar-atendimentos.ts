@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { atendimentos, lotesImportacao, importacoesBrutas, technicians } from '@/lib/db/schema';
+import { atendimentos, lotesImportacao, importacoesBrutas, technicians, holidays } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 import { detectFileType } from './detect-file-type';
@@ -7,10 +7,14 @@ import { parseCsv } from './parse-csv';
 import { parseXlsx } from './parse-xlsx';
 import { normalizarLinha } from './normalizar-linha';
 import { mapearAtendimento } from './mapear-atendimento';
-import { buscarHashesExistentes } from './deduplicar-importacao';
 import { normalizeTechName } from './helpers';
 import { linhaNormalizadaSchema } from '../validators/import-atendimento.schema';
 import type { ResumoImportacao } from '../validators/import-atendimento.schema';
+import { normalizeHolidayKeys } from '@/lib/sla/calculate-sla';
+
+const SHOULD_STORE_RAW_IMPORT_ROWS =
+  process.env.STORE_RAW_IMPORT_ROWS === 'true' ||
+  process.env.STORE_RAW_IMPORT_ROWS === '1';
 
 // ── Resolução de técnicos ─────────────────────────────────────────────────────
 
@@ -49,6 +53,11 @@ async function resolverTecnicos(
   return cache;
 }
 
+async function carregarFeriados(): Promise<Set<string>> {
+  const rows = await db.select({ date: holidays.date }).from(holidays);
+  return normalizeHolidayKeys(rows.map((row) => row.date as Date | string));
+}
+
 // ── Serviço principal ─────────────────────────────────────────────────────────
 
 export async function importarAtendimentos(
@@ -81,8 +90,8 @@ export async function importarAtendimentos(
   };
 
   try {
-    // 3. Salva linhas brutas para auditoria (em lote)
-    if (linhasBrutas.length) {
+    // 3. Salva linhas brutas para auditoria apenas quando explicitamente habilitado.
+    if (SHOULD_STORE_RAW_IMPORT_ROWS && linhasBrutas.length) {
       const CHUNK_BRUTO = 200;
       for (let i = 0; i < linhasBrutas.length; i += CHUNK_BRUTO) {
         await db.insert(importacoesBrutas).values(
@@ -135,10 +144,11 @@ export async function importarAtendimentos(
 
     const tecnicoCache = await resolverTecnicos(nomesTecnicos, loginMap);
 
+    const feriados = await carregarFeriados();
+
     // 6. Mapeia para entidade final
     const registrosMapeados: Array<{
       idx: number;
-      hash: string;
       dados: Record<string, unknown>;
     }> = [];
 
@@ -150,12 +160,13 @@ export async function importarAtendimentos(
         const { dados, warning } = mapearAtendimento(
           normalizada as any,
           lote.id,
-          tecnicoId
+          tecnicoId,
+          feriados
         );
 
         if (warning) resumo.warnings.push({ linha: idx, aviso: warning });
 
-        registrosMapeados.push({ idx, hash: dados.hashImportacao as string, dados });
+        registrosMapeados.push({ idx, dados });
       } catch (err: unknown) {
         resumo.erros.push({ linha: idx, erro: String(err) });
         resumo.totalInvalidas++;
@@ -163,17 +174,8 @@ export async function importarAtendimentos(
       }
     }
 
-    // 7. Deduplicação
-    const hashes = registrosMapeados.map((r) => r.hash);
-    const hashesExistentes = await buscarHashesExistentes(hashes);
-
-    const paraInserir = registrosMapeados.filter(({ hash }) => {
-      if (hashesExistentes.has(hash)) {
-        resumo.totalDuplicadas++;
-        return false;
-      }
-      return true;
-    });
+    // 7. Sem deduplicação: toda linha válida do arquivo deve ser inserida.
+    const paraInserir = registrosMapeados;
 
     // 8. Insere de forma unitária (mais lento, mas seguro para isolar falhas)
     for (const item of paraInserir) {

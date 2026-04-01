@@ -10,13 +10,12 @@ import {
   holidays,
 } from '@/lib/db/schema';
 import {
-  calculateSLACorrido,
-  calculateSLAUtil,
   isWithinSLA,
   SLA_TARGETS,
   ACTIVITY_TYPE_MAP,
 } from './sla-engine';
 import { eq } from 'drizzle-orm';
+import { calculateSLA, normalizeHolidayKeys } from '@/lib/sla/calculate-sla';
 
 // ========== SCHEMAS DE VALIDAÇÃO ==========
 
@@ -253,6 +252,7 @@ async function processServiceOrders(
 
   const techCache = await resolveTechnicians(normalizedRows, nameToLogin);
   const holidayDates = await getHolidayDates();
+  const holidayKeys = normalizeHolidayKeys(holidayDates);
   const validRecords = [];
 
   for (let i = 0; i < normalizedRows.length; i++) {
@@ -279,8 +279,9 @@ async function processServiceOrders(
       let withinSlaUtil: boolean | null = null;
 
       if (closedAt) {
-        slaCorridoSeconds = calculateSLACorrido(openedAt, closedAt);
-        slaUtilSeconds = calculateSLAUtil(openedAt, closedAt, holidayDates);
+        const calculado = calculateSLA(openedAt, closedAt, { holidayKeys });
+        slaCorridoSeconds = calculado.slaCorridoSegundos;
+        slaUtilSeconds = calculado.slaUtilSegundos;
         withinSlaCorrido = isWithinSLA(slaCorridoSeconds, slaTargetHours);
         withinSlaUtil = isWithinSLA(slaUtilSeconds, slaTargetHours);
       }

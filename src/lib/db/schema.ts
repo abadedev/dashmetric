@@ -16,6 +16,64 @@ import {
 
 // ========== ENUMS ==========
 
+export const roleEnum = pgEnum('role', ['user', 'editor', 'admin']);
+
+// ========== BETTER AUTH TABLES ==========
+
+export const user = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull(),
+  image: text('image'),
+  role: roleEnum('role').default('user').notNull(),
+  createdAt: timestamp('created_at').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
+});
+
+export const session = pgTable('session', {
+  id: text('id').primaryKey(),
+  expiresAt: timestamp('expires_at').notNull(),
+  token: text('token').notNull().unique(),
+  createdAt: timestamp('created_at').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+});
+
+export const account = pgTable('account', {
+  id: text('id').primaryKey(),
+  accountId: text('account_id').notNull(),
+  providerId: text('provider_id').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at'),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+  scope: text('scope'),
+  password: text('password'),
+  createdAt: timestamp('created_at').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
+});
+
+export const verification = pgTable('verification', {
+  id: text('id').primaryKey(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at'),
+  updatedAt: timestamp('updated_at'),
+});
+
+export type User = typeof user.$inferSelect;
+export type Session = typeof session.$inferSelect;
+
 export const activityTypeEnum = pgEnum('activity_type', [
   'instalacao_nova',
   'instalacao_reativacao',
@@ -29,6 +87,7 @@ export const activityTypeEnum = pgEnum('activity_type', [
   'cancelado_mudanca_endereco',
   'cancelado_retorno',
   'cancelado_reativacao_login',
+  'reparo_corporativo',
 ]);
 
 export const qualityIndicatorEnum = pgEnum('quality_indicator', [
@@ -152,6 +211,142 @@ export const supportRecords = pgTable(
   (table) => [index('sr_period_idx').on(table.periodYear, table.periodMonth)]
 );
 
+/**
+ * Resumo de classificação automática dos atendimentos de suporte por telefone.
+ * Gerado automaticamente durante a importação do CSV de suporte.
+ */
+export const supportCallCategories = pgTable(
+  'support_call_categories',
+  {
+    id: serial('id').primaryKey(),
+    categoria: varchar('categoria', { length: 200 }).notNull(),
+    quantidade: integer('quantidade').notNull(),
+    percentual: numeric('percentual', { precision: 6, scale: 2 }).notNull(),
+    periodMonth: integer('period_month').notNull(),
+    periodYear: integer('period_year').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [index('scc_period_idx').on(table.periodYear, table.periodMonth)]
+);
+
+export const systemModules = pgTable(
+  'system_modules',
+  {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 120 }).notNull(),
+    slug: varchar('slug', { length: 120 }).notNull(),
+    description: text('description'),
+    icon: varchar('icon', { length: 50 }).notNull(),
+    href: varchar('href', { length: 255 }).notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    showInSidebar: boolean('show_in_sidebar').default(true).notNull(),
+    allowImport: boolean('allow_import').default(false).notNull(),
+    requiredRole: roleEnum('required_role').default('user').notNull(),
+    templateSource: varchar('template_source', { length: 120 }),
+    isEditable: boolean('is_editable').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('system_module_slug_idx').on(table.slug),
+    uniqueIndex('system_module_href_idx').on(table.href),
+    index('system_module_sort_idx').on(table.sortOrder),
+  ]
+);
+
+export const moduleImportProfiles = pgTable(
+  'module_import_profiles',
+  {
+    id: serial('id').primaryKey(),
+    moduleId: integer('module_id')
+      .notNull()
+      .references(() => systemModules.id, { onDelete: 'cascade' }),
+    profileKey: varchar('profile_key', { length: 120 }).notNull(),
+    label: varchar('label', { length: 255 }).notNull(),
+    detectorType: varchar('detector_type', { length: 120 }).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('module_import_profile_key_idx').on(table.moduleId, table.profileKey),
+    index('module_import_profile_module_idx').on(table.moduleId),
+  ]
+);
+
+export const salesRecordTypeEnum = pgEnum('sales_record_type', [
+  'negociado',
+  'fechado',
+  'lead_marketing',
+  'pedido_instalado',
+  'pedido_cancelado',
+]);
+
+export const salesRecords = pgTable(
+  'sales_records',
+  {
+    id: serial('id').primaryKey(),
+    recordType: salesRecordTypeEnum('record_type').notNull(),
+    clientName: varchar('client_name', { length: 255 }),
+    city: varchar('city', { length: 120 }),
+    source: varchar('source', { length: 120 }),
+    indication: varchar('indication', { length: 255 }),
+    plan: varchar('plan', { length: 255 }),
+    observation: text('observation'),
+    requestedAt: timestamp('requested_at'),
+    installedAt: timestamp('installed_at'),
+    periodMonth: integer('period_month').notNull(),
+    periodYear: integer('period_year').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('sales_record_period_idx').on(table.periodYear, table.periodMonth),
+    index('sales_record_type_idx').on(table.recordType),
+    index('sales_record_city_idx').on(table.city),
+  ]
+);
+
+export const cancellationRecords = pgTable(
+  'cancellation_records',
+  {
+    id: serial('id').primaryKey(),
+    clientName: varchar('client_name', { length: 255 }),
+    city: varchar('city', { length: 120 }),
+    reason: text('reason'),
+    source: varchar('source', { length: 120 }),
+    plan: varchar('plan', { length: 255 }),
+    observation: text('observation'),
+    cancelledAt: timestamp('cancelled_at'),
+    periodMonth: integer('period_month').notNull(),
+    periodYear: integer('period_year').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('cancellation_record_period_idx').on(table.periodYear, table.periodMonth),
+    index('cancellation_record_city_idx').on(table.city),
+  ]
+);
+
+export const infrastructureRecords = pgTable(
+  'infrastructure_records',
+  {
+    id: serial('id').primaryKey(),
+    title: varchar('title', { length: 255 }),
+    category: varchar('category', { length: 120 }),
+    city: varchar('city', { length: 120 }),
+    referenceDate: timestamp('reference_date'),
+    payload: jsonb('payload'),
+    periodMonth: integer('period_month'),
+    periodYear: integer('period_year'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('infrastructure_record_period_idx').on(table.periodYear, table.periodMonth),
+    index('infrastructure_record_city_idx').on(table.city),
+  ]
+);
+
 export const holidays = pgTable(
   'holidays',
   {
@@ -252,7 +447,7 @@ export const atendimentos = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex('atend_hash_idx').on(t.hashImportacao),
+    index('atend_hash_idx').on(t.hashImportacao),
     index('atend_tecnico_id_idx').on(t.tecnicoId),
     index('atend_tipo_idx').on(t.tipo),
     index('atend_period_idx').on(t.periodYear, t.periodMonth),
@@ -271,10 +466,23 @@ export type QualityRecord = typeof qualityRecords.$inferSelect;
 export type NewQualityRecord = typeof qualityRecords.$inferInsert;
 export type SupportRecord = typeof supportRecords.$inferSelect;
 export type NewSupportRecord = typeof supportRecords.$inferInsert;
+export type SupportCallCategory = typeof supportCallCategories.$inferSelect;
+export type NewSupportCallCategory = typeof supportCallCategories.$inferInsert;
+export type SystemModule = typeof systemModules.$inferSelect;
+export type NewSystemModule = typeof systemModules.$inferInsert;
+export type ModuleImportProfile = typeof moduleImportProfiles.$inferSelect;
+export type NewModuleImportProfile = typeof moduleImportProfiles.$inferInsert;
+export type SalesRecord = typeof salesRecords.$inferSelect;
+export type NewSalesRecord = typeof salesRecords.$inferInsert;
+export type CancellationRecord = typeof cancellationRecords.$inferSelect;
+export type NewCancellationRecord = typeof cancellationRecords.$inferInsert;
+export type InfrastructureRecord = typeof infrastructureRecords.$inferSelect;
+export type NewInfrastructureRecord = typeof infrastructureRecords.$inferInsert;
 export type Holiday = typeof holidays.$inferSelect;
 export type ImportBatch = typeof importBatches.$inferSelect;
 export type ActivityType = typeof activityTypeEnum.enumValues[number];
 export type QualityIndicator = typeof qualityIndicatorEnum.enumValues[number];
+export type SalesRecordType = typeof salesRecordTypeEnum.enumValues[number];
 export type LoteImportacao = typeof lotesImportacao.$inferSelect;
 export type Atendimento = typeof atendimentos.$inferSelect;
 export type NewAtendimento = typeof atendimentos.$inferInsert;

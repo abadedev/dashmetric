@@ -5,7 +5,8 @@
  * SLA Corrido: tempo total da abertura ao fechamento (segundos)
  */
 export function calculateSLACorrido(openedAt: Date, closedAt: Date): number {
-  return Math.floor((closedAt.getTime() - openedAt.getTime()) / 1000);
+  const diff = closedAt.getTime() - openedAt.getTime();
+  return diff > 0 ? Math.floor(diff / 1000) : 0;
 }
 
 /**

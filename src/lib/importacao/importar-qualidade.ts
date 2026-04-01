@@ -1,15 +1,21 @@
 import { db } from '@/lib/db';
 import { qualityRecords, technicians } from '@/lib/db/schema';
+import { and, eq } from 'drizzle-orm';
 import { normalizeHeader, trimOrNull, parseBRDateWithTime, normalizeTechName } from './helpers';
 
 // ── Mapa de indicadores ───────────────────────────────────────────────────────
 
 const INDICADOR_MAP: Record<string, string> = {
   'iqiv':                              'IQIv',
+  'instal._recente_(iqiv)':            'IQIv',
+  'instal_recente_iqiv':               'IQIv',
+  'instal_recente_(iqiv)':             'IQIv',
+  'instalacao_recente_(iqiv)':         'IQIv',
   'iqiv (rep. apos inst)':             'IQIv',
   'iqiv (reparo apos instalacao)':     'IQIv',
   'reparo apos instalacao':            'IQIv',
   'iqrv':                              'IQRv',
+  'reparo_reincidente_(iqrv)':         'IQRv',
   'iqrv (rep. reincidente)':           'IQRv',
   'reparo reincidente':                'IQRv',
   'reincidente':                       'IQRv',
@@ -21,6 +27,8 @@ const INDICADOR_MAP: Record<string, string> = {
   'rst (servico tecnico)':             'RST',
   'servico tecnico':                   'RST',
   'ict':                               'ICT',
+  'cancelamento_tecnico_(ict)':        'ICT',
+  'cancelamento tecnico (ict)':        'ICT',
   'ict (inviabilidade)':               'ICT',
   'inviabilidade':                     'ICT',
   'retorno':                           'Retorno',
@@ -58,7 +66,7 @@ function normalizarIndicador(raw: string): QualityIndicator | null {
 
 const ALIASES: Record<string, string[]> = {
   numeroOs:       ['#', 'n_os', 'numero_os', 'numeroos', 'os', 'numero'],
-  indicador:      ['indicador', 'indicator', 'tipo_indicador', 'ind', 'indicador_qualidade', 'tipo', 'indicadores'],
+  indicador:      ['indicador', 'indicator', 'tipo_indicador', 'ind', 'indicador_qualidade', 'indicadores'],
   motivo:         ['motivo', 'razao', 'motivo_reclamacao', 'descricao', 'reason'],
   solucao:        ['solucao', 'solucao_dada', 'resolucao'],
   tecnico:        ['tecnico', 'instalador', 'responsavel', 'tecnico_nome'],
@@ -88,6 +96,28 @@ function get(row: Record<string, string>, key: string): string {
     if (exact && row[exact]?.trim()) return row[exact].trim();
 
     // 2. Substring: header do arquivo contém o alias ou vice-versa
+    const partial = rowKeys.find((k) => {
+      const normK = normalizeHeader(k);
+      return normK.includes(normAlias) || normAlias.includes(normK);
+    });
+    if (partial && row[partial]?.trim()) return row[partial].trim();
+  }
+
+  return '';
+}
+
+function getIndicador(row: Record<string, string>): string {
+  const rowKeys = Object.keys(row);
+  const aliases = ALIASES.indicador ?? ['indicador'];
+
+  for (const alias of aliases) {
+    const normAlias = normalizeHeader(alias);
+    const exact = rowKeys.find((k) => normalizeHeader(k) === normAlias);
+    if (exact && row[exact]?.trim()) return row[exact].trim();
+  }
+
+  for (const alias of aliases) {
+    const normAlias = normalizeHeader(alias);
     const partial = rowKeys.find((k) => {
       const normK = normalizeHeader(k);
       return normK.includes(normAlias) || normAlias.includes(normK);
@@ -131,6 +161,52 @@ export interface ResumoQualidade {
   debug?: { indicadorColuna: string; sampleIndicadores: string[] };
 }
 
+export interface PeriodoQualidade {
+  periodMonth: number;
+  periodYear: number;
+}
+
+export function inferirPeriodosQualidade(linhas: Record<string, string>[]): PeriodoQualidade[] {
+  const periodos = new Map<string, PeriodoQualidade>();
+
+  for (const row of linhas) {
+    const rawData = get(row, 'dataAbertura');
+    const rawHora = get(row, 'horaAbertura');
+    const openedAt = rawData ? parseBRDateWithTime(rawData, rawHora) : null;
+
+    if (!openedAt) continue;
+
+    const periodo = {
+      periodMonth: openedAt.getMonth() + 1,
+      periodYear: openedAt.getFullYear(),
+    };
+
+    periodos.set(`${periodo.periodYear}-${periodo.periodMonth}`, periodo);
+  }
+
+  return Array.from(periodos.values());
+}
+
+export async function limparQualidadePorPeriodos(periodos: PeriodoQualidade[]): Promise<number> {
+  let totalRemovido = 0;
+
+  for (const periodo of periodos) {
+    const removidos = await db
+      .delete(qualityRecords)
+      .where(
+        and(
+          eq(qualityRecords.periodMonth, periodo.periodMonth),
+          eq(qualityRecords.periodYear, periodo.periodYear)
+        )
+      )
+      .returning({ id: qualityRecords.id });
+
+    totalRemovido += removidos.length;
+  }
+
+  return totalRemovido;
+}
+
 export async function importarQualidade(
   linhas: Record<string, string>[]
 ): Promise<ResumoQualidade> {
@@ -155,7 +231,7 @@ export async function importarQualidade(
       (a) => norm === a || norm.includes(a) || a.includes(norm)
     );
   });
-  const sampleIndicadores = linhas.slice(0, 5).map((r) => get(r, 'indicador'));
+  const sampleIndicadores = linhas.slice(0, 5).map((r) => getIndicador(r));
 
   resumo.debug = {
     indicadorColuna: indicadorKey ?? '(não encontrado)',
@@ -167,7 +243,7 @@ export async function importarQualidade(
     const numLinha = i + 2;
 
     try {
-      const rawIndicador = get(row, 'indicador');
+      const rawIndicador = getIndicador(row);
       const indicador = normalizarIndicador(rawIndicador);
 
       if (!indicador) {

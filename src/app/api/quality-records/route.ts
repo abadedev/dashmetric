@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { qualityRecords, technicians } from '@/lib/db/schema';
 import { desc, eq, and, count, gte, lte } from 'drizzle-orm';
+import { requireAuth } from '@/lib/require-auth';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
+  const { response } = await requireAuth(req);
+  if (response) return response;
   try {
     const { searchParams } = new URL(req.url);
     const fromStr = searchParams.get('from');
@@ -40,6 +43,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data: rows });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error('[quality-records]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

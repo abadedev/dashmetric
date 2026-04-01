@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 // ── Normalização de headers ───────────────────────────────────────────────────
 
@@ -62,7 +62,17 @@ export function parseBRDate(dateStr: string): Date | null {
 
   // Formato DD/MM/YY ou DD/MM/YYYY
   const parts = v.split('/');
-  if (parts.length < 3) return null;
+  if (parts.length < 3) {
+    // Tenta detectar se é um número serial do Excel (ex: "46063")
+    const serial = Number(v);
+    if (!isNaN(serial) && serial > 30000 && serial < 60000) {
+      // Excel base date is 1899-12-30. 
+      // Usamos 25569 como offset para Unix Epoch (1970)
+      const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
+      if (!isNaN(d.getTime())) return d;
+    }
+    return null;
+  }
   const day = Number(parts[0]);
   const month = Number(parts[1]);
   const rawYear = Number(parts[2]);
@@ -80,10 +90,33 @@ export function parseBRDateWithTime(dateStr: string, timeStr: string): Date | nu
   const base = parseBRDate(dateStr);
   if (!base) return null;
   if (timeStr) {
-    const parts = timeStr.trim().split(':').map(Number);
+    const normalizedTime = normalizeExcelTime(timeStr);
+    const parts = normalizedTime.split(':').map(Number);
     base.setHours(parts[0] || 0, parts[1] || 0, parts[2] || 0, 0);
   }
   return base;
+}
+
+function normalizeExcelTime(timeStr: string): string {
+  const raw = (timeStr ?? '').trim();
+  if (!raw) return '';
+
+  if (raw.includes(':')) return raw;
+
+  const numeric = Number(raw.replace(',', '.'));
+  if (!isNaN(numeric) && numeric >= 0 && numeric < 1) {
+    const totalSeconds = Math.round(numeric * 86400);
+    const hours = Math.floor(totalSeconds / 3600) % 24;
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return [
+      String(hours).padStart(2, '0'),
+      String(minutes).padStart(2, '0'),
+      String(seconds).padStart(2, '0'),
+    ].join(':');
+  }
+
+  return raw;
 }
 
 // ── Parsing do campo Intervalo ────────────────────────────────────────────────

@@ -1,21 +1,15 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SupportTable } from '@/components/suporte/support-table';
-import { SupportChart } from '@/components/suporte/support-chart';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { useQueryState } from 'nuqs';
 import { startOfMonth, endOfMonth } from 'date-fns';
+import { PageLayout } from '@/components/layout/page-layout';
 
-export default function SuportePage() {
+function SuportePageContent() {
   const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
   const [to] = useQueryState("to", parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
 
@@ -33,29 +27,31 @@ export default function SuportePage() {
   });
 
   return (
-    <div className="flex flex-col gap-6 h-full">
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-background p-4 rounded-lg border">
-        <div>
-          <h2 className="text-xl font-bold">Suporte Técnico</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Eficiência de triagem e envio de OSs de manutenção.
-          </p>
-        </div>
-        <div className="flex gap-4">
-          <GlobalDateFilter />
-        </div>
-      </div>
-
+    <PageLayout
+      title="Suporte Técnico"
+      description="Resumo consolidado dos atendimentos de suporte por telefone classificados por tipo."
+      actions={<GlobalDateFilter />}
+    >
       {isLoading ? (
-        <div className="space-y-6">
-          <Skeleton className="h-[400px] w-full" />
-        </div>
+        <Skeleton className="h-[400px] w-full" />
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-          <SupportTable records={data?.data || []} />
-          <SupportChart records={data?.data || []} />
+        <div className="max-w-4xl">
+          <SupportTable
+            summary={data?.data || []}
+            total={data?.total || 0}
+            from={from}
+            to={to}
+          />
         </div>
       )}
-    </div>
+    </PageLayout>
+  );
+}
+
+export default function SuportePage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+      <SuportePageContent />
+    </Suspense>
   );
 }

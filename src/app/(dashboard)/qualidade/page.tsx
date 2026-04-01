@@ -1,22 +1,17 @@
 'use client';
 
+import { Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { IndicatorCards } from '@/components/qualidade/indicator-cards';
 import { QualityTable } from '@/components/qualidade/quality-table';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { useQueryState } from 'nuqs';
 import { startOfMonth, endOfMonth } from 'date-fns';
-import { useState } from 'react';
+import { PageLayout } from '@/components/layout/page-layout';
 
-export default function QualidadePage() {
+function QualidadePageContent() {
   const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
   const [to] = useQueryState("to", parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
   const [indicator, setIndicator] = useState<string>('all');
@@ -36,15 +31,11 @@ export default function QualidadePage() {
   });
 
   return (
-    <div className="flex flex-col gap-6 h-full">
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-background p-4 rounded-lg border">
-        <div>
-          <h2 className="text-xl font-bold">Qualidade & Reclamações</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Métricas de retrabalho, inviabilidades e retornos técnicos.
-          </p>
-        </div>
-        <div className="flex gap-4 flex-wrap">
+    <PageLayout
+      title="Qualidade & Reclamações"
+      description="Métricas de retrabalho, inviabilidades e retornos técnicos."
+      actions={
+        <div className="flex gap-3 flex-wrap">
           <GlobalDateFilter />
           <Select value={indicator} onValueChange={(val) => setIndicator(val || 'all')}>
             <SelectTrigger className="w-[180px]">
@@ -61,15 +52,22 @@ export default function QualidadePage() {
             </SelectContent>
           </Select>
         </div>
-      </div>
-
+      }
+    >
       <IndicatorCards data={data?.data || []} />
-      
       {isLoading ? (
         <Skeleton className="h-96 w-full" />
       ) : (
         <QualityTable records={data?.data || []} />
       )}
-    </div>
+    </PageLayout>
+  );
+}
+
+export default function QualidadePage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+      <QualidadePageContent />
+    </Suspense>
   );
 }
