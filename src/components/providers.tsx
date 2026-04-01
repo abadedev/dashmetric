@@ -9,6 +9,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     defaultOptions: {
       queries: {
         staleTime: 60 * 1000,
+        gcTime: 2 * 60 * 1000, // libera cache da memória após 2 min sem uso
       },
     },
   }));
