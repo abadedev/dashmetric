@@ -37,9 +37,11 @@ const db = drizzle(pool, { schema });
 // ── Utilitários ──────────────────────────────────────────────────────────────
 
 function normalizeName(name: string): string {
-  return name
+  return (name ?? '')
     .trim()
-    .split(' ')
+    .replace(/\./g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
 }

@@ -11,6 +11,16 @@ test('detectSalesFileProfile detecta contratacoes', () => {
   );
 });
 
+test('detectSalesFileProfile detecta contratacoes fora do horario pelo nome do arquivo', () => {
+  assert.equal(
+    detectSalesFileProfile(
+      ['Cliente', 'Cidade', 'Indicacao', 'Unnamed: 3'],
+      'Contratações presencial ou fora de horário comercial Fevereiro 2026.csv'
+    ),
+    'contratacoes_fora_horario'
+  );
+});
+
 test('detectSalesFileProfile detecta cancelamentos antes da instalacao', () => {
   assert.equal(
     detectSalesFileProfile(['dataPedido', 'Cidade', 'Indicacao', 'Observacao', 'Plano']),

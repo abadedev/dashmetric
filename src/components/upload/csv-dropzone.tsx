@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
@@ -10,6 +10,10 @@ import {
   FileWarning,
   UploadCloud,
   X,
+  Download,
+  Loader2,
+  Check,
+  ServerCog,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -32,27 +36,17 @@ interface WarningLinha {
   aviso: string;
 }
 
-type TipoPlanilha = 'atendimentos' | 'qualidade' | 'suporte' | 'vendas' | 'cancelamentos' | 'infraestrutura';
-type TipoImportacao = TipoPlanilha | 'auto';
+export interface ImportProfile {
+  id: number;
+  profileKey: string;
+  label: string;
+  detectorType: string;
+  parameters: unknown;
+}
 
-const TIPO_IMPORTACAO_LABEL: Record<TipoImportacao, string> = {
-  auto: 'Detectar automaticamente',
-  atendimentos: 'Atendimento / Instalacao',
-  qualidade: 'Qualidade / Reclamacoes',
-  suporte: 'Suporte Tecnico',
-  vendas: 'Vendas',
-  cancelamentos: 'Cancelamentos',
-  infraestrutura: 'Infraestrutura',
-};
-
-const TIPO_LABEL: Record<TipoPlanilha, string> = {
-  atendimentos: 'Atendimentos / Instalacoes',
-  qualidade: 'Qualidade / Reclamacoes',
-  suporte: 'Suporte Tecnico',
-  vendas: 'Vendas',
-  cancelamentos: 'Cancelamentos',
-  infraestrutura: 'Infraestrutura',
-};
+interface CsvDropzoneProps {
+  profiles: ImportProfile[];
+}
 
 interface ResumoGenerico {
   totalLidas: number;
@@ -65,7 +59,7 @@ interface ResumoGenerico {
 }
 
 interface ImportResult {
-  tipoPlanilha: TipoPlanilha;
+  tipoPlanilha: string;
   message: string;
   loteId?: number;
   resumo: ResumoGenerico;
@@ -81,20 +75,24 @@ const ACCEPT = {
   'application/vnd.ms-excel': ['.xls'],
 };
 
-export function CsvDropzone() {
+export function CsvDropzone({ profiles }: CsvDropzoneProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'validating' | 'processing' | 'finished'>('idle');
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [tipoPlanilha, setTipoPlanilha] = useState<TipoImportacao>('auto');
+  const [selectedDetectorType, setSelectedDetectorType] = useState<string>('auto');
   const [reimportarQualidade, setReimportarQualidade] = useState(false);
+
+  const selectedProfile = profiles.find((p) => p.detectorType === selectedDetectorType);
+  const mostrarReimportacao = selectedDetectorType === 'qualidade';
 
   const onDrop = useCallback((accepted: File[]) => {
     if (accepted[0]) {
       setFile(accepted[0]);
       setResult(null);
       setErrorMsg(null);
+      setUploadStatus('idle');
     }
   }, []);
 
@@ -104,20 +102,53 @@ export function CsvDropzone() {
     maxFiles: 1,
   });
 
-  const mostrarReimportacao = tipoPlanilha === 'qualidade';
+  const downloadTemplate = () => {
+    if (!selectedProfile) return;
+    
+    let headers = '';
+    const params = selectedProfile.parameters as Array<{ excelColumn: string; systemField: string }>;
+    
+    if (Array.isArray(params) && params.length > 0) {
+      headers = params.map((p) => p.excelColumn).join(';');
+    } else {
+      const COLUNAS_PADRAO = [
+        '#', 'dataPedido', 'Agendamento', 'Tipo', 'Intervalo',
+        'dataInstalacao', 'horaInicio', 'horaSaida', 'dataFinalizacao',
+        'Instalador', 'Login', 'Cliente', 'Endereco', 'Bairro', 'Cidade',
+        'Referencia', 'Atendente', 'Indicacao', 'MAC', 'Ativo',
+        'Empresa', 'dataLiberada', 'Observacao', 'Coordenadas', 'Plano', 'Telefones',
+      ];
+      headers = COLUNAS_PADRAO.join(';');
+    }
+    
+    const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `template_${selectedProfile.profileKey || 'import'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleUpload = async () => {
     if (!file) return;
 
-    setIsUploading(true);
-    setProgress(20);
+    setUploadStatus('validating');
+    setProgress(15);
     setErrorMsg(null);
+
+    // Simulate validation phase UX
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    setUploadStatus('processing');
+    setProgress(35);
 
     const formData = new FormData();
     formData.append('file', file);
 
-    if (tipoPlanilha !== 'auto') {
-      formData.append('tipoPlanilha', tipoPlanilha);
+    if (selectedDetectorType !== 'auto') {
+      formData.append('tipoPlanilha', selectedDetectorType);
     }
 
     if (mostrarReimportacao && reimportarQualidade) {
@@ -126,10 +157,10 @@ export function CsvDropzone() {
 
     try {
       const interval = setInterval(() => {
-        setProgress((value) => Math.min(value + 8, 85));
-      }, 600);
+        setProgress((value) => Math.min(value + 4, 90));
+      }, 500);
 
-      const res = await fetch('/api/importar/atendimentos', {
+      const res = await fetch('/api/importar', {
         method: 'POST',
         body: formData,
       });
@@ -149,6 +180,7 @@ export function CsvDropzone() {
       }
 
       setResult(data as unknown as ImportResult);
+      setUploadStatus('finished');
       toast.success(
         `${(data.resumo as ImportResult['resumo'])?.totalInseridas ?? 0} registros inseridos com sucesso!`
       );
@@ -157,8 +189,7 @@ export function CsvDropzone() {
       setErrorMsg(msg);
       toast.error(msg);
       setProgress(0);
-    } finally {
-      setIsUploading(false);
+      setUploadStatus('idle');
     }
   };
 
@@ -166,28 +197,40 @@ export function CsvDropzone() {
     setFile(null);
     setResult(null);
     setProgress(0);
+    setUploadStatus('idle');
+    setErrorMsg(null);
   };
 
   const TipoSelect = ({ disabled = false }: { disabled?: boolean }) => (
     <div className="space-y-2">
-      <p className="text-sm font-medium">Tipo do arquivo</p>
-      <Select value={tipoPlanilha} onValueChange={(value) => setTipoPlanilha(value as TipoImportacao)}>
+      <p className="text-sm font-medium text-foreground">Tipo do arquivo</p>
+      <Select value={selectedDetectorType} onValueChange={(val) => val && setSelectedDetectorType(val)}>
         <SelectTrigger className="w-full" disabled={disabled}>
-          <SelectValue />
+          <SelectValue placeholder="Detectar automaticamente" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="auto">{TIPO_IMPORTACAO_LABEL.auto}</SelectItem>
-          <SelectItem value="atendimentos">{TIPO_IMPORTACAO_LABEL.atendimentos}</SelectItem>
-          <SelectItem value="qualidade">{TIPO_IMPORTACAO_LABEL.qualidade}</SelectItem>
-          <SelectItem value="suporte">{TIPO_IMPORTACAO_LABEL.suporte}</SelectItem>
-          <SelectItem value="vendas">{TIPO_IMPORTACAO_LABEL.vendas}</SelectItem>
-          <SelectItem value="cancelamentos">{TIPO_IMPORTACAO_LABEL.cancelamentos}</SelectItem>
-          <SelectItem value="infraestrutura">{TIPO_IMPORTACAO_LABEL.infraestrutura}</SelectItem>
+          <SelectItem value="auto">Detectar automaticamente</SelectItem>
+          {profiles.map((p) => (
+            <SelectItem key={p.id} value={p.detectorType}>
+              {p.label}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
-      <p className="text-xs text-muted-foreground">
-        Se preferir, marque manualmente o tipo antes do upload.
-      </p>
+      <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+        <p>Se preferir, marque manualmente o tipo antes do upload.</p>
+        
+        {selectedDetectorType !== 'auto' && (
+          <Button variant="outline" size="sm" onClick={downloadTemplate} className="h-7 px-3 flex items-center gap-1.5 transition-colors text-primary hover:text-primary">
+            <Download className="w-3.5 h-3.5" />
+            Baixar Modelo
+          </Button>
+        )}
+      </div>
+
+      {(!profiles || profiles.length === 0) && (
+        <p className="text-sm text-red-500">Nenhum perfil de importação ativo disponível no banco.</p>
+      )}
     </div>
   );
 
@@ -195,19 +238,18 @@ export function CsvDropzone() {
     if (!mostrarReimportacao) return null;
 
     return (
-      <label className="flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-left">
+      <label className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-left cursor-pointer transition-colors hover:bg-amber-500/10">
         <input
           type="checkbox"
           checked={reimportarQualidade}
           disabled={disabled}
           onChange={(e) => setReimportarQualidade(e.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-border"
+          className="mt-0.5 h-4 w-4 rounded text-amber-500 focus:ring-amber-500"
         />
         <div>
-          <p className="text-sm font-medium text-foreground">Reimportacao segura de qualidade</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Antes de importar, remove apenas os registros de qualidade dos mesmos periodos
-            encontrados na planilha.
+          <p className="text-sm font-medium text-amber-700">Reimportação de Qualidade</p>
+          <p className="mt-1 text-xs text-amber-700/80">
+            Atenção: Ativar esta opção removerá os registros dos períodos detectados antes da nova inserção.
           </p>
         </div>
       </label>
@@ -216,96 +258,92 @@ export function CsvDropzone() {
 
   if (result) {
     const { resumo, tipoPlanilha: tipoDetectado } = result;
-    const tipoLabel = TIPO_LABEL[tipoDetectado] ?? 'Arquivo';
+    const prof = profiles.find(p => p.detectorType === tipoDetectado);
+    const tipoLabel = prof ? prof.label : tipoDetectado;
 
     const stats: { label: string; val: number; color: string }[] = [
-      { label: 'Lidas', val: resumo.totalLidas, color: '' },
+      { label: 'Lidas', val: resumo.totalLidas, color: 'text-foreground' },
       { label: 'Inseridas', val: resumo.totalInseridas, color: 'text-green-500' },
       {
-        label: 'Invalidas',
+        label: 'Inválidas',
         val: resumo.totalInvalidas,
-        color: resumo.totalInvalidas > 0 ? 'text-red-500' : '',
+        color: resumo.totalInvalidas > 0 ? 'text-red-500' : 'text-foreground',
       },
       ...(tipoDetectado === 'atendimentos'
         ? [
-            { label: 'Validas', val: resumo.totalValidas ?? 0, color: 'text-blue-500' },
+            { label: 'Válidas', val: resumo.totalValidas ?? 0, color: 'text-blue-500' },
             { label: 'Duplicadas', val: resumo.totalDuplicadas ?? 0, color: 'text-yellow-500' },
           ]
         : []),
     ];
 
     return (
-      <div className="flex flex-col items-center gap-5 rounded-xl border bg-card p-8 text-center">
-        <CheckCircle2 className="h-12 w-12 text-green-500" />
+      <div className="flex flex-col items-center gap-5 rounded-2xl border bg-card p-8 text-center shadow-sm">
+        <CheckCircle2 className="h-14 w-14 text-green-500" />
 
         <div>
-          <h3 className="text-lg font-bold">Importacao concluida</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            <span className="font-semibold text-primary">{tipoLabel}</span>
-            {result.loteId ? ` · Lote #${result.loteId}` : ''} · {file?.name}
+          <h3 className="text-lg font-semibold">Importação concluída</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            <span className="font-medium text-primary">{tipoLabel}</span>
+            {result.loteId ? ` • Lote #${result.loteId}` : ''} • {file?.name}
           </p>
         </div>
 
         {result.reimportacao ? (
-          <div className="w-full rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-left">
-            <p className="text-sm font-semibold text-amber-700">Reimportacao segura executada</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Removidos {result.reimportacao.registrosRemovidos} registro(s) dos periodo(s):{' '}
-              {result.reimportacao.periodos.join(', ')}.
+          <div className="w-full rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-left">
+            <p className="text-sm font-medium text-amber-700">Reimportação Executada</p>
+            <p className="mt-1 text-xs text-amber-700/80">
+              Removidos {result.reimportacao.registrosRemovidos} registros dos períodos: {result.reimportacao.periodos.join(', ')}
             </p>
           </div>
         ) : null}
 
         <div
-          className="grid w-full divide-x divide-border rounded-lg border text-center"
+          className="grid w-full divide-x divide-border rounded-xl border bg-muted/10 text-center"
           style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}
         >
           {stats.map(({ label, val, color }) => (
-            <div key={label} className="space-y-1 px-1 py-4">
-              <p className={`text-2xl font-black ${color}`}>{val}</p>
-              <p className="text-xs text-muted-foreground">{label}</p>
+            <div key={label} className="space-y-1 p-4">
+              <p className={`text-2xl font-bold ${color}`}>{val}</p>
+              <p className="text-sm text-muted-foreground">{label}</p>
             </div>
           ))}
         </div>
 
         {(resumo.warnings?.length ?? 0) > 0 && (
-          <div className="w-full rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3 text-left">
-            <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-yellow-600">
-              <AlertTriangle className="h-4 w-4" /> {resumo.warnings!.length} aviso(s)
+          <div className="w-full rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-left">
+            <p className="mb-2 flex items-center gap-2 text-sm font-medium text-yellow-600">
+              <AlertTriangle className="h-4 w-4" /> {resumo.warnings!.length} avisos
             </p>
-            <ul className="list-disc space-y-0.5 pl-4 text-xs text-yellow-600">
+            <ul className="space-y-1 pl-6 text-sm text-yellow-600/90 list-disc">
               {resumo.warnings!.slice(0, 5).map((w, i) => (
-                <li key={i}>
-                  Linha {w.linha}: {w.aviso}
-                </li>
+                <li key={i}>Linha {w.linha}: {w.aviso}</li>
               ))}
               {resumo.warnings!.length > 5 && (
-                <li>...e mais {resumo.warnings!.length - 5} aviso(s)</li>
+                <li className="font-medium">... e mais {resumo.warnings!.length - 5} avisos omitidos</li>
               )}
             </ul>
           </div>
         )}
 
         {(resumo.erros?.length ?? 0) > 0 && (
-          <div className="w-full rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-left">
-            <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-red-500">
-              <FileWarning className="h-4 w-4" /> {resumo.erros!.length} erro(s)
+          <div className="w-full rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-left">
+            <p className="mb-2 flex items-center gap-2 text-sm font-medium text-red-500">
+              <FileWarning className="h-4 w-4" /> {resumo.erros!.length} erros críticos
             </p>
-            <ul className="list-disc space-y-0.5 pl-4 text-xs text-red-400">
+            <ul className="space-y-1 pl-6 text-sm text-red-500/90 list-disc">
               {resumo.erros!.slice(0, 8).map((e, i) => (
-                <li key={i}>
-                  Linha {e.linha}: {e.erro}
-                </li>
+                <li key={i}>Linha {e.linha}: {e.erro}</li>
               ))}
               {resumo.erros!.length > 8 && (
-                <li>...e mais {resumo.erros!.length - 8} erro(s)</li>
+                <li className="font-medium">... e mais {resumo.erros!.length - 8} erros omitidos</li>
               )}
             </ul>
           </div>
         )}
 
-        <Button variant="outline" size="sm" onClick={reset}>
-          Nova importacao
+        <Button className="w-full" onClick={reset} variant="outline">
+          Nova Importação
         </Button>
       </div>
     );
@@ -313,42 +351,42 @@ export function CsvDropzone() {
 
   if (!file) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <TipoSelect />
         <ReimportacaoToggle />
 
         <div
           {...getRootProps()}
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-14 text-center transition-all select-none ${
+          className={`group flex cursor-pointer flex-col items-center gap-4 rounded-2xl border-2 border-dashed p-16 text-center transition-all select-none ${
             isDragActive
               ? 'border-primary bg-primary/5'
-              : 'border-muted-foreground/20 hover:border-muted-foreground/40 hover:bg-muted/20'
+              : 'border-muted-foreground/20 hover:border-primary/50 hover:bg-muted/30'
           }`}
         >
           <input {...getInputProps()} />
-          <div className={`rounded-full p-3 ${isDragActive ? 'bg-primary/10' : 'bg-muted'}`}>
-            <UploadCloud
-              className={`h-7 w-7 ${isDragActive ? 'text-primary' : 'text-muted-foreground'}`}
-            />
+          <div className={`rounded-full p-4 transition-colors ${isDragActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground group-hover:bg-primary/5 group-hover:text-primary'}`}>
+            <UploadCloud className="h-8 w-8" />
           </div>
           <div>
-            <p className="text-sm font-medium">Arraste o arquivo aqui</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">ou clique para selecionar</p>
+            <p className="text-base font-medium text-foreground">
+              {isDragActive ? 'Solte para importar' : 'Arraste seu arquivo de dados aqui'}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">ou clique para selecionar do seu computador (CSV ou XLSX)</p>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground/60">CSV ou XLSX · Max. 50 MB</p>
+          <p className="mt-2 text-xs font-medium text-muted-foreground/60 rounded bg-muted/50 px-2 py-1">Tamanho Máx. 50MB</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 rounded-xl border bg-card p-5">
-      <TipoSelect disabled={isUploading} />
-      <ReimportacaoToggle disabled={isUploading} />
+    <div className="space-y-6 rounded-2xl border bg-card p-6 shadow-sm">
+      <TipoSelect disabled={uploadStatus !== 'idle'} />
+      <ReimportacaoToggle disabled={uploadStatus !== 'idle'} />
 
-      <div className="flex items-center gap-3">
-        <div className="shrink-0 rounded-lg bg-primary/10 p-2">
-          <FileSpreadsheet className="h-5 w-5 text-primary" />
+      <div className="flex items-center gap-4 rounded-xl border border-border bg-muted/20 p-4">
+        <div className="shrink-0 rounded-lg bg-primary/10 p-3 text-primary">
+          <FileSpreadsheet className="h-6 w-6" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{file.name}</p>
@@ -356,38 +394,64 @@ export function CsvDropzone() {
         </div>
         <button
           onClick={reset}
-          disabled={isUploading}
-          className="shrink-0 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+          disabled={uploadStatus !== 'idle'}
+          className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
           aria-label="Remover arquivo"
           type="button"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5" />
         </button>
       </div>
 
-      {errorMsg && !isUploading && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-          <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+      {errorMsg && uploadStatus === 'idle' && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+          <FileWarning className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
           <div>
-            <p className="text-sm font-semibold text-red-400">Falha na importacao</p>
-            <p className="mt-0.5 break-all text-xs text-red-400/80">{errorMsg}</p>
+            <p className="text-sm font-semibold text-red-500">Erro na Importação</p>
+            <p className="mt-1 break-all text-sm text-red-500/90">{errorMsg}</p>
           </div>
         </div>
       )}
 
-      {isUploading ? (
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs text-muted-foreground">
+      {uploadStatus !== 'idle' ? (
+        <div className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-5">
+          <div className="flex justify-between text-sm font-medium text-primary">
             <span>
-              Processando arquivo de {TIPO_IMPORTACAO_LABEL[tipoPlanilha].toLowerCase()}...
+              {uploadStatus === 'validating' ? 'Validando dados localmente...' : 'Pensando... / Processando importação...'}
             </span>
             <span>{progress}%</span>
           </div>
-          <Progress value={progress} className="h-1.5" />
+          <Progress value={progress} className="h-2 bg-primary/20" />
+          
+          <div className="grid grid-cols-3 pt-4 border-t border-primary/10 mt-2">
+            <div className="flex flex-col items-center gap-2 text-primary">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 bg-primary/20 border-primary">
+                <Check className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-medium uppercase tracking-wider">Arquivo</span>
+            </div>
+            
+            <div className={`flex flex-col items-center gap-2 ${uploadStatus === 'processing' ? 'text-primary' : uploadStatus === 'validating' ? 'text-primary' : 'text-muted-foreground/50'}`}>
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors ${uploadStatus === 'processing' ? 'bg-primary/20 border-primary' : uploadStatus === 'validating' ? 'bg-primary/20 border-primary' : 'bg-muted border-transparent'}`}>
+                {uploadStatus === 'validating' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              </div>
+              <span className="text-[10px] font-medium uppercase tracking-wider">Validando</span>
+            </div>
+            
+            <div className={`flex flex-col items-center gap-2 ${uploadStatus === 'processing' ? 'text-primary' : 'text-muted-foreground/50'}`}>
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors ${uploadStatus === 'processing' ? 'bg-primary/20 border-primary' : 'bg-muted border-transparent'}`}>
+                {uploadStatus === 'processing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ServerCog className="h-4 w-4" />}
+              </div>
+              <span className="text-[10px] font-medium uppercase tracking-wider">Servidor</span>
+            </div>
+          </div>
         </div>
       ) : (
-        <Button className="w-full" onClick={handleUpload}>
-          Importar {TIPO_IMPORTACAO_LABEL[tipoPlanilha]}
+        <Button 
+          className="w-full h-12 text-sm" 
+          onClick={handleUpload}
+        >
+          Importar Arquivo
         </Button>
       )}
     </div>

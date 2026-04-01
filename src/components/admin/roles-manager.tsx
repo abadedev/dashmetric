@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Shield, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { StateDisplay, TableSkeleton } from '@/components/ui/state-display';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -303,7 +304,7 @@ export function RolesManager() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="py-6 text-sm text-muted-foreground">Carregando grupos...</div>
+            <TableSkeleton />
           ) : groups.length === 0 ? (
             <div className="py-6 text-sm text-muted-foreground">
               Nenhum grupo criado ainda. Crie o primeiro grupo para começar a organizar permissões.

@@ -60,6 +60,7 @@ export async function importarCancelamentos(
       const observation = trimOrNull(get(row, 'observation'));
 
       registros.push({
+        originSector: 'retencao',
         clientName:  trimOrNull(get(row, 'clientName')),
         city:        trimOrNull(get(row, 'city')),
         reason,
@@ -102,19 +103,4 @@ export async function importarCancelamentos(
   }
 
   return resumo;
-}
-
-export async function importarCancelamentosDerivadosDeVendas(
-  linhas: Record<string, string>[]
-) {
-  const rows = linhas.map((row) => ({
-    cliente: row.Cliente ?? row.cliente ?? '',
-    cidade: row.Cidade ?? row.cidade ?? '',
-    observacao: row.Observacao ?? row.observacao ?? '',
-    indicacao: row.Indicacao ?? row.indicacao ?? '',
-    plano: row.Plano ?? row.plano ?? '',
-    dataPedido: row.dataPedido ?? row.datapedido ?? row.DataPedido ?? '',
-  }));
-
-  return importarCancelamentos(rows as unknown as Record<string, string>[]);
 }

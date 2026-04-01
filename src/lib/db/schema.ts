@@ -266,6 +266,7 @@ export const moduleImportProfiles = pgTable(
     profileKey: varchar('profile_key', { length: 120 }).notNull(),
     label: varchar('label', { length: 255 }).notNull(),
     detectorType: varchar('detector_type', { length: 120 }).notNull(),
+    parameters: jsonb('parameters').default([]),
     isActive: boolean('is_active').default(true).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -289,6 +290,8 @@ export const salesRecords = pgTable(
   {
     id: serial('id').primaryKey(),
     recordType: salesRecordTypeEnum('record_type').notNull(),
+    originSector: varchar('origin_sector', { length: 50 }).default('vendas').notNull(),
+    csvCategory: varchar('csv_category', { length: 50 }).default('padrao').notNull(),
     clientName: varchar('client_name', { length: 255 }),
     city: varchar('city', { length: 120 }),
     source: varchar('source', { length: 120 }),
@@ -304,6 +307,8 @@ export const salesRecords = pgTable(
   (table) => [
     index('sales_record_period_idx').on(table.periodYear, table.periodMonth),
     index('sales_record_type_idx').on(table.recordType),
+    index('sales_record_origin_sector_idx').on(table.originSector),
+    index('sales_record_csv_category_idx').on(table.csvCategory),
     index('sales_record_city_idx').on(table.city),
   ]
 );
@@ -312,6 +317,7 @@ export const cancellationRecords = pgTable(
   'cancellation_records',
   {
     id: serial('id').primaryKey(),
+    originSector: varchar('origin_sector', { length: 50 }).default('retencao').notNull(),
     clientName: varchar('client_name', { length: 255 }),
     city: varchar('city', { length: 120 }),
     reason: text('reason'),
@@ -324,6 +330,7 @@ export const cancellationRecords = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => [
+    index('cancellation_record_origin_sector_idx').on(table.originSector),
     index('cancellation_record_period_idx').on(table.periodYear, table.periodMonth),
     index('cancellation_record_city_idx').on(table.city),
   ]
@@ -363,6 +370,17 @@ export const slaTargets = pgTable('sla_targets', {
   id: serial('id').primaryKey(),
   activityType: activityTypeEnum('activity_type').notNull().unique(),
   targetHours: integer('target_hours'),
+});
+
+/**
+ * Configurações do cálculo SLA (horário comercial).
+ * Chaves: weekday_open, weekday_close, saturday_enabled,
+ *         saturday_open, saturday_close, sunday_enabled
+ */
+export const slaConfig = pgTable('sla_config', {
+  key:       varchar('key', { length: 100 }).primaryKey(),
+  value:     text('value').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // ========== MÓDULO DE IMPORTAÇÃO (novo) ==========
@@ -524,6 +542,8 @@ export const userPermissions = pgTable(
   },
   (table) => [uniqueIndex('user_permission_unique_idx').on(table.userId, table.permissionId)]
 );
+
+export type SlaConfig = typeof slaConfig.$inferSelect;
 
 // ========== TYPES ==========
 

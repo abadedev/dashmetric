@@ -24,6 +24,7 @@ export async function PATCH(
         profileKey: body.profileKey,
         label: body.label,
         detectorType: body.detectorType,
+        parameters: body.parameters || [],
         isActive: body.isActive ?? true,
         updatedAt: new Date(),
       })

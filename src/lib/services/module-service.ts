@@ -52,11 +52,20 @@ const DEFAULT_MODULES: Array<{
       sortOrder: 20,
       isActive: true,
       showInSidebar: true,
-      allowImport: false,
+      allowImport: true,
       requiredRole: 'user',
       templateSource: 'atendimentos',
       isEditable: false,
     },
+    importProfiles: [
+      {
+        moduleId: 0,
+        profileKey: 'atendimentos_instalacoes',
+        label: 'Atendimentos / Instalacoes',
+        detectorType: 'atendimentos',
+        isActive: true,
+      },
+    ],
   },
   {
     module: {

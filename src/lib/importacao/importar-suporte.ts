@@ -1,12 +1,13 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { supportRecords, supportCallCategories } from '@/lib/db/schema';
-import { normalizeHeader, trimOrNull } from './helpers';
+import { normalizeHeader, normalizeTechName, trimOrNull } from './helpers';
 import { buildSupportSummary, type SupportCategoryItem } from './classify-support';
 
 // ── Aliases de colunas ────────────────────────────────────────────────────────
 
 const ALIASES: Record<string, string[]> = {
+  tecnico:            ['tecnico', 'tecnico_nome', 'nome_tecnico', 'instalador', 'technician'],
   atendente:          ['atendente', 'nome_atendente', 'operador', 'responsavel'],
   aberturaManutExt:   ['abertura_manut_ext', 'manut_ext', 'manutencao_ext', 'manutencao_externa',
                        'abertura_manut', 'qtd_manut_ext', 'aberturas_manut_ext'],
@@ -37,6 +38,16 @@ function toInt(v: string): number {
 function toDecimal(v: string): string | null {
   const cleaned = v.replace(',', '.').replace(/[^\d.]/g, '');
   return cleaned === '' ? null : cleaned;
+}
+
+export function resolveSupportAttendantName(row: Record<string, string>): string | null {
+  const tecnico = trimOrNull(get(row, 'tecnico'));
+  if (tecnico) return normalizeTechName(tecnico);
+
+  const atendente = trimOrNull(get(row, 'atendente'));
+  if (atendente) return normalizeTechName(atendente);
+
+  return null;
 }
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -72,9 +83,9 @@ export async function importarSuporte(
     const numLinha = i + 2;
 
     try {
-      const atendente = trimOrNull(get(row, 'atendente'));
+      const atendente = resolveSupportAttendantName(row);
       if (!atendente) {
-        resumo.erros.push({ linha: numLinha, erro: 'Campo "atendente" ausente' });
+        resumo.erros.push({ linha: numLinha, erro: 'Campo "tecnico" ou "atendente" ausente' });
         resumo.totalInvalidas++;
         continue;
       }

@@ -13,8 +13,8 @@ import {
 } from '@/components/ui/table';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { PageLayout } from '@/components/layout/page-layout';
+import { PageSkeleton, StateDisplay, TableSkeleton } from '@/components/ui/state-display';
 
 function AtendimentosPageContent() {
   const [page, setPage] = useState(1);
@@ -83,11 +83,8 @@ function AtendimentosPageContent() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={Columns.length} className="h-24 text-center">
-                  <div className="space-y-4 px-4">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                  </div>
+                <TableCell colSpan={Columns.length} className="h-64 align-top">
+                  <TableSkeleton />
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows?.length ? (
@@ -107,8 +104,8 @@ function AtendimentosPageContent() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={Columns.length} className="h-24 text-center">
-                  Nenhum atendimento encontrado.
+                <TableCell colSpan={Columns.length} className="h-64 align-middle">
+                  <StateDisplay variant="empty" title="Nenhum atendimento" description="Não encontramos atendimentos com os filtros informados." />
                 </TableCell>
               </TableRow>
             )}
@@ -137,7 +134,7 @@ function AtendimentosPageContent() {
 
 export default function AtendimentosPage() {
   return (
-    <Suspense fallback={<div className="space-y-4 pt-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-96 w-full" /></div>}>
+    <Suspense fallback={<PageSkeleton />}>
       <AtendimentosPageContent />
     </Suspense>
   );

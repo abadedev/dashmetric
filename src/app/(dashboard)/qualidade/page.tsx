@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { IndicatorCards } from '@/components/qualidade/indicator-cards';
 import { QualityTable } from '@/components/qualidade/quality-table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageSkeleton, TableSkeleton } from '@/components/ui/state-display';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { useQueryState } from 'nuqs';
@@ -56,7 +57,7 @@ function QualidadePageContent() {
     >
       <IndicatorCards data={data?.data || []} />
       {isLoading ? (
-        <Skeleton className="h-96 w-full" />
+        <TableSkeleton />
       ) : (
         <QualityTable records={data?.data || []} />
       )}
@@ -66,7 +67,7 @@ function QualidadePageContent() {
 
 export default function QualidadePage() {
   return (
-    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+    <Suspense fallback={<PageSkeleton />}>
       <QualidadePageContent />
     </Suspense>
   );

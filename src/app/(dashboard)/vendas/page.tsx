@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PageLayout } from '@/components/layout/page-layout';
 import { GlobalDateFilter } from '@/components/ui/global-date-filter';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageSkeleton } from '@/components/ui/state-display';
 import { parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { useQueryState } from 'nuqs';
 import { endOfMonth, startOfMonth } from 'date-fns';
@@ -38,10 +39,7 @@ function VendasPageContent() {
       actions={<GlobalDateFilter />}
     >
       {isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-96 w-full" />
-        </div>
+        <PageSkeleton />
       ) : (
         <>
           <SalesKpiCards totals={data?.totals} />
@@ -58,11 +56,11 @@ function VendasPageContent() {
               <CardHeader>
                 <CardTitle>Leitura do módulo</CardTitle>
                 <CardDescription>
-                  O módulo consolida contratos, instalações e cancelamentos comerciais usando o mesmo fluxo de upload já existente no sistema.
+                  O módulo consolida negociação, fechamento, instalações e pedidos cancelados sem misturar cancelamentos de retenção.
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Importações de contratações geram base de negociados e fechados. Quando a indicação aponta marketing digital, o lead também entra automaticamente no KPI de captação.
+                Contratações fora do horário ou presencial ficam em KPI próprio. Cancelamentos do setor de retenção seguem separados no módulo de Cancelamentos.
               </CardContent>
             </Card>
           </div>
@@ -74,7 +72,7 @@ function VendasPageContent() {
 
 export default function VendasPage() {
   return (
-    <Suspense fallback={<div className="space-y-4"><Skeleton className="h-40 w-full" /><Skeleton className="h-96 w-full" /></div>}>
+    <Suspense fallback={<PageSkeleton />}>
       <VendasPageContent />
     </Suspense>
   );

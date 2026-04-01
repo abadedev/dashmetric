@@ -1,9 +1,15 @@
 import { db } from '@/lib/db';
 import { salesRecords, type SalesRecordType } from '@/lib/db/schema';
 import { normalizeHeader, parseBRDate, trimOrNull } from './helpers';
-import { importarCancelamentosDerivadosDeVendas } from './importar-cancelamentos';
 
-type SalesFileProfile = 'contratacoes' | 'instalacoes' | 'cancelamentos';
+export type SalesFileProfile =
+  | 'contratacoes'
+  | 'contratacoes_fora_horario'
+  | 'instalacoes'
+  | 'cancelamentos';
+
+type SalesCsvCategory = 'padrao' | 'fora_horario';
+type SalesOriginSector = 'vendas';
 
 const MARKETING_PATTERNS = [
   'marketing',
@@ -30,6 +36,7 @@ const SALES_ALIASES = {
   observation: ['observacao', 'obs', 'detalhe', 'comentario', 'status'],
   requestedAt: ['dataPedido', 'datapedido', 'data_pedido', 'data', 'dataCadastro', 'data_cadastro'],
   installedAt: ['dataInstalacao', 'datainstalacao', 'data_instalacao', 'instalado_em'],
+  unnamed3: ['Unnamed: 3', 'Unnamed 3', 'unnamed_3', ''],
 };
 
 function normalizeText(value: string) {
@@ -49,11 +56,34 @@ function get(row: Record<string, string>, aliases: string[]) {
   return '';
 }
 
-export function detectSalesFileProfile(headers: string[]): SalesFileProfile | null {
+function normalizeFileName(fileName: string | null | undefined) {
+  return normalizeText(fileName ?? '');
+}
+
+function isOutsideBusinessHoursFileName(fileName: string | null | undefined) {
+  const normalized = normalizeFileName(fileName);
+  if (!normalized) return false;
+
+  return (
+    normalized.includes('fora do horario') ||
+    normalized.includes('fora horario') ||
+    normalized.includes('horario comercial') ||
+    normalized.includes('presencial')
+  );
+}
+
+export function detectSalesFileProfile(headers: string[], fileName?: string | null): SalesFileProfile | null {
   const normalized = headers.map(normalizeHeader);
   const has = (...values: string[]) =>
     values.some((value) => normalized.includes(normalizeHeader(value)));
   const hasAll = (...values: string[]) => values.every((value) => has(value));
+
+  if (
+    isOutsideBusinessHoursFileName(fileName) &&
+    (hasAll('Cliente', 'Cidade', 'Indicacao') || hasAll('Nome', 'Cidade', 'Origem'))
+  ) {
+    return 'contratacoes_fora_horario';
+  }
 
   if (hasAll('dataPedido', 'Cidade') && has('dataInstalacao', 'instalado_em')) {
     return 'instalacoes';
@@ -96,18 +126,21 @@ function isMarketingDigital(indication: string | null) {
 
 function buildSalesRecord(
   row: Record<string, string>,
-  recordType: SalesRecordType
+  recordType: SalesRecordType,
+  csvCategory: SalesCsvCategory
 ): typeof salesRecords.$inferInsert {
   const clientName = trimOrNull(get(row, SALES_ALIASES.clientName));
   const city = trimOrNull(get(row, SALES_ALIASES.city));
   const indication = trimOrNull(get(row, SALES_ALIASES.indication));
   const plan = trimOrNull(get(row, SALES_ALIASES.plan));
-  const observation = trimOrNull(get(row, SALES_ALIASES.observation));
+  const observation = buildObservation(row);
   const requestedAt = parseBRDate(get(row, SALES_ALIASES.requestedAt)) ?? new Date();
   const installedAt = parseBRDate(get(row, SALES_ALIASES.installedAt));
 
   return {
     recordType,
+    originSector: 'vendas' satisfies SalesOriginSector,
+    csvCategory,
     clientName,
     city,
     source: normalizeSource(indication),
@@ -119,6 +152,15 @@ function buildSalesRecord(
     periodMonth: (installedAt ?? requestedAt).getMonth() + 1,
     periodYear: (installedAt ?? requestedAt).getFullYear(),
   };
+}
+
+function buildObservation(row: Record<string, string>) {
+  const observation = trimOrNull(get(row, SALES_ALIASES.observation));
+  const unnamed3 = trimOrNull(get(row, SALES_ALIASES.unnamed3));
+
+  if (!unnamed3) return observation;
+  if (!observation) return `Coluna auxiliar Unnamed: 3 = ${unnamed3}`;
+  return `${observation} | Coluna auxiliar Unnamed: 3 = ${unnamed3}`;
 }
 
 function shouldCreateMarketingLead(
@@ -138,13 +180,13 @@ export interface ResumoVendas {
   totalInvalidas: number;
   perfilDetectado: SalesFileProfile;
   erros: Array<{ linha: number; erro: string }>;
-  cancelamentosGerados?: number;
 }
 
 export async function importarVendas(
-  linhas: Record<string, string>[]
+  linhas: Record<string, string>[],
+  fileName?: string | null
 ): Promise<ResumoVendas> {
-  const perfil = detectSalesFileProfile(Object.keys(linhas[0] ?? {}));
+  const perfil = detectSalesFileProfile(Object.keys(linhas[0] ?? {}), fileName);
 
   if (!perfil) {
     throw new Error('Nao foi possivel identificar o padrao do arquivo de vendas.');
@@ -160,8 +202,16 @@ export async function importarVendas(
 
   const recordTypeMap: Record<SalesFileProfile, SalesRecordType> = {
     contratacoes: 'negociado',
+    contratacoes_fora_horario: 'fechado',
     instalacoes: 'pedido_instalado',
     cancelamentos: 'pedido_cancelado',
+  };
+
+  const csvCategoryMap: Record<SalesFileProfile, SalesCsvCategory> = {
+    contratacoes: 'padrao',
+    contratacoes_fora_horario: 'fora_horario',
+    instalacoes: 'padrao',
+    cancelamentos: 'padrao',
   };
 
   const registros: typeof salesRecords.$inferInsert[] = [];
@@ -169,7 +219,7 @@ export async function importarVendas(
   for (let index = 0; index < linhas.length; index++) {
     try {
       const row = linhas[index];
-      const baseRecord = buildSalesRecord(row, recordTypeMap[perfil]);
+      const baseRecord = buildSalesRecord(row, recordTypeMap[perfil], csvCategoryMap[perfil]);
       registros.push(baseRecord);
 
       if (perfil === 'contratacoes') {
@@ -206,11 +256,6 @@ export async function importarVendas(
       await db.insert(salesRecords).values(registros.slice(index, index + CHUNK));
     }
     resumo.totalInseridas = registros.length;
-  }
-
-  if (perfil === 'cancelamentos' && linhas.length) {
-    const cancellationSummary = await importarCancelamentosDerivadosDeVendas(linhas);
-    resumo.cancelamentosGerados = cancellationSummary.totalInseridas;
   }
 
   return resumo;

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UserCog } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { StateDisplay, TableSkeleton } from '@/components/ui/state-display';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -417,7 +418,7 @@ export function UsersManager() {
         </CardHeader>
         <CardContent>
           {usersLoading ? (
-            <div className="py-6 text-sm text-muted-foreground">Carregando usuários...</div>
+            <TableSkeleton />
           ) : users.length === 0 ? (
             <div className="py-6 text-sm text-muted-foreground">Nenhum usuário encontrado.</div>
           ) : (

@@ -36,6 +36,13 @@
       "when": 1743465600000,
       "tag": "0004_quality_technician_name",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775067908997,
+      "tag": "0005_friendly_mathemanic",
+      "breakpoints": true
     }
   ]
 }

@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (tipoPlanilha === 'vendas') {
-      const resumo = await importarVendas(linhasBrutas);
+      const resumo = await importarVendas(linhasBrutas, file.name);
       return NextResponse.json({
         success: true,
         tipoPlanilha,

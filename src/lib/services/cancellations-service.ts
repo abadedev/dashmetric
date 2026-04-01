@@ -1,9 +1,9 @@
 import { db } from '@/lib/db';
 import { cancellationRecords } from '@/lib/db/schema';
-import { and, gte, lte, SQL } from 'drizzle-orm';
+import { and, eq, gte, lte, SQL } from 'drizzle-orm';
 
 export async function getCancellationsOverview(from?: Date | null, to?: Date | null) {
-  const filters: SQL[] = [];
+  const filters: SQL[] = [eq(cancellationRecords.originSector, 'retencao')];
 
   if (from) filters.push(gte(cancellationRecords.cancelledAt, from));
   if (to)   filters.push(lte(cancellationRecords.cancelledAt, to));

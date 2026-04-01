@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Top5Cards } from '@/components/ranking/top5-cards';
 import { RankingTable } from '@/components/ranking/ranking-table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageSkeleton } from '@/components/ui/state-display';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQueryState } from 'nuqs';
@@ -54,10 +55,7 @@ function RankingPageContent() {
       }
     >
       {isLoading ? (
-        <div className="space-y-6">
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-96 w-full" />
-        </div>
+        <PageSkeleton />
       ) : (
         <>
           <Top5Cards ranking={data?.ranking || []} />
@@ -70,7 +68,7 @@ function RankingPageContent() {
 
 export default function RankingPage() {
   return (
-    <Suspense fallback={<div className="space-y-6"><Skeleton className="h-40 w-full" /><Skeleton className="h-96 w-full" /></div>}>
+    <Suspense fallback={<PageSkeleton />}>
       <RankingPageContent />
     </Suspense>
   );

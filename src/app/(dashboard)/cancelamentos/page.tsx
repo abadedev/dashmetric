@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PageLayout } from '@/components/layout/page-layout';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageSkeleton } from '@/components/ui/state-display';
 import { useQueryState } from 'nuqs';
 import { endOfMonth, startOfMonth } from 'date-fns';
 import { CancellationsKpiCards } from '@/components/cancelamentos/cancellations-kpi-cards';
@@ -35,10 +36,7 @@ function CancelamentosPageContent() {
       actions={<GlobalDateFilter />}
     >
       {isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-96 w-full" />
-        </div>
+        <PageSkeleton />
       ) : (
         <>
           <CancellationsKpiCards totals={data?.totals} />
@@ -55,7 +53,7 @@ function CancelamentosPageContent() {
 
 export default function CancelamentosPage() {
   return (
-    <Suspense fallback={<div className="space-y-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-96 w-full" /></div>}>
+    <Suspense fallback={<PageSkeleton />}>
       <CancelamentosPageContent />
     </Suspense>
   );

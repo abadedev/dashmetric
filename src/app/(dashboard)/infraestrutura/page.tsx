@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useQueryState } from 'nuqs';
 import { endOfMonth, startOfMonth } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PageSkeleton, StateDisplay, TableSkeleton } from '@/components/ui/state-display';
 
 function InfraestruturaPageContent() {
   const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
@@ -64,7 +65,7 @@ function InfraestruturaPageContent() {
       </div>
 
       {isLoading ? (
-        <Skeleton className="h-64 w-full" />
+        <TableSkeleton />
       ) : (
         <Card>
           <CardHeader>
@@ -97,8 +98,8 @@ function InfraestruturaPageContent() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      Nenhum registro importado até agora.
+                    <TableCell colSpan={4} className="h-48 align-middle">
+                      <StateDisplay variant="empty" title="Sem Infraestrutura" description="Nenhum registro importado até agora." />
                     </TableCell>
                   </TableRow>
                 )}
@@ -113,7 +114,7 @@ function InfraestruturaPageContent() {
 
 export default function InfraestruturaPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+    <Suspense fallback={<PageSkeleton />}>
       <InfraestruturaPageContent />
     </Suspense>
   );
