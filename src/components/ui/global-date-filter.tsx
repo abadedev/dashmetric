@@ -3,6 +3,7 @@
 import { DatePickerWithRange } from "./date-range-picker";
 import { useQueryState, createParser } from "nuqs";
 import { startOfMonth, endOfMonth } from "date-fns";
+import { useMemo, useCallback } from "react";
 
 export const parseAsLocalIsoDate = createParser({
   parse: (v) => {
@@ -18,23 +19,26 @@ export const parseAsLocalIsoDate = createParser({
   }
 });
 
+const defaultFrom = startOfMonth(new Date());
+const defaultTo = endOfMonth(new Date());
+
 export function GlobalDateFilter() {
   const [from, setFrom] = useQueryState(
     "from",
-    parseAsLocalIsoDate.withDefault(startOfMonth(new Date())).withOptions({ shallow: false })
+    parseAsLocalIsoDate.withDefault(defaultFrom).withOptions({ shallow: false })
   );
-  
+
   const [to, setTo] = useQueryState(
     "to",
-    parseAsLocalIsoDate.withDefault(endOfMonth(new Date())).withOptions({ shallow: false })
+    parseAsLocalIsoDate.withDefault(defaultTo).withOptions({ shallow: false })
   );
 
-  const dateRange = {
+  const dateRange = useMemo(() => ({
     from: from || undefined,
     to: to || undefined,
-  };
+  }), [from, to]);
 
-  const handleSetDate = (range: { from?: Date; to?: Date } | undefined) => {
+  const handleSetDate = useCallback((range: { from?: Date; to?: Date } | undefined) => {
     if (!range) {
       setFrom(null);
       setTo(null);
@@ -42,7 +46,7 @@ export function GlobalDateFilter() {
     }
     setFrom(range.from || null);
     setTo(range.to || null);
-  };
+  }, [setFrom, setTo]);
 
   return <DatePickerWithRange date={dateRange} setDate={handleSetDate} />;
 }

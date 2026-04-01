@@ -1,6 +1,7 @@
-import { getCancellationRecordsCollection } from '@/lib/db/mongo';
+import { db } from '@/lib/db';
+import { cancellationRecords } from '@/lib/db/schema';
+import type { NewCancellationRecord } from '@/lib/db/schema';
 import { normalizeHeader, parseBRDate, trimOrNull } from './helpers';
-import type { CancellationRecordDoc } from '@/lib/db/mongo-types';
 
 const ALIASES: Record<string, string[]> = {
   clientName: ['cliente', 'client_name', 'nome_cliente', 'nome', 'assinante'],
@@ -46,7 +47,7 @@ export async function importarCancelamentos(
     erros: [],
   };
 
-  const registros: Omit<CancellationRecordDoc, '_id'>[] = [];
+  const registros: NewCancellationRecord[] = [];
 
   for (let index = 0; index < linhas.length; index++) {
     const row = linhas[index];
@@ -59,16 +60,15 @@ export async function importarCancelamentos(
       const observation = trimOrNull(get(row, 'observation'));
 
       registros.push({
-        clientName: trimOrNull(get(row, 'clientName')),
-        city: trimOrNull(get(row, 'city')),
+        clientName:  trimOrNull(get(row, 'clientName')),
+        city:        trimOrNull(get(row, 'city')),
         reason,
-        source: trimOrNull(get(row, 'source')),
-        plan: trimOrNull(get(row, 'plan')),
+        source:      trimOrNull(get(row, 'source')),
+        plan:        trimOrNull(get(row, 'plan')),
         observation,
         cancelledAt,
         periodMonth: cancelledAt.getMonth() + 1,
-        periodYear: cancelledAt.getFullYear(),
-        createdAt: new Date(),
+        periodYear:  cancelledAt.getFullYear(),
       });
     } catch (error) {
       resumo.totalInvalidas++;
@@ -80,14 +80,25 @@ export async function importarCancelamentos(
   }
 
   if (registros.length) {
-    const col = await getCancellationRecordsCollection();
-    const CHUNK = 500;
-    let totalInserted = 0;
+    const CHUNK = 200;
     for (let index = 0; index < registros.length; index += CHUNK) {
-      const result = await col.insertMany(registros.slice(index, index + CHUNK) as any, { ordered: false });
-      totalInserted += result.insertedCount;
+      const chunk = registros.slice(index, index + CHUNK);
+      try {
+        await db.insert(cancellationRecords).values(chunk);
+        resumo.totalInseridas += chunk.length;
+      } catch (err: unknown) {
+        // Fallback: insere um a um
+        for (const rec of chunk) {
+          try {
+            await db.insert(cancellationRecords).values(rec);
+            resumo.totalInseridas++;
+          } catch (itemErr: unknown) {
+            resumo.totalInvalidas++;
+            resumo.erros.push({ linha: -1, erro: `PostgreSQL Error: ${String(itemErr)}` });
+          }
+        }
+      }
     }
-    resumo.totalInseridas = totalInserted;
   }
 
   return resumo;

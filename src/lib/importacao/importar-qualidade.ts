@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
-import { technicians } from '@/lib/db/schema';
-import { getQualityRecordsCollection } from '@/lib/db/mongo';
+import { technicians, qualityRecords } from '@/lib/db/schema';
+import type { NewQualityRecord } from '@/lib/db/schema';
+import { and, eq } from 'drizzle-orm';
 import { normalizeHeader, trimOrNull, parseBRDateWithTime, normalizeTechName } from './helpers';
 
 // ── Mapa de indicadores ───────────────────────────────────────────────────────
@@ -132,19 +133,19 @@ function getIndicador(row: Record<string, string>): string {
 
 const tecnicoCache = new Map<string, number>();
 
-async function resolverTecnico(nome: string): Promise<number | null> {
+async function resolverTecnico(nome: string, executor: DbExecutor = db): Promise<number | null> {
   if (!nome) return null;
   const normNome = normalizeTechName(nome);
   if (tecnicoCache.has(normNome)) return tecnicoCache.get(normNome)!;
 
-  const existing = await db.query.technicians.findFirst({
+  const existing = await executor.query.technicians.findFirst({
     where: (t, { eq: eqFn }) => eqFn(t.name, normNome),
   });
   if (existing) {
     tecnicoCache.set(normNome, existing.id);
     return existing.id;
   }
-  const [created] = await db.insert(technicians).values({ name: normNome }).returning();
+  const [created] = await executor.insert(technicians).values({ name: normNome }).returning();
   tecnicoCache.set(normNome, created.id);
   return created.id;
 }
@@ -164,6 +165,66 @@ export interface ResumoQualidade {
 export interface PeriodoQualidade {
   periodMonth: number;
   periodYear: number;
+}
+
+type DbExecutor = typeof db;
+
+interface RegistroQualidadePendente {
+  linha: number;
+  record: NewQualityRecord;
+}
+
+function formatPgError(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+
+  const pgErr = err as Error & {
+    code?: string;
+    detail?: string;
+    constraint?: string;
+    column?: string;
+    table?: string;
+  };
+
+  const extras = [
+    pgErr.code ? `code=${pgErr.code}` : null,
+    pgErr.table ? `table=${pgErr.table}` : null,
+    pgErr.column ? `column=${pgErr.column}` : null,
+    pgErr.constraint ? `constraint=${pgErr.constraint}` : null,
+    pgErr.detail ? `detail=${pgErr.detail}` : null,
+  ].filter(Boolean);
+
+  return extras.length > 0 ? `${pgErr.message} (${extras.join(', ')})` : pgErr.message;
+}
+
+function validarTamanhoCampo(
+  resumo: ResumoQualidade,
+  linha: number,
+  campo: string,
+  valor: string | null | undefined,
+  limite: number
+): boolean {
+  if (!valor || valor.length <= limite) return true;
+
+  resumo.erros.push({
+    linha,
+    erro: `Campo "${campo}" excede o limite de ${limite} caracteres (${valor.length}).`,
+  });
+  resumo.totalInvalidas++;
+  return false;
+}
+
+function validarRegistroParaInsert(
+  resumo: ResumoQualidade,
+  linha: number,
+  record: NewQualityRecord
+): boolean {
+  return [
+    validarTamanhoCampo(resumo, linha, 'os_number', record.osNumber, 20),
+    validarTamanhoCampo(resumo, linha, 'technician_name', record.technicianName, 255),
+    validarTamanhoCampo(resumo, linha, 'client_name', record.clientName, 255),
+    validarTamanhoCampo(resumo, linha, 'city', record.city, 100),
+    validarTamanhoCampo(resumo, linha, 'plan', record.plan, 255),
+  ].every(Boolean);
 }
 
 export function inferirPeriodosQualidade(linhas: Record<string, string>[]): PeriodoQualidade[] {
@@ -187,23 +248,31 @@ export function inferirPeriodosQualidade(linhas: Record<string, string>[]): Peri
   return Array.from(periodos.values());
 }
 
-export async function limparQualidadePorPeriodos(periodos: PeriodoQualidade[]): Promise<number> {
-  const col = await getQualityRecordsCollection();
+export async function limparQualidadePorPeriodos(
+  periodos: PeriodoQualidade[],
+  executor: DbExecutor = db
+): Promise<number> {
   let totalRemovido = 0;
 
   for (const periodo of periodos) {
-    const result = await col.deleteMany({
-      periodMonth: periodo.periodMonth,
-      periodYear: periodo.periodYear,
-    });
-    totalRemovido += result.deletedCount;
+    const deleted = await executor
+      .delete(qualityRecords)
+      .where(
+        and(
+          eq(qualityRecords.periodMonth, periodo.periodMonth),
+          eq(qualityRecords.periodYear, periodo.periodYear)
+        )
+      )
+      .returning({ id: qualityRecords.id });
+    totalRemovido += deleted.length;
   }
 
   return totalRemovido;
 }
 
 export async function importarQualidade(
-  linhas: Record<string, string>[]
+  linhas: Record<string, string>[],
+  executor: DbExecutor = db
 ): Promise<ResumoQualidade> {
   // Reset cache por importação
   tecnicoCache.clear();
@@ -232,6 +301,9 @@ export async function importarQualidade(
     indicadorColuna: indicadorKey ?? '(não encontrado)',
     sampleIndicadores,
   };
+
+  // Processa e acumula registros válidos para insert em batch
+  const registros: RegistroQualidadePendente[] = [];
 
   for (let i = 0; i < linhas.length; i++) {
     const row = linhas[i];
@@ -264,33 +336,63 @@ export async function importarQualidade(
       }
 
       const tecnicoNome = get(row, 'tecnico');
-      const tecnicoId = tecnicoNome ? await resolverTecnico(tecnicoNome) : null;
+      const tecnicoId = tecnicoNome ? await resolverTecnico(tecnicoNome, executor) : null;
 
       const periodDate = openedAt ?? new Date();
 
-      const col = await getQualityRecordsCollection();
-      await col.insertOne({
-        osNumber:        trimOrNull(get(row, 'numeroOs')),
-        indicator:       indicador,
-        reason:          trimOrNull(get(row, 'motivo')),
-        solution:        trimOrNull(get(row, 'solucao')),
-        technicianId:    tecnicoId,
-        technicianName:  tecnicoNome ? trimOrNull(tecnicoNome) : null,
-        clientName:      trimOrNull(get(row, 'cliente')),
-        city:            trimOrNull(get(row, 'cidade')),
-        plan:            trimOrNull(get(row, 'plano')),
-        openedAt:        openedAt ?? null,
-        closedAt:        closedAt ?? null,
+      const record: NewQualityRecord = {
+        osNumber:       trimOrNull(get(row, 'numeroOs')),
+        indicator:      indicador,
+        reason:         trimOrNull(get(row, 'motivo')),
+        solution:       trimOrNull(get(row, 'solucao')),
+        technicianId:   tecnicoId,
+        technicianName: tecnicoNome ? trimOrNull(tecnicoNome) : null,
+        clientName:     trimOrNull(get(row, 'cliente')),
+        city:           trimOrNull(get(row, 'cidade')),
+        plan:           trimOrNull(get(row, 'plano')),
+        openedAt:       openedAt ?? null,
+        closedAt:       closedAt ?? null,
         durationSeconds,
-        periodMonth:     periodDate.getMonth() + 1,
-        periodYear:      periodDate.getFullYear(),
-        createdAt:       new Date(),
-      });
+        periodMonth:    periodDate.getMonth() + 1,
+        periodYear:     periodDate.getFullYear(),
+        createdAt:      new Date(),
+      };
 
-      resumo.totalInseridas++;
+      if (!validarRegistroParaInsert(resumo, numLinha, record)) {
+        continue;
+      }
+
+      registros.push({
+        linha: numLinha,
+        record,
+      });
     } catch (err: unknown) {
       resumo.erros.push({ linha: numLinha, erro: String(err) });
       resumo.totalInvalidas++;
+    }
+  }
+
+  // Insert em batch de 200
+  const CHUNK = 200;
+  for (let i = 0; i < registros.length; i += CHUNK) {
+    const chunk = registros.slice(i, i + CHUNK);
+    try {
+      await executor.insert(qualityRecords).values(chunk.map(({ record }) => record));
+      resumo.totalInseridas += chunk.length;
+    } catch (err: unknown) {
+      // Fallback: insere um a um para identificar o problema
+      for (const { linha, record } of chunk) {
+        try {
+          await executor.insert(qualityRecords).values(record);
+          resumo.totalInseridas++;
+        } catch (itemErr: unknown) {
+          resumo.erros.push({
+            linha,
+            erro: `PostgreSQL Error: ${formatPgError(itemErr)}`,
+          });
+          resumo.totalInvalidas++;
+        }
+      }
     }
   }
 

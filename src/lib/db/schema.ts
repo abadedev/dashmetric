@@ -178,6 +178,7 @@ export const qualityRecords = pgTable(
     reason: text('reason'),
     solution: text('solution'),
     technicianId: integer('technician_id').references(() => technicians.id),
+    technicianName: varchar('technician_name', { length: 255 }),
     clientName: varchar('client_name', { length: 255 }),
     city: varchar('city', { length: 100 }),
     plan: varchar('plan', { length: 255 }),

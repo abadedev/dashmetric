@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAtendimentosCollection } from '@/lib/db/mongo';
+import { db } from '@/lib/db';
+import { atendimentos } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/require-auth';
+import { and, asc, count, sql, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -12,52 +14,43 @@ export async function GET(req: NextRequest) {
     const fromStr = searchParams.get('from');
     const toStr   = searchParams.get('to');
 
-    const col = await getAtendimentosCollection();
-
-    const dateFilter: Record<string, Date> = {};
-    if (fromStr) dateFilter.$gte = new Date(fromStr);
-    if (toStr)   dateFilter.$lte = new Date(toStr);
-
-    const match: Record<string, unknown> = {};
+    // Filtro de data usando COALESCE(aberturaAt, finalizacaoAt, createdAt)
+    // mantém semântica idêntica ao $or original do MongoDB
+    const filters: SQL[] = [];
     if (fromStr || toStr) {
-      match.$or = [
-        { aberturaAt: dateFilter },
-        { $and: [{ aberturaAt: null }, { finalizacaoAt: dateFilter }] },
-        { $and: [{ aberturaAt: null }, { finalizacaoAt: null }, { createdAt: dateFilter }] },
-      ];
+      const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
+      if (fromStr) filters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
+      if (toStr)   filters.push(sql`${dataRef} <= ${new Date(toStr)}`);
     }
 
-    const summaryRaw = await col.aggregate([
-      { $match: match },
-      {
-        $addFields: {
-          _dataRef: {
-            $ifNull: ['$aberturaAt', { $ifNull: ['$finalizacaoAt', '$createdAt'] }],
-          },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            periodYear:   { $year: '$_dataRef' },
-            periodMonth:  { $month: '$_dataRef' },
-            activityType: '$tipo',
-            slaTargetHours: '$slaHoras',
-          },
-          total:            { $sum: 1 },
-          concluded:        { $sum: { $cond: [{ $ne: ['$finalizacaoAt', null] }, 1, 0] } },
-          withinSlaCorrido: { $sum: { $cond: [{ $eq: ['$dentroSla', true] }, 1, 0] } },
-          withinSlaUtil:    { $sum: { $cond: [{ $eq: ['$dentroSlaUtil', true] }, 1, 0] } },
-        },
-      },
-      { $sort: { '_id.periodYear': 1, '_id.periodMonth': 1 } },
-    ]).toArray();
+    const whereClause = filters.length ? and(...filters) : undefined;
+
+    const summaryRaw = await db
+      .select({
+        periodYear:       atendimentos.periodYear,
+        periodMonth:      atendimentos.periodMonth,
+        activityType:     atendimentos.tipo,
+        slaTargetHours:   atendimentos.slaHoras,
+        total:            count(),
+        concluded:        sql<number>`cast(sum(case when ${atendimentos.finalizacaoAt} is not null then 1 else 0 end) as int)`,
+        withinSlaCorrido: sql<number>`cast(sum(case when ${atendimentos.dentroSla} = true then 1 else 0 end) as int)`,
+        withinSlaUtil:    sql<number>`cast(sum(case when ${atendimentos.dentroSlaUtil} = true then 1 else 0 end) as int)`,
+      })
+      .from(atendimentos)
+      .where(whereClause)
+      .groupBy(
+        atendimentos.periodYear,
+        atendimentos.periodMonth,
+        atendimentos.tipo,
+        atendimentos.slaHoras,
+      )
+      .orderBy(asc(atendimentos.periodYear), asc(atendimentos.periodMonth));
 
     const data = summaryRaw.map((s) => ({
-      periodYear:       s._id.periodYear,
-      periodMonth:      s._id.periodMonth,
-      activityType:     s._id.activityType,
-      slaTargetHours:   s._id.slaTargetHours,
+      periodYear:       s.periodYear,
+      periodMonth:      s.periodMonth,
+      activityType:     s.activityType,
+      slaTargetHours:   s.slaTargetHours != null ? Number(s.slaTargetHours) : null,
       total:            s.total,
       concluded:        s.concluded,
       withinSlaCorrido: s.withinSlaCorrido,
