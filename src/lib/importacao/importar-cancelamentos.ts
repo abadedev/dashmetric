@@ -1,6 +1,6 @@
-import { db } from '@/lib/db';
-import { cancellationRecords } from '@/lib/db/schema';
+import { getCancellationRecordsCollection } from '@/lib/db/mongo';
 import { normalizeHeader, parseBRDate, trimOrNull } from './helpers';
+import type { CancellationRecordDoc } from '@/lib/db/mongo-types';
 
 const ALIASES: Record<string, string[]> = {
   clientName: ['cliente', 'client_name', 'nome_cliente', 'nome', 'assinante'],
@@ -46,7 +46,7 @@ export async function importarCancelamentos(
     erros: [],
   };
 
-  const registros: typeof cancellationRecords.$inferInsert[] = [];
+  const registros: Omit<CancellationRecordDoc, '_id'>[] = [];
 
   for (let index = 0; index < linhas.length; index++) {
     const row = linhas[index];
@@ -68,6 +68,7 @@ export async function importarCancelamentos(
         cancelledAt,
         periodMonth: cancelledAt.getMonth() + 1,
         periodYear: cancelledAt.getFullYear(),
+        createdAt: new Date(),
       });
     } catch (error) {
       resumo.totalInvalidas++;
@@ -79,11 +80,14 @@ export async function importarCancelamentos(
   }
 
   if (registros.length) {
-    const CHUNK = 200;
+    const col = await getCancellationRecordsCollection();
+    const CHUNK = 500;
+    let totalInserted = 0;
     for (let index = 0; index < registros.length; index += CHUNK) {
-      await db.insert(cancellationRecords).values(registros.slice(index, index + CHUNK));
+      const result = await col.insertMany(registros.slice(index, index + CHUNK) as any, { ordered: false });
+      totalInserted += result.insertedCount;
     }
-    resumo.totalInseridas = registros.length;
+    resumo.totalInseridas = totalInserted;
   }
 
   return resumo;
