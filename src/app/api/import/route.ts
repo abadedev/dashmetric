@@ -1,48 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processImportBatch } from '@/lib/services/import-service';
 import { db } from '@/lib/db';
-import { importBatches } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { lotesImportacao } from '@/lib/db/schema';
+import { importarAtendimentos } from '@/lib/importacao/importar-atendimentos';
+import { requireAuth } from '@/lib/require-auth';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+  const { response } = await requireAuth(req);
+  if (response) return response;
+
   try {
     const formData = await req.formData();
-    const file = formData.get('file') as File;
-    const importType = (formData.get('type') as string) || 'atendimentos';
+    const file = formData.get('file') as File | null;
 
-    if (!file || !file.name.endsWith('.csv')) {
-      return NextResponse.json(
-        { error: 'Arquivo CSV obrigatório' },
-        { status: 400 }
-      );
+    if (!file) {
+      return NextResponse.json({ error: 'Arquivo obrigatorio' }, { status: 400 });
     }
 
     if (file.size > 50 * 1024 * 1024) {
       return NextResponse.json(
-        { error: 'Arquivo muito grande (máx 50MB)' },
+        { error: 'Arquivo muito grande (max 50MB)' },
         { status: 400 }
       );
     }
 
-    const text = await file.text();
-    const result = await processImportBatch(text, importType, file.name);
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (!['csv', 'xlsx', 'xls'].includes(ext)) {
+      return NextResponse.json(
+        { error: 'Use o fluxo unificado de importacao com arquivos CSV/XLSX' },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(result);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { loteId, resumo } = await importarAtendimentos(buffer, file.name);
+
+    return NextResponse.json({
+      success: true,
+      tipoPlanilha: 'atendimentos',
+      message: 'Endpoint legado encaminhado para o fluxo unificado de atendimentos.',
+      loteId,
+      resumo,
+      deprecated: true,
+    });
   } catch (err) {
-    console.error('Import error:', err);
-    return NextResponse.json(
-      { error: String(err) },
-      { status: 500 }
-    );
+    console.error('[import legacy]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function GET(req: NextRequest) {
+  const { response } = await requireAuth(req);
+  if (response) return response;
+
   const batches = await db
     .select()
-    .from(importBatches)
-    .orderBy(importBatches.createdAt);
+    .from(lotesImportacao)
+    .orderBy(lotesImportacao.createdAt);
+
   return NextResponse.json(batches);
 }

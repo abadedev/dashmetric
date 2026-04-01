@@ -1,27 +1,25 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Top5Cards } from '@/components/ranking/top5-cards';
 import { RankingTable } from '@/components/ranking/ranking-table';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQueryState } from 'nuqs';
 import { startOfMonth, endOfMonth } from 'date-fns';
+import { PageLayout } from '@/components/layout/page-layout';
 
-export default function RankingPage() {
+function RankingPageContent() {
   const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
   const [to] = useQueryState("to", parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [city, setCity] = useQueryState('city');
 
   const queryParams = new URLSearchParams();
   if (from) queryParams.set('from', from.toISOString());
   if (to) queryParams.set('to', to.toISOString());
+  if (city) queryParams.set('city', city);
   const qs = queryParams.toString();
 
   const { data, isLoading } = useQuery({
@@ -33,19 +31,28 @@ export default function RankingPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6 h-full">
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-background p-4 rounded-lg border">
-        <div>
-          <h2 className="text-xl font-bold">Ranking de Produtividade</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Desempenho dos técnicos baseado no volume de OS e SLA atingido.
-          </p>
-        </div>
-        <div className="flex gap-4">
+    <PageLayout
+      title="Ranking de Técnicos"
+      description="Desempenho dos técnicos baseado no volume de OS e SLA atingido, com visão geral e segmentação por cidade."
+      actions={
+        <>
+          <Select value={city || 'all'} onValueChange={(value) => setCity(value === 'all' ? null : value)}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Filtrar cidade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as cidades</SelectItem>
+              {(data?.cities || []).map((item: string) => (
+                <SelectItem key={item} value={item}>
+                  {item}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <GlobalDateFilter />
-        </div>
-      </div>
-
+        </>
+      }
+    >
       {isLoading ? (
         <div className="space-y-6">
           <Skeleton className="h-40 w-full" />
@@ -57,6 +64,14 @@ export default function RankingPage() {
           <RankingTable ranking={data?.ranking || []} />
         </>
       )}
-    </div>
+    </PageLayout>
+  );
+}
+
+export default function RankingPage() {
+  return (
+    <Suspense fallback={<div className="space-y-6"><Skeleton className="h-40 w-full" /><Skeleton className="h-96 w-full" /></div>}>
+      <RankingPageContent />
+    </Suspense>
   );
 }

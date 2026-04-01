@@ -18,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="dark">
-      <body className={`${inter.className} min-h-screen bg-background antialiased`}>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className={`${inter.className} min-h-screen bg-background antialiased`} suppressHydrationWarning>
         <NuqsAdapter>
           <Providers>
             {children}

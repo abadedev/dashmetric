@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
 import { SlaByTypeTable } from '@/components/dashboard/sla-by-type-table';
@@ -17,12 +18,12 @@ import {
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { useQueryState } from 'nuqs';
 import { startOfMonth, endOfMonth } from 'date-fns';
+import { PageLayout } from '@/components/layout/page-layout';
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
   const [to] = useQueryState("to", parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
 
-  // Constrói queryString condicionalmente
   const queryParams = new URLSearchParams();
   if (from) queryParams.set('from', from.toISOString());
   if (to) queryParams.set('to', to.toISOString());
@@ -49,13 +50,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Filtros Executivos */}
-      <div className="flex flex-wrap items-center gap-4 bg-background p-4 rounded-lg border">
-        <label className="text-sm font-medium">Período:</label>
-        <GlobalDateFilter />
-      </div>
-
+    <PageLayout
+      title="Dashboard Executivo"
+      description="Visão geral de SLA, ranking de técnicos e indicadores de qualidade."
+      actions={<GlobalDateFilter />}
+    >
       <KpiCards data={dashboardData} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -71,6 +70,14 @@ export default function DashboardPage() {
         <Top5Ranking ranking={rankingData?.ranking || []} />
         <QualitySummary data={dashboardData?.qualityIndicators || []} />
       </div>
-    </div>
+    </PageLayout>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="space-y-4 pt-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-96 w-full" /></div>}>
+      <DashboardPageContent />
+    </Suspense>
   );
 }

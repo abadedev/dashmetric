@@ -1,5 +1,6 @@
 import { trimOrNull, parseBRDateWithTime, gerarHash, normalizeTechName, parseIntervalToSeconds } from './helpers';
-import { calcularSLACorrido, calcularSLAUtil, dentroSLA, slaMetaHoras } from './calcular-sla';
+import { calculateSLA } from '@/lib/sla/calculate-sla';
+import { dentroSLA, slaMetaHoras } from './calcular-sla-bi';
 import type { LinhaNormalizada } from '../validators/import-atendimento.schema';
 
 // ── Normalização de tipo ──────────────────────────────────────────────────────
@@ -66,7 +67,8 @@ export interface MapeamentoResultado {
 export function mapearAtendimento(
   linha: LinhaNormalizada,
   loteId: number | null,
-  tecnicoId: number | null
+  tecnicoId: number | null,
+  feriados: Set<string> = new Set()
 ): { dados: Record<string, unknown>; warning?: string } {
   const { tipo: tipoNorm, warning: tipoWarning } = normalizarTipo(linha.tipo);
 
@@ -89,8 +91,11 @@ export function mapearAtendimento(
   let dentroSlaUtil: boolean | null = null;
 
   if (aberturaAt && finalizacaoAt) {
-    slaCorridoSeg = calcularSLACorrido(aberturaAt, finalizacaoAt);
-    slaUtilSeg = calcularSLAUtil(aberturaAt, finalizacaoAt);
+    const calculado = calculateSLA(aberturaAt, finalizacaoAt, {
+      holidayKeys: feriados,
+    });
+    slaCorridoSeg = calculado.slaCorridoSegundos;
+    slaUtilSeg = calculado.slaUtilSegundos;
     dentroSlaCorrido = dentroSLA(slaCorridoSeg, metaHoras);
     dentroSlaUtil = dentroSLA(slaUtilSeg, metaHoras);
   } else if (linha.intervalo) {
@@ -113,6 +118,7 @@ export function mapearAtendimento(
   });
 
   const tecnicoNome = trimOrNull(linha.tecnico);
+  const dataReferencia = aberturaAt ?? finalizacaoAt ?? new Date();
 
   const maxLen = (str: string | null | undefined, len: number) => 
     str ? str.slice(0, len) : null;
@@ -159,8 +165,8 @@ export function mapearAtendimento(
 
     hashImportacao:    hash,
     loteImportacaoId:  loteId,
-    periodMonth:       aberturaAt ? aberturaAt.getMonth() + 1 : null,
-    periodYear:        aberturaAt ? aberturaAt.getFullYear() : null,
+    periodMonth:       dataReferencia.getMonth() + 1,
+    periodYear:        dataReferencia.getFullYear(),
   };
 
   return { dados, warning: tipoWarning };

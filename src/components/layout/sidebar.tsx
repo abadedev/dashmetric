@@ -2,8 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTheme } from 'next-themes';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import {
+  BarChart3,
+  Network,
+  TrendingUp,
+  UserMinus,
   LayoutDashboard,
   ListTodo,
   Trophy,
@@ -13,27 +20,80 @@ import {
   Upload,
 } from 'lucide-react';
 
-const navItems = [
+const fallbackNavItems = [
   { name: 'Dashboard Executivo', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Atendimentos', href: '/atendimentos', icon: ListTodo },
   { name: 'Ranking Técnicos', href: '/ranking', icon: Trophy },
   { name: 'Qualidade & Reclam.', href: '/qualidade', icon: CheckCircle },
   { name: 'Suporte Técnico', href: '/suporte', icon: HeadphonesIcon },
+  { name: 'Vendas', href: '/vendas', icon: TrendingUp },
+  { name: 'Cancelamentos', href: '/cancelamentos', icon: UserMinus },
+  { name: 'Infraestrutura', href: '/infraestrutura', icon: Network },
   { name: 'Resumo SLA', href: '/resumo-sla', icon: BarChart },
   { name: 'Importar Dados', href: '/upload', icon: Upload },
 ];
 
+const iconMap = {
+  LayoutDashboard,
+  ListTodo,
+  Trophy,
+  CheckCircle,
+  HeadphonesIcon,
+  BarChart,
+  BarChart3,
+  Upload,
+  TrendingUp,
+  UserMinus,
+  Network,
+} as const;
+
 export function Sidebar() {
   const pathname = usePathname();
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isLight = mounted && resolvedTheme === 'light';
+
+  const { data } = useQuery({
+    queryKey: ['sidebar-modules'],
+    queryFn: async () => {
+      const response = await fetch('/api/modules/sidebar');
+      if (!response.ok) {
+        throw new Error('Falha ao carregar módulos');
+      }
+      return response.json() as Promise<{
+        data: Array<{ id: number; name: string; href: string; icon: keyof typeof iconMap }>;
+      }>;
+    },
+    retry: false,
+  });
+
+  const navItems =
+    data?.data?.map((item) => ({
+      ...item,
+      icon: iconMap[item.icon] ?? LayoutDashboard,
+    })) ?? fallbackNavItems;
 
   return (
-    <div className="flex w-64 flex-col border-r bg-card h-screen fixed left-0 top-0 z-30">
-      <div className="p-6">
-        <h2 className="text-2xl font-bold tracking-tight text-primary">DSTECH</h2>
-        <p className="text-xs text-muted-foreground mt-1">NOC Performance Manager</p>
+    <div className="flex w-64 flex-col bg-sidebar h-screen fixed left-0 top-0 z-30 border-r border-border">
+      {/* Logo */}
+      <div className="flex items-center px-5 py-4 border-b border-border shrink-0 h-14">
+        <img
+          src="https://dstech.com.br/public/logo.png"
+          alt="DSTECH"
+          width={148}
+          height={38}
+          style={{
+            display: 'block',
+            filter: isLight ? 'invert(1) brightness(0.2)' : 'none',
+            transition: 'filter 0.2s ease',
+          }}
+        />
       </div>
-      <div className="flex-1 overflow-auto py-2">
-        <nav className="grid items-start px-4 text-sm font-medium gap-1">
+
+      {/* Nav */}
+      <div className="flex-1 overflow-auto py-3 px-3">
+        <nav className="flex flex-col gap-0.5">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
@@ -41,21 +101,28 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 transition-all hover:text-primary',
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
                   isActive
-                    ? 'bg-secondary text-secondary-foreground'
-                    : 'text-muted-foreground hover:bg-secondary/50'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon
+                  className={cn(
+                    'h-4 w-4 shrink-0 transition-colors',
+                    isActive ? 'text-primary' : 'text-muted-foreground/70'
+                  )}
+                />
                 {item.name}
               </Link>
             );
           })}
         </nav>
       </div>
-      <div className="p-4 border-t border-border/50 text-xs text-muted-foreground text-center">
-        Versão 1.0.0
+
+      {/* Footer */}
+      <div className="px-5 py-3.5 border-t border-border shrink-0">
+        <span className="text-xs text-muted-foreground/60">NOC Performance Manager v1.0.0</span>
       </div>
     </div>
   );

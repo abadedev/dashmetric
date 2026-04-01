@@ -1,18 +1,22 @@
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { supportRecords } from '@/lib/db/schema';
+import { supportRecords, supportCallCategories } from '@/lib/db/schema';
 import { normalizeHeader, trimOrNull } from './helpers';
+import { buildSupportSummary, type SupportCategoryItem } from './classify-support';
 
 // ── Aliases de colunas ────────────────────────────────────────────────────────
 
 const ALIASES: Record<string, string[]> = {
-  atendente:      ['atendente', 'nome_atendente', 'operador', 'responsavel'],
-  aberturaManutExt: ['abertura_manut_ext', 'manut_ext', 'manutencao_ext', 'manutencao_externa',
-                     'abertura_manut', 'qtd_manut_ext', 'aberturas_manut_ext'],
-  percentual:     ['percentual', 'percent', '%', 'porcentagem', 'pct'],
-  semManut:       ['sem_manut', 'sem_manutencao', 'sem_manut_ext', 'abertura_sem_manut'],
-  total:          ['total', 'total_atendimentos', 'qtd_total'],
-  mes:            ['mes', 'month', 'periodo', 'competencia'],
-  ano:            ['ano', 'year'],
+  atendente:          ['atendente', 'nome_atendente', 'operador', 'responsavel'],
+  aberturaManutExt:   ['abertura_manut_ext', 'manut_ext', 'manutencao_ext', 'manutencao_externa',
+                       'abertura_manut', 'qtd_manut_ext', 'aberturas_manut_ext'],
+  percentual:         ['percentual', 'percent', '%', 'porcentagem', 'pct'],
+  semManut:           ['sem_manut', 'sem_manutencao', 'sem_manut_ext', 'abertura_sem_manut'],
+  total:              ['total', 'total_atendimentos', 'qtd_total'],
+  mes:                ['mes', 'month', 'periodo', 'competencia'],
+  ano:                ['ano', 'year'],
+  problemaReclamado:  ['problemareclamado', 'problema_reclamado', 'problema', 'reclamacao',
+                       'motivo', 'descricao', 'assunto'],
 };
 
 function get(row: Record<string, string>, key: string): string {
@@ -35,14 +39,17 @@ function toDecimal(v: string): string | null {
   return cleaned === '' ? null : cleaned;
 }
 
-// ── Importação principal ──────────────────────────────────────────────────────
+// ── Tipos ─────────────────────────────────────────────────────────────────────
 
 export interface ResumoSuporte {
   totalLidas: number;
   totalInseridas: number;
   totalInvalidas: number;
   erros: Array<{ linha: number; erro: string }>;
+  categoriasResumo: SupportCategoryItem[];
 }
+
+// ── Importação principal ──────────────────────────────────────────────────────
 
 export async function importarSuporte(
   linhas: Record<string, string>[],
@@ -54,9 +61,11 @@ export async function importarSuporte(
     totalInseridas: 0,
     totalInvalidas: 0,
     erros: [],
+    categoriasResumo: [],
   };
 
   const registros: typeof supportRecords.$inferInsert[] = [];
+  const problemas: Array<{ problemaReclamado: string }> = [];
 
   for (let i = 0; i < linhas.length; i++) {
     const row = linhas[i];
@@ -85,18 +94,49 @@ export async function importarSuporte(
         periodMonth:    month,
         periodYear:     year,
       });
+
+      // Coleta ProblemaReclamado para classificação (campo opcional)
+      problemas.push({ problemaReclamado: get(row, 'problemaReclamado') });
     } catch (err: unknown) {
       resumo.erros.push({ linha: numLinha, erro: String(err) });
       resumo.totalInvalidas++;
     }
   }
 
+  // ── Persiste registros de suporte (comportamento original) ────────────────
   if (registros.length) {
     const CHUNK = 200;
     for (let i = 0; i < registros.length; i += CHUNK) {
       await db.insert(supportRecords).values(registros.slice(i, i + CHUNK));
     }
     resumo.totalInseridas = registros.length;
+  }
+
+  // ── Classificação automática por ProblemaReclamado ────────────────────────
+  if (problemas.length) {
+    const summary = buildSupportSummary(problemas);
+    resumo.categoriasResumo = summary;
+
+    if (summary.length) {
+      await db
+        .delete(supportCallCategories)
+        .where(
+          and(
+            eq(supportCallCategories.periodMonth, periodMonth),
+            eq(supportCallCategories.periodYear, periodYear)
+          )
+        );
+
+      await db.insert(supportCallCategories).values(
+        summary.map((item) => ({
+          categoria:   item.tipo,
+          quantidade:  item.quantidade,
+          percentual:  String(item.percentual),
+          periodMonth,
+          periodYear,
+        }))
+      );
+    }
   }
 
   return resumo;

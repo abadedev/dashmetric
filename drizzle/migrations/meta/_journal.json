@@ -8,6 +8,27 @@
       "when": 1774927976139,
       "tag": "0000_majestic_sinister_six",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774942800000,
+      "tag": "0001_remove_atend_hash_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774977487232,
+      "tag": "0002_perpetual_wildside",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775019600000,
+      "tag": "0003_modular_platform",
+      "breakpoints": true
     }
   ]
 }

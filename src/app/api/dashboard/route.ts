@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { atendimentos, qualityRecords } from '@/lib/db/schema';
-import { sql, eq, and, count, gte, lte } from 'drizzle-orm';
+import { calculateValidAverage } from '@/lib/utils/average';
+import { sql, and, count, gte, lte } from 'drizzle-orm';
+import { requireAuth } from '@/lib/require-auth';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
+  const { response } = await requireAuth(req);
+  if (response) return response;
   try {
     const { searchParams } = new URL(req.url);
     const fromStr = searchParams.get('from');
     const toStr = searchParams.get('to');
+    const dataRef = sql<Date>`coalesce(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
 
     const pf = [];
-    if (fromStr) pf.push(gte(atendimentos.aberturaAt, new Date(fromStr)));
-    if (toStr) pf.push(lte(atendimentos.aberturaAt, new Date(toStr)));
+    if (fromStr) pf.push(gte(dataRef, new Date(fromStr)));
+    if (toStr) pf.push(lte(dataRef, new Date(toStr)));
 
     const [totalResult] = await db
       .select({ total: count() })
@@ -44,23 +49,22 @@ export async function GET(req: NextRequest) {
       .where(and(...qf))
       .groupBy(qualityRecords.indicator);
 
-    const totalConcluded    = slaByType.reduce((s, t) => s + Number(t.concluded), 0);
-    const totalWithinUtil   = slaByType.reduce((s, t) => s + Number(t.withinSlaUtil), 0);
-    const totalWithinCorrido= slaByType.reduce((s, t) => s + Number(t.withinSlaCorrido), 0);
+    const slaByTypeWithPercent = slaByType.map((t) => ({
+      ...t,
+      slaUtilPercent: Number(t.concluded) > 0 ? Number(t.withinSlaUtil) / Number(t.concluded) : 0,
+      slaCorridoPercent: Number(t.concluded) > 0 ? Number(t.withinSlaCorrido) / Number(t.concluded) : 0,
+    }));
 
     return NextResponse.json({
       totalAtendimentos: totalResult.total,
-      slaUtilGeral:    totalConcluded > 0 ? totalWithinUtil    / totalConcluded : 0,
-      slaCorridoGeral: totalConcluded > 0 ? totalWithinCorrido / totalConcluded : 0,
+      slaUtilGeral: calculateValidAverage(slaByTypeWithPercent.map((t) => t.slaUtilPercent)),
+      slaCorridoGeral: calculateValidAverage(slaByTypeWithPercent.map((t) => t.slaCorridoPercent)),
       metaSLA: 0.95,
-      slaByType: slaByType.map((t) => ({
-        ...t,
-        slaUtilPercent:    Number(t.concluded) > 0 ? Number(t.withinSlaUtil)    / Number(t.concluded) : 0,
-        slaCorridoPercent: Number(t.concluded) > 0 ? Number(t.withinSlaCorrido) / Number(t.concluded) : 0,
-      })),
+      slaByType: slaByTypeWithPercent,
       qualityIndicators,
     });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error('[dashboard]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

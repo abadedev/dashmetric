@@ -5,6 +5,7 @@ import { parseXlsx } from '@/lib/importacao/parse-xlsx';
 import { normalizarLinha } from '@/lib/importacao/normalizar-linha';
 import { mapearAtendimento } from '@/lib/importacao/mapear-atendimento';
 import { linhaNormalizadaSchema } from '@/lib/validators/import-atendimento.schema';
+import { requireAdmin } from '@/lib/require-auth';
 
 export const runtime = 'nodejs';
 
@@ -35,11 +36,15 @@ async function diag(){
 </script>
 </body></html>`;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { response } = await requireAdmin(req);
+  if (response) return response;
   return new Response(HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
 export async function POST(req: NextRequest) {
+  const { response } = await requireAdmin(req);
+  if (response) return response;
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -79,6 +84,7 @@ export async function POST(req: NextRequest) {
       amostra,
     });
   } catch (err) {
-    return NextResponse.json({ etapa: 'GERAL', erro: String(err), stack: err instanceof Error ? err.stack : undefined }, { status: 500 });
+    console.error('[diag-import]', err);
+    return NextResponse.json({ etapa: 'GERAL', erro: 'Internal server error' }, { status: 500 });
   }
 }
