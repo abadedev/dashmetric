@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAtendimentosCollection } from '@/lib/db/mongo';
+import { db } from '@/lib/db';
+import { atendimentos } from '@/lib/db/schema';
 import { formatSecondsToHHMMSS } from '@/lib/importacao/helpers';
 import { requireAuth } from '@/lib/require-auth';
+import { and, count, eq, isNotNull, sql, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -14,70 +16,65 @@ export async function GET(req: NextRequest) {
     const toStr   = searchParams.get('to');
     const city    = searchParams.get('city');
 
-    const col = await getAtendimentosCollection();
-
-    // Filtro base de data
-    const dateFilter: Record<string, Date> = {};
-    if (fromStr) dateFilter.$gte = new Date(fromStr);
-    if (toStr)   dateFilter.$lte = new Date(toStr);
-
-    const baseMatch: Record<string, unknown> = {};
+    // Filtro de data usando COALESCE equivalente ao $or do MongoDB
+    const dateFilters: SQL[] = [];
     if (fromStr || toStr) {
-      baseMatch.$or = [
-        { aberturaAt: dateFilter },
-        { $and: [{ aberturaAt: null }, { finalizacaoAt: dateFilter }] },
-        { $and: [{ aberturaAt: null }, { finalizacaoAt: null }, { createdAt: dateFilter }] },
-      ];
+      const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
+      if (fromStr) dateFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
+      if (toStr)   dateFilters.push(sql`${dataRef} <= ${new Date(toStr)}`);
     }
 
-    // Filtro de ranking (inclui cidade)
-    const rankingMatch: Record<string, unknown> = {
-      ...baseMatch,
-      tecnicoId: { $ne: null },  // equivalente ao INNER JOIN
-    };
-    if (city && city !== 'all') rankingMatch.cidade = city;
+    const baseWhere = dateFilters.length ? and(...dateFilters) : undefined;
+
+    // Ranking: só técnicos vinculados (tecnicoId NOT NULL)
+    const rankingFilters: SQL[] = [...dateFilters, isNotNull(atendimentos.tecnicoId)];
+    if (city && city !== 'all') rankingFilters.push(eq(atendimentos.cidade, city));
+    const rankingWhere = and(...rankingFilters);
 
     const [citiesRaw, rankingRaw] = await Promise.all([
-      col.distinct('cidade', baseMatch),
+      // Cidades distintas no período base
+      db
+        .selectDistinct({ cidade: atendimentos.cidade })
+        .from(atendimentos)
+        .where(baseWhere),
 
-      col.aggregate([
-        { $match: rankingMatch },
-        {
-          $group: {
-            _id: { tecnicoId: '$tecnicoId', tecnico: '$tecnico' },
-            totalOS:     { $sum: 1 },
-            instNova:    { $sum: { $cond: [{ $eq: ['$tipo', 'Instalação (Nova)'] }, 1, 0] } },
-            instReativ:  { $sum: { $cond: [{ $eq: ['$tipo', 'Instalação (Reativação)'] }, 1, 0] } },
-            reparo:      { $sum: { $cond: [{ $eq: ['$tipo', 'Reparo'] }, 1, 0] } },
-            mudEndereco: { $sum: { $cond: [{ $eq: ['$tipo', 'Mudança de Endereço'] }, 1, 0] } },
-            retiradaKit: { $sum: { $cond: [{ $eq: ['$tipo', 'Retirada de Kit'] }, 1, 0] } },
-            mudPlano:    { $sum: { $cond: [{ $eq: ['$tipo', 'Mudança de Plano'] }, 1, 0] } },
-            retorno:     { $sum: { $cond: [{ $eq: ['$tipo', 'Retorno'] }, 1, 0] } },
-            withinSlaUtil:  { $sum: { $cond: [{ $eq: ['$dentroSlaUtil', true] }, 1, 0] } },
-            concluded:      { $sum: { $cond: [{ $ne: ['$finalizacaoAt', null] }, 1, 0] } },
-            avgSlaUtilSeg:  {
-              $avg: { $cond: [{ $ne: ['$finalizacaoAt', null] }, '$slaUtilSegundos', null] },
-            },
-          },
-        },
-        { $sort: { totalOS: -1 } },
-      ]).toArray(),
+      // Ranking agregado por técnico
+      db
+        .select({
+          tecnicoId:    atendimentos.tecnicoId,
+          tecnico:      atendimentos.tecnico,
+          totalOS:      count(),
+          instNova:     sql<number>`cast(sum(case when ${atendimentos.tipo} = 'Instalação (Nova)' then 1 else 0 end) as int)`,
+          instReativ:   sql<number>`cast(sum(case when ${atendimentos.tipo} = 'Instalação (Reativação)' then 1 else 0 end) as int)`,
+          reparo:       sql<number>`cast(sum(case when ${atendimentos.tipo} = 'Reparo' then 1 else 0 end) as int)`,
+          mudEndereco:  sql<number>`cast(sum(case when ${atendimentos.tipo} = 'Mudança de Endereço' then 1 else 0 end) as int)`,
+          retiradaKit:  sql<number>`cast(sum(case when ${atendimentos.tipo} = 'Retirada de Kit' then 1 else 0 end) as int)`,
+          mudPlano:     sql<number>`cast(sum(case when ${atendimentos.tipo} = 'Mudança de Plano' then 1 else 0 end) as int)`,
+          retorno:      sql<number>`cast(sum(case when ${atendimentos.tipo} = 'Retorno' then 1 else 0 end) as int)`,
+          withinSlaUtil:sql<number>`cast(sum(case when ${atendimentos.dentroSlaUtil} = true then 1 else 0 end) as int)`,
+          concluded:    sql<number>`cast(sum(case when ${atendimentos.finalizacaoAt} is not null then 1 else 0 end) as int)`,
+          avgSlaUtilSeg:sql<number>`avg(case when ${atendimentos.finalizacaoAt} is not null then ${atendimentos.slaUtilSegundos} else null end)`,
+        })
+        .from(atendimentos)
+        .where(rankingWhere)
+        .groupBy(atendimentos.tecnicoId, atendimentos.tecnico)
+        .orderBy(sql`count(*) desc`),
     ]);
 
     const ranking = rankingRaw.map((r, i) => ({
-      position:        i + 1,
-      technicianId:    r._id.tecnicoId,
-      technicianName:  r._id.tecnico,
-      totalOS:         r.totalOS,
-      instNova:        r.instNova,
-      instReativacao:  r.instReativ,
-      reparo:          r.reparo,
-      mudancaEndereco: r.mudEndereco,
-      retiradaKit:     r.retiradaKit,
-      mudancaPlano:    r.mudPlano,
-      retorno:         r.retorno,
-      withinSlaUtil:   r.withinSlaUtil,
-      concluded:       r.concluded,
+      position:           i + 1,
+      technicianId:       r.tecnicoId,
+      technicianName:     r.tecnico,
+      totalOS:            r.totalOS,
+      instNova:           r.instNova,
+      instReativacao:     r.instReativ,
+      reparo:             r.reparo,
+      mudancaEndereco:    r.mudEndereco,
+      retiradaKit:        r.retiradaKit,
+      mudancaPlano:       r.mudPlano,
+      retorno:            r.retorno,
+      withinSlaUtil:      r.withinSlaUtil,
+      concluded:          r.concluded,
       avgSlaUtilFormatted: formatSecondsToHHMMSS(Math.floor(Number(r.avgSlaUtilSeg) || 0)),
       slaUtilPercent: Number(r.concluded) > 0
         ? Math.round((Number(r.withinSlaUtil) / Number(r.concluded)) * 100)
@@ -88,6 +85,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ranking,
       cities: citiesRaw
+        .map((r) => r.cidade)
         .filter((v): v is string => Boolean(v))
         .sort((a, b) => a.localeCompare(b)),
     });

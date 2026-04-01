@@ -1,44 +1,23 @@
-import { getCancellationRecordsCollection } from '@/lib/db/mongo';
-import type { Filter } from 'mongodb';
-import type { CancellationRecordDoc } from '@/lib/db/mongo-types';
+import { db } from '@/lib/db';
+import { cancellationRecords } from '@/lib/db/schema';
+import { and, gte, lte, SQL } from 'drizzle-orm';
 
 export async function getCancellationsOverview(from?: Date | null, to?: Date | null) {
-  const col = await getCancellationRecordsCollection();
+  const filters: SQL[] = [];
 
-  const filter: Filter<CancellationRecordDoc> = {};
+  if (from) filters.push(gte(cancellationRecords.cancelledAt, from));
+  if (to)   filters.push(lte(cancellationRecords.cancelledAt, to));
 
-  if (from || to) {
-    const fromVal = from ? from.getFullYear() * 100 + (from.getMonth() + 1) : null;
-    const toVal   = to   ? to.getFullYear()   * 100 + (to.getMonth()   + 1) : null;
+  const whereClause = filters.length ? and(...filters) : undefined;
 
-    // Filtra via campo calculado periodYear*100+periodMonth
-    const conditions: Filter<CancellationRecordDoc>[] = [];
-    if (fromVal !== null) {
-      conditions.push({
-        $or: [
-          { periodYear: { $gt: Math.floor(fromVal / 100) } },
-          {
-            periodYear:  Math.floor(fromVal / 100),
-            periodMonth: { $gte: fromVal % 100 },
-          },
-        ],
-      } as any);
-    }
-    if (toVal !== null) {
-      conditions.push({
-        $or: [
-          { periodYear: { $lt: Math.floor(toVal / 100) } },
-          {
-            periodYear:  Math.floor(toVal / 100),
-            periodMonth: { $lte: toVal % 100 },
-          },
-        ],
-      } as any);
-    }
-    if (conditions.length) (filter as any).$and = conditions;
-  }
-
-  const rows = await col.find(filter).toArray();
+  const rows = await db
+    .select({
+      city:        cancellationRecords.city,
+      reason:      cancellationRecords.reason,
+      observation: cancellationRecords.observation,
+    })
+    .from(cancellationRecords)
+    .where(whereClause);
 
   const byCity = rows.reduce<Record<string, number>>((acc, row) => {
     const city = row.city?.trim() || 'Não informado';
@@ -55,8 +34,8 @@ export async function getCancellationsOverview(from?: Date | null, to?: Date | n
   return {
     totals: {
       cancelledClients: rows.length,
-      cities: Object.keys(byCity).length,
-      mappedReasons: Object.keys(byReason).length,
+      cities:           Object.keys(byCity).length,
+      mappedReasons:    Object.keys(byReason).length,
     },
     byCity: Object.entries(byCity)
       .map(([city, total]) => ({ city, total }))

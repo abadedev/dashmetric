@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { lotesImportacao, importacoesBrutas, technicians, holidays } from '@/lib/db/schema';
-import { getAtendimentosCollection } from '@/lib/db/mongo';
+import { lotesImportacao, importacoesBrutas, technicians, holidays, atendimentos } from '@/lib/db/schema';
+import type { NewAtendimento } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 import { detectFileType } from './detect-file-type';
@@ -12,6 +12,7 @@ import { normalizeTechName } from './helpers';
 import { linhaNormalizadaSchema } from '../validators/import-atendimento.schema';
 import type { ResumoImportacao } from '../validators/import-atendimento.schema';
 import { normalizeHolidayKeys } from '@/lib/sla/calculate-sla';
+import { buscarHashesExistentes } from './deduplicar-importacao';
 
 const SHOULD_STORE_RAW_IMPORT_ROWS =
   process.env.STORE_RAW_IMPORT_ROWS === 'true' ||
@@ -81,13 +82,13 @@ export async function importarAtendimentos(
     .returning();
 
   const resumo: ResumoImportacao = {
-    totalLidas:     linhasBrutas.length,
-    totalValidas:   0,
-    totalInvalidas: 0,
-    totalInseridas: 0,
-    totalDuplicadas:0,
-    erros:    [],
-    warnings: [],
+    totalLidas:      linhasBrutas.length,
+    totalValidas:    0,
+    totalInvalidas:  0,
+    totalInseridas:  0,
+    totalDuplicadas: 0,
+    erros:           [],
+    warnings:        [],
   };
 
   try {
@@ -131,7 +132,7 @@ export async function importarAtendimentos(
         resumo.totalInvalidas++;
       }
     }
-    (linhasBrutas as any[]).length = 0;
+    (linhasBrutas as unknown[]).length = 0;
 
     // 5. Resolve técnicos em lote
     const nomesTecnicos = new Set<string>();
@@ -162,7 +163,7 @@ export async function importarAtendimentos(
         const tecnicoId = tecnicoCache.get(nomeNorm) ?? null;
 
         const { dados, warning } = mapearAtendimento(
-          normalizada as any,
+          normalizada as never,
           lote.id,
           tecnicoId,
           feriados
@@ -178,38 +179,56 @@ export async function importarAtendimentos(
       }
     }
 
-    // 7. Sem deduplicação: toda linha válida do arquivo deve ser inserida.
-    const paraInserir = registrosMapeados;
+    // 7. Deduplicação: filtra registros já existentes no banco (por hash)
+    const todosHashes = registrosMapeados.map((r) => r.dados.hashImportacao as string);
+    const hashesNoBanco = await buscarHashesExistentes(todosHashes);
 
-    // 8. Insere no MongoDB em lotes de 500
-    const col = await getAtendimentosCollection();
+    // Também deduplica dentro do próprio lote (caso o arquivo tenha linhas repetidas)
+    const hashesNoLote = new Set<string>();
+    const paraInserir = registrosMapeados.filter((r) => {
+      const hash = r.dados.hashImportacao as string;
+      if (hashesNoBanco.has(hash) || hashesNoLote.has(hash)) {
+        resumo.totalDuplicadas++;
+        return false;
+      }
+      hashesNoLote.add(hash);
+      return true;
+    });
+
+    // 8. Insere no PostgreSQL em lotes de 200
+    // (200 linhas × ~50 campos = ~10.000 parâmetros por batch, bem abaixo do limite do PG)
+    const CHUNK_INSERT = 200;
     const now = new Date();
-    const CHUNK_INSERT = 500;
+
     for (let i = 0; i < paraInserir.length; i += CHUNK_INSERT) {
       const chunk = paraInserir.slice(i, i + CHUNK_INSERT);
       try {
-        const docs = chunk.map((r) => ({
-          ...r.dados,
-          slaHoras: r.dados.slaHoras != null ? Number(r.dados.slaHoras) : null,
+        const values = chunk.map((r) => ({
+          ...(r.dados as NewAtendimento),
           createdAt: now,
           updatedAt: now,
         }));
-        await col.insertMany(docs as any, { ordered: false });
+        await db.insert(atendimentos).values(values);
         resumo.totalInseridas += chunk.length;
-      } catch (error: any) {
-        // insertMany com ordered:false — conta inseridos e registra erros individuais
-        const inserted = error?.result?.insertedCount ?? 0;
-        resumo.totalInseridas += inserted;
-        const writeErrors: Array<{ index: number; errmsg: string }> =
-          error?.writeErrors ?? [];
-        for (const we of writeErrors) {
-          const item = chunk[we.index];
-          resumo.erros.push({
-            linha: item?.idx ?? -1,
-            erro: `MongoDB Error: ${we.errmsg}`,
-          });
-          resumo.totalInvalidas++;
-          resumo.totalValidas--;
+      } catch (error: unknown) {
+        // Fallback: tenta inserir um a um para identificar qual linha causa erro
+        for (const item of chunk) {
+          try {
+            await db.insert(atendimentos).values({
+              ...(item.dados as NewAtendimento),
+              createdAt: now,
+              updatedAt: now,
+            });
+            resumo.totalInseridas++;
+          } catch (itemErr: unknown) {
+            const cause = itemErr instanceof Error ? itemErr.message : String(itemErr);
+            resumo.erros.push({
+              linha: item.idx,
+              erro: `PostgreSQL Error: ${cause}`,
+            });
+            resumo.totalInvalidas++;
+            resumo.totalValidas--;
+          }
         }
       }
     }
@@ -218,13 +237,13 @@ export async function importarAtendimentos(
     await db
       .update(lotesImportacao)
       .set({
-        status: 'concluido',
+        status:          'concluido',
         totalLidas:      resumo.totalLidas,
         totalValidas:    resumo.totalValidas,
         totalInvalidas:  resumo.totalInvalidas,
         totalInseridas:  resumo.totalInseridas,
         totalDuplicadas: resumo.totalDuplicadas,
-        erros: resumo.erros.length ? resumo.erros : null,
+        erros:           resumo.erros.length ? resumo.erros : null,
       })
       .where(eq(lotesImportacao.id, lote.id));
 

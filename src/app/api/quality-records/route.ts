@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getQualityRecordsCollection } from '@/lib/db/mongo';
+import { db } from '@/lib/db';
+import { qualityRecords } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/require-auth';
-import type { Filter } from 'mongodb';
-import type { QualityRecordDoc } from '@/lib/db/mongo-types';
+import { and, eq, gte, lte, desc, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -11,46 +11,50 @@ export async function GET(req: NextRequest) {
   if (response) return response;
   try {
     const { searchParams } = new URL(req.url);
-    const fromStr    = searchParams.get('from');
-    const toStr      = searchParams.get('to');
-    const indicator  = searchParams.get('indicator');
+    const fromStr   = searchParams.get('from');
+    const toStr     = searchParams.get('to');
+    const indicator = searchParams.get('indicator');
 
-    const col = await getQualityRecordsCollection();
+    const filters: SQL[] = [];
+    if (fromStr) filters.push(gte(qualityRecords.openedAt, new Date(fromStr)));
+    if (toStr)   filters.push(lte(qualityRecords.openedAt, new Date(toStr)));
+    if (indicator) filters.push(eq(qualityRecords.indicator, indicator as never));
 
-    const filter: Filter<QualityRecordDoc> = {};
-    const dateFilter: Record<string, Date> = {};
-    if (fromStr) dateFilter.$gte = new Date(fromStr);
-    if (toStr)   dateFilter.$lte = new Date(toStr);
-    if (fromStr || toStr) filter.openedAt = dateFilter as any;
-    if (indicator) filter.indicator = indicator;
+    const whereClause = filters.length ? and(...filters) : undefined;
 
-    const rows = await col
-      .find(filter, {
-        projection: {
-          osNumber: 1, indicator: 1, reason: 1,
-          clientName: 1, city: 1,
-          openedAt: 1, closedAt: 1, durationSeconds: 1,
-          periodMonth: 1, periodYear: 1,
-          technicianName: 1,
-        },
+    const rows = await db
+      .select({
+        id:             qualityRecords.id,
+        osNumber:       qualityRecords.osNumber,
+        indicator:      qualityRecords.indicator,
+        reason:         qualityRecords.reason,
+        clientName:     qualityRecords.clientName,
+        city:           qualityRecords.city,
+        openedAt:       qualityRecords.openedAt,
+        closedAt:       qualityRecords.closedAt,
+        durationSeconds:qualityRecords.durationSeconds,
+        periodMonth:    qualityRecords.periodMonth,
+        periodYear:     qualityRecords.periodYear,
+        technicianName: qualityRecords.technicianName,
       })
-      .sort({ createdAt: -1 })
-      .limit(200)
-      .toArray();
+      .from(qualityRecords)
+      .where(whereClause)
+      .orderBy(desc(qualityRecords.createdAt))
+      .limit(200);
 
     const data = rows.map((r) => ({
-      id:              r._id?.toString(),
-      osNumber:        r.osNumber,
-      indicator:       r.indicator,
-      reason:          r.reason,
-      clientName:      r.clientName,
-      city:            r.city,
-      openedAt:        r.openedAt,
-      closedAt:        r.closedAt,
-      durationSeconds: r.durationSeconds,
-      periodMonth:     r.periodMonth,
-      periodYear:      r.periodYear,
-      technicianName:  r.technicianName,
+      id:             String(r.id),
+      osNumber:       r.osNumber,
+      indicator:      r.indicator,
+      reason:         r.reason,
+      clientName:     r.clientName,
+      city:           r.city,
+      openedAt:       r.openedAt,
+      closedAt:       r.closedAt,
+      durationSeconds:r.durationSeconds,
+      periodMonth:    r.periodMonth,
+      periodYear:     r.periodYear,
+      technicianName: r.technicianName,
     }));
 
     return NextResponse.json({ data });

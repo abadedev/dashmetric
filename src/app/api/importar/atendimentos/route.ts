@@ -14,6 +14,7 @@ import { detectFileType } from '@/lib/importacao/detect-file-type';
 import { parseCsv } from '@/lib/importacao/parse-csv';
 import { parseXlsx } from '@/lib/importacao/parse-xlsx';
 import { requireAuth } from '@/lib/require-auth';
+import { db } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
 
     if (tipoPlanilha === 'qualidade') {
       let reimportacao: { periodos: string[]; registrosRemovidos: number } | undefined;
+      let resumo;
       if (reimportarQualidade) {
         const periodos = inferirPeriodosQualidade(linhasBrutas);
 
@@ -78,14 +80,23 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        const registrosRemovidos = await limparQualidadePorPeriodos(periodos);
+        const transactional = await db.transaction(async (tx) => {
+          const txExecutor = tx as unknown as typeof db;
+          const registrosRemovidos = await limparQualidadePorPeriodos(periodos, txExecutor);
+          const resumoTx = await importarQualidade(linhasBrutas, txExecutor);
+
+          return { registrosRemovidos, resumoTx };
+        });
+
         reimportacao = {
           periodos: periodos.map((p) => `${String(p.periodMonth).padStart(2, '0')}/${p.periodYear}`),
-          registrosRemovidos,
+          registrosRemovidos: transactional.registrosRemovidos,
         };
+        resumo = transactional.resumoTx;
+      } else {
+        resumo = await importarQualidade(linhasBrutas);
       }
 
-      const resumo = await importarQualidade(linhasBrutas);
       return NextResponse.json({
         success: true,
         tipoPlanilha,
