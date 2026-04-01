@@ -456,6 +456,74 @@ export const atendimentos = pgTable(
   ]
 );
 
+// ========== PERMISSION SYSTEM ==========
+
+export const accessGroups = pgTable('access_groups', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 120 }).notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const permissions = pgTable(
+  'permissions',
+  {
+    id: serial('id').primaryKey(),
+    key: varchar('key', { length: 255 }).notNull().unique(),
+    moduleSlug: varchar('module_slug', { length: 120 }).notNull(),
+    action: varchar('action', { length: 20 }).notNull(), // 'read' | 'write'
+    description: text('description'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('permission_key_idx').on(table.key),
+    index('permission_module_slug_idx').on(table.moduleSlug),
+  ]
+);
+
+export const groupPermissions = pgTable(
+  'group_permissions',
+  {
+    id: serial('id').primaryKey(),
+    groupId: integer('group_id')
+      .notNull()
+      .references(() => accessGroups.id, { onDelete: 'cascade' }),
+    permissionId: integer('permission_id')
+      .notNull()
+      .references(() => permissions.id, { onDelete: 'cascade' }),
+  },
+  (table) => [uniqueIndex('group_permission_unique_idx').on(table.groupId, table.permissionId)]
+);
+
+export const userGroups = pgTable(
+  'user_groups',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    groupId: integer('group_id')
+      .notNull()
+      .references(() => accessGroups.id, { onDelete: 'cascade' }),
+  },
+  (table) => [uniqueIndex('user_group_unique_idx').on(table.userId, table.groupId)]
+);
+
+export const userPermissions = pgTable(
+  'user_permissions',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    permissionId: integer('permission_id')
+      .notNull()
+      .references(() => permissions.id, { onDelete: 'cascade' }),
+  },
+  (table) => [uniqueIndex('user_permission_unique_idx').on(table.userId, table.permissionId)]
+);
+
 // ========== TYPES ==========
 
 export type Technician = typeof technicians.$inferSelect;
@@ -486,3 +554,10 @@ export type SalesRecordType = typeof salesRecordTypeEnum.enumValues[number];
 export type LoteImportacao = typeof lotesImportacao.$inferSelect;
 export type Atendimento = typeof atendimentos.$inferSelect;
 export type NewAtendimento = typeof atendimentos.$inferInsert;
+export type AccessGroup = typeof accessGroups.$inferSelect;
+export type NewAccessGroup = typeof accessGroups.$inferInsert;
+export type Permission = typeof permissions.$inferSelect;
+export type NewPermission = typeof permissions.$inferInsert;
+export type GroupPermission = typeof groupPermissions.$inferSelect;
+export type UserGroup = typeof userGroups.$inferSelect;
+export type UserPermission = typeof userPermissions.$inferSelect;

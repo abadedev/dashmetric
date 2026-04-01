@@ -104,6 +104,9 @@ export async function importarAtendimentos(
     }
 
     // 4. Normaliza e valida cada linha
+    // Libera o array bruto da memória antes de alocar os arrays de validação
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (linhasBrutas as any[]).length = 0;
     const linhasValidas: Array<{ idx: number; normalizada: Record<string, string> }> = [];
 
     for (let i = 0; i < linhasBrutas.length; i++) {
@@ -177,27 +180,35 @@ export async function importarAtendimentos(
     // 7. Sem deduplicação: toda linha válida do arquivo deve ser inserida.
     const paraInserir = registrosMapeados;
 
-    // 8. Insere de forma unitária (mais lento, mas seguro para isolar falhas)
-    for (const item of paraInserir) {
+    // 8. Insere em lotes de 500 — evita manter conexão e memória por tempo excessivo
+    const CHUNK_INSERT = 500;
+    for (let i = 0; i < paraInserir.length; i += CHUNK_INSERT) {
+      const chunk = paraInserir.slice(i, i + CHUNK_INSERT);
+      // Tenta inserir o lote inteiro primeiro (caminho feliz, mais rápido)
       try {
-        await db.insert(atendimentos).values(item.dados as any);
-        resumo.totalInseridas++;
-      } catch (error: any) {
-        console.error('============================');
-        console.error(`ERRO NA LINHA ${item.idx}:`, error?.message);
-        console.error('detail:', error?.detail);
-        console.error('constraint:', error?.constraint);
-        console.error('O registro tentado foi:', item.dados);
-        console.error('============================');
+        await db.insert(atendimentos).values(chunk.map((r) => r.dados as any));
+        resumo.totalInseridas += chunk.length;
+      } catch {
+        // Se o lote falhou, cai para inserção unitária apenas neste chunk
+        for (const item of chunk) {
+          try {
+            await db.insert(atendimentos).values(item.dados as any);
+            resumo.totalInseridas++;
+          } catch (error: any) {
+            console.error('============================');
+            console.error(`ERRO NA LINHA ${item.idx}:`, error?.message);
+            console.error('detail:', error?.detail);
+            console.error('constraint:', error?.constraint);
+            console.error('============================');
 
-        resumo.erros.push({ 
-          linha: item.idx, 
-          erro: `Database Error: ${error?.detail || error?.message || 'Falha de constraint'}`
-        });
-        
-        // Ajusta os contadores pois a linha chegou como válida, mas o BD recusou
-        resumo.totalInvalidas++;
-        resumo.totalValidas--;
+            resumo.erros.push({
+              linha: item.idx,
+              erro: `Database Error: ${error?.detail || error?.message || 'Falha de constraint'}`,
+            });
+            resumo.totalInvalidas++;
+            resumo.totalValidas--;
+          }
+        }
       }
     }
 

@@ -37,6 +37,9 @@ export function parseXlsx(buffer: Buffer): Record<string, string>[] {
   let bestScore = -1;
   let bestHeaderRowIdx = 0;
 
+  // Limite de 10 linhas para detectar o header — evita carregar o arquivo inteiro em memória
+  const HEADER_SCAN_RANGE = { s: { c: 0, r: 0 }, e: { c: 255, r: 9 } };
+
   for (const sheetName of workbook.SheetNames) {
     const ws = workbook.Sheets[sheetName];
     // header: 1 FORÇA O RETORNO COMO ARRAY DE ARRAYS `any[][]`
@@ -44,6 +47,7 @@ export function parseXlsx(buffer: Buffer): Record<string, string>[] {
       header: 1,
       defval: '',
       blankrows: false,
+      range: HEADER_SCAN_RANGE,
     });
 
     for (let r = 0; r < Math.min(10, rawRows.length); r++) {
