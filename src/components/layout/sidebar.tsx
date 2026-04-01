@@ -2,10 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useTheme } from 'next-themes';
-import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { DstechLogo } from '@/components/brand/dstech-logo';
 import {
   BarChart3,
   Network,
@@ -49,10 +48,6 @@ const iconMap = {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const isLight = mounted && resolvedTheme === 'light';
 
   const { data } = useQuery({
     queryKey: ['sidebar-modules'],
@@ -78,17 +73,9 @@ export function Sidebar() {
     <div className="flex w-64 flex-col bg-sidebar h-screen fixed left-0 top-0 z-30 border-r border-border">
       {/* Logo */}
       <div className="flex items-center px-5 py-4 border-b border-border shrink-0 h-14">
-        <img
-          src="https://dstech.com.br/public/logo.png"
-          alt="DSTECH"
-          width={148}
-          height={38}
-          style={{
-            display: 'block',
-            filter: isLight ? 'invert(1) brightness(0.2)' : 'none',
-            transition: 'filter 0.2s ease',
-          }}
-        />
+        <div className="w-[148px] text-sidebar-foreground">
+          <DstechLogo />
+        </div>
       </div>
 
       {/* Nav */}

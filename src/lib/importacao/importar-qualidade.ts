@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { qualityRecords, technicians } from '@/lib/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { technicians } from '@/lib/db/schema';
+import { getQualityRecordsCollection } from '@/lib/db/mongo';
 import { normalizeHeader, trimOrNull, parseBRDateWithTime, normalizeTechName } from './helpers';
 
 // ── Mapa de indicadores ───────────────────────────────────────────────────────
@@ -188,20 +188,15 @@ export function inferirPeriodosQualidade(linhas: Record<string, string>[]): Peri
 }
 
 export async function limparQualidadePorPeriodos(periodos: PeriodoQualidade[]): Promise<number> {
+  const col = await getQualityRecordsCollection();
   let totalRemovido = 0;
 
   for (const periodo of periodos) {
-    const removidos = await db
-      .delete(qualityRecords)
-      .where(
-        and(
-          eq(qualityRecords.periodMonth, periodo.periodMonth),
-          eq(qualityRecords.periodYear, periodo.periodYear)
-        )
-      )
-      .returning({ id: qualityRecords.id });
-
-    totalRemovido += removidos.length;
+    const result = await col.deleteMany({
+      periodMonth: periodo.periodMonth,
+      periodYear: periodo.periodYear,
+    });
+    totalRemovido += result.deletedCount;
   }
 
   return totalRemovido;
@@ -273,20 +268,23 @@ export async function importarQualidade(
 
       const periodDate = openedAt ?? new Date();
 
-      await db.insert(qualityRecords).values({
+      const col = await getQualityRecordsCollection();
+      await col.insertOne({
         osNumber:        trimOrNull(get(row, 'numeroOs')),
-        indicator:       indicador as any,
+        indicator:       indicador,
         reason:          trimOrNull(get(row, 'motivo')),
         solution:        trimOrNull(get(row, 'solucao')),
         technicianId:    tecnicoId,
+        technicianName:  tecnicoNome ? trimOrNull(tecnicoNome) : null,
         clientName:      trimOrNull(get(row, 'cliente')),
         city:            trimOrNull(get(row, 'cidade')),
         plan:            trimOrNull(get(row, 'plano')),
-        openedAt:        openedAt ?? undefined,
-        closedAt:        closedAt ?? undefined,
-        durationSeconds: durationSeconds,
+        openedAt:        openedAt ?? null,
+        closedAt:        closedAt ?? null,
+        durationSeconds,
         periodMonth:     periodDate.getMonth() + 1,
         periodYear:      periodDate.getFullYear(),
+        createdAt:       new Date(),
       });
 
       resumo.totalInseridas++;

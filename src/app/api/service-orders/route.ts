@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { atendimentos, technicians } from '@/lib/db/schema';
-import { desc, eq, and, count, ilike, gte, lte, sql } from 'drizzle-orm';
+import { getAtendimentosCollection } from '@/lib/db/mongo';
 import { requireAuth } from '@/lib/require-auth';
+import type { Filter } from 'mongodb';
+import type { AtendimentoDoc } from '@/lib/db/mongo-types';
 
 export const runtime = 'nodejs';
 
@@ -20,71 +20,89 @@ export async function GET(req: NextRequest) {
     const city        = searchParams.get('city');
     const slaStatus   = searchParams.get('slaStatus'); // 'ok' | 'nok' | 'all'
     const search      = searchParams.get('search');
-    const dataRef = sql<Date>`coalesce(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
-    const periodMonthExpr = sql<number>`extract(month from ${dataRef})::int`;
-    const periodYearExpr = sql<number>`extract(year from ${dataRef})::int`;
 
-    const filters = [];
-    if (fromStr)      filters.push(gte(dataRef, new Date(fromStr)));
-    if (toStr)        filters.push(lte(dataRef, new Date(toStr)));
-    if (type)         filters.push(eq(atendimentos.tipo, type));
-    if (technicianId) filters.push(eq(atendimentos.tecnicoId, Number(technicianId)));
-    if (city)         filters.push(eq(atendimentos.cidade, city));
-    if (slaStatus === 'ok')  filters.push(eq(atendimentos.dentroSlaUtil, true));
-    if (slaStatus === 'nok') filters.push(eq(atendimentos.dentroSlaUtil, false));
-    if (search)       filters.push(ilike(atendimentos.numeroOs, `%${search}%`));
+    const col = await getAtendimentosCollection();
+
+    // Filtro de data: usa aberturaAt com fallback para finalizacaoAt/createdAt
+    const filter: Filter<AtendimentoDoc> = {};
+
+    const dateFilter: Record<string, Date> = {};
+    if (fromStr) dateFilter.$gte = new Date(fromStr);
+    if (toStr)   dateFilter.$lte = new Date(toStr);
+
+    if (fromStr || toStr) {
+      filter.$or = [
+        { aberturaAt: dateFilter as any },
+        { $and: [{ aberturaAt: null }, { finalizacaoAt: dateFilter as any }] },
+        { $and: [{ aberturaAt: null }, { finalizacaoAt: null }, { createdAt: dateFilter as any }] },
+      ];
+    }
+
+    if (type)          filter.tipo = type;
+    if (technicianId)  filter.tecnicoId = Number(technicianId);
+    if (city)          filter.cidade = city;
+    if (slaStatus === 'ok')  filter.dentroSlaUtil = true;
+    if (slaStatus === 'nok') filter.dentroSlaUtil = false;
+    if (search)        filter.numeroOs = { $regex: search, $options: 'i' };
 
     const offset = (page - 1) * pageSize;
 
-    const [rows, [totalResult]] = await Promise.all([
-      db
-        .select({
-          id:               atendimentos.id,
-          osNumber:         atendimentos.numeroOs,
-          activityType:     atendimentos.tipo,          // alias para compat. com frontend
-          reason:           atendimentos.motivo,
-          solution:         atendimentos.solucao,
-          clientName:       atendimentos.cliente,
-          city:             atendimentos.cidade,
-          plan:             atendimentos.plano,
-          openedAt:         atendimentos.aberturaAt,    // alias
-          closedAt:         atendimentos.finalizacaoAt, // alias
-          slaTargetHours:   atendimentos.slaHoras,
-          slaCorridoSeconds:atendimentos.slaCorridoSegundos,
-          slaUtilSeconds:   atendimentos.slaUtilSegundos,
-          withinSlaCorrido: atendimentos.dentroSla,
-          withinSlaUtil:    atendimentos.dentroSlaUtil,
-          periodMonth:      periodMonthExpr,
-          periodYear:       periodYearExpr,
-          technicianName:   technicians.name,
-          // campos extras
-          login:       atendimentos.login,
-          bairro:      atendimentos.bairro,
-          atendente:   atendimentos.atendente,
-          mac:         atendimentos.mac,
-          empresa:     atendimentos.empresa,
-          observacao:  atendimentos.observacao,
-          telefones:   atendimentos.telefones,
+    const [rows, total] = await Promise.all([
+      col
+        .find(filter, {
+          projection: {
+            numeroOs: 1, tipo: 1, motivo: 1, solucao: 1,
+            cliente: 1, cidade: 1, plano: 1,
+            aberturaAt: 1, finalizacaoAt: 1,
+            slaHoras: 1, slaCorridoSegundos: 1, slaUtilSegundos: 1,
+            dentroSla: 1, dentroSlaUtil: 1,
+            periodMonth: 1, periodYear: 1,
+            tecnico: 1, tecnicoId: 1,
+            login: 1, bairro: 1, atendente: 1, mac: 1, empresa: 1,
+            observacao: 1, telefones: 1,
+          },
         })
-        .from(atendimentos)
-        .leftJoin(technicians, eq(atendimentos.tecnicoId, technicians.id))
-        .where(and(...filters))
-        .orderBy(desc(dataRef))
+        .sort({ aberturaAt: -1 })
+        .skip(offset)
         .limit(pageSize)
-        .offset(offset),
-
-      db
-        .select({ total: count() })
-        .from(atendimentos)
-        .where(and(...filters)),
+        .toArray(),
+      col.countDocuments(filter),
     ]);
 
+    const data = rows.map((r) => ({
+      id:               r._id?.toString(),
+      osNumber:         r.numeroOs,
+      activityType:     r.tipo,
+      reason:           r.motivo,
+      solution:         r.solucao,
+      clientName:       r.cliente,
+      city:             r.cidade,
+      plan:             r.plano,
+      openedAt:         r.aberturaAt,
+      closedAt:         r.finalizacaoAt,
+      slaTargetHours:   r.slaHoras,
+      slaCorridoSeconds:r.slaCorridoSegundos,
+      slaUtilSeconds:   r.slaUtilSegundos,
+      withinSlaCorrido: r.dentroSla,
+      withinSlaUtil:    r.dentroSlaUtil,
+      periodMonth:      r.periodMonth,
+      periodYear:       r.periodYear,
+      technicianName:   r.tecnico,
+      login:            r.login,
+      bairro:           r.bairro,
+      atendente:        r.atendente,
+      mac:              r.mac,
+      empresa:          r.empresa,
+      observacao:       r.observacao,
+      telefones:        r.telefones,
+    }));
+
     return NextResponse.json({
-      data: rows,
-      total: totalResult.total,
+      data,
+      total,
       page,
       pageSize,
-      totalPages: Math.ceil(totalResult.total / pageSize),
+      totalPages: Math.ceil(total / pageSize),
     });
   } catch (err) {
     console.error('[service-orders]', err);

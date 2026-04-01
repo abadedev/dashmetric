@@ -1,5 +1,5 @@
-import Image from 'next/image';
 import { LoginForm } from '@/components/login-form';
+import { DstechLogo } from '@/components/brand/dstech-logo';
 
 export default function LoginPage() {
   return (
@@ -43,15 +43,8 @@ export default function LoginPage() {
       {/* Content */}
       <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4">
         {/* Logo */}
-        <div className="mb-12">
-          <Image
-            src="/logo.png"
-            alt="DSTECH"
-            width={200}
-            height={50}
-            className="h-auto w-auto"
-            priority
-          />
+        <div className="mb-12 w-full max-w-[220px] text-white">
+          <DstechLogo />
         </div>
 
         {/* Card */}

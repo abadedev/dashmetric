@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
-import { atendimentos, lotesImportacao, importacoesBrutas, technicians, holidays } from '@/lib/db/schema';
+import { lotesImportacao, importacoesBrutas, technicians, holidays } from '@/lib/db/schema';
+import { getAtendimentosCollection } from '@/lib/db/mongo';
 import { eq } from 'drizzle-orm';
 
 import { detectFileType } from './detect-file-type';
@@ -106,7 +107,6 @@ export async function importarAtendimentos(
     // 4. Normaliza e valida cada linha
     // Libera o array bruto da memória antes de alocar os arrays de validação
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (linhasBrutas as any[]).length = 0;
     const linhasValidas: Array<{ idx: number; normalizada: Record<string, string> }> = [];
 
     for (let i = 0; i < linhasBrutas.length; i++) {
@@ -131,6 +131,7 @@ export async function importarAtendimentos(
         resumo.totalInvalidas++;
       }
     }
+    (linhasBrutas as any[]).length = 0;
 
     // 5. Resolve técnicos em lote
     const nomesTecnicos = new Set<string>();
@@ -180,34 +181,35 @@ export async function importarAtendimentos(
     // 7. Sem deduplicação: toda linha válida do arquivo deve ser inserida.
     const paraInserir = registrosMapeados;
 
-    // 8. Insere em lotes de 500 — evita manter conexão e memória por tempo excessivo
+    // 8. Insere no MongoDB em lotes de 500
+    const col = await getAtendimentosCollection();
+    const now = new Date();
     const CHUNK_INSERT = 500;
     for (let i = 0; i < paraInserir.length; i += CHUNK_INSERT) {
       const chunk = paraInserir.slice(i, i + CHUNK_INSERT);
-      // Tenta inserir o lote inteiro primeiro (caminho feliz, mais rápido)
       try {
-        await db.insert(atendimentos).values(chunk.map((r) => r.dados as any));
+        const docs = chunk.map((r) => ({
+          ...r.dados,
+          slaHoras: r.dados.slaHoras != null ? Number(r.dados.slaHoras) : null,
+          createdAt: now,
+          updatedAt: now,
+        }));
+        await col.insertMany(docs as any, { ordered: false });
         resumo.totalInseridas += chunk.length;
-      } catch {
-        // Se o lote falhou, cai para inserção unitária apenas neste chunk
-        for (const item of chunk) {
-          try {
-            await db.insert(atendimentos).values(item.dados as any);
-            resumo.totalInseridas++;
-          } catch (error: any) {
-            console.error('============================');
-            console.error(`ERRO NA LINHA ${item.idx}:`, error?.message);
-            console.error('detail:', error?.detail);
-            console.error('constraint:', error?.constraint);
-            console.error('============================');
-
-            resumo.erros.push({
-              linha: item.idx,
-              erro: `Database Error: ${error?.detail || error?.message || 'Falha de constraint'}`,
-            });
-            resumo.totalInvalidas++;
-            resumo.totalValidas--;
-          }
+      } catch (error: any) {
+        // insertMany com ordered:false — conta inseridos e registra erros individuais
+        const inserted = error?.result?.insertedCount ?? 0;
+        resumo.totalInseridas += inserted;
+        const writeErrors: Array<{ index: number; errmsg: string }> =
+          error?.writeErrors ?? [];
+        for (const we of writeErrors) {
+          const item = chunk[we.index];
+          resumo.erros.push({
+            linha: item?.idx ?? -1,
+            erro: `MongoDB Error: ${we.errmsg}`,
+          });
+          resumo.totalInvalidas++;
+          resumo.totalValidas--;
         }
       }
     }

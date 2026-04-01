@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { atendimentos, qualityRecords } from '@/lib/db/schema';
+import { getAtendimentosCollection, getQualityRecordsCollection } from '@/lib/db/mongo';
 import { calculateValidAverage } from '@/lib/utils/average';
-import { sql, and, count, gte, lte } from 'drizzle-orm';
 import { requireAuth } from '@/lib/require-auth';
 
 export const runtime = 'nodejs';
@@ -13,54 +11,85 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const fromStr = searchParams.get('from');
-    const toStr = searchParams.get('to');
-    const dataRef = sql<Date>`coalesce(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
+    const toStr   = searchParams.get('to');
 
-    const pf = [];
-    if (fromStr) pf.push(gte(dataRef, new Date(fromStr)));
-    if (toStr) pf.push(lte(dataRef, new Date(toStr)));
+    const [atendCol, qualityCol] = await Promise.all([
+      getAtendimentosCollection(),
+      getQualityRecordsCollection(),
+    ]);
 
-    const [totalResult] = await db
-      .select({ total: count() })
-      .from(atendimentos)
-      .where(and(...pf));
+    // Filtro de data para atendimentos (usa aberturaAt → finalizacaoAt → createdAt)
+    const dateFilter: Record<string, Date> = {};
+    if (fromStr) dateFilter.$gte = new Date(fromStr);
+    if (toStr)   dateFilter.$lte = new Date(toStr);
 
-    const slaByType = await db
-      .select({
-        activityType:      atendimentos.tipo,
-        total:             count(),
-        concluded:         sql<number>`COUNT(*) FILTER (WHERE ${atendimentos.finalizacaoAt} IS NOT NULL)`,
-        withinSlaCorrido:  sql<number>`COUNT(*) FILTER (WHERE ${atendimentos.dentroSla} = true)`,
-        withinSlaUtil:     sql<number>`COUNT(*) FILTER (WHERE ${atendimentos.dentroSlaUtil} = true)`,
-        avgCorridoSeconds: sql<number>`AVG(${atendimentos.slaCorridoSegundos}) FILTER (WHERE ${atendimentos.finalizacaoAt} IS NOT NULL)`,
-        avgUtilSeconds:    sql<number>`AVG(${atendimentos.slaUtilSegundos}) FILTER (WHERE ${atendimentos.finalizacaoAt} IS NOT NULL)`,
-        slaTargetHours:    atendimentos.slaHoras,
-      })
-      .from(atendimentos)
-      .where(and(...pf))
-      .groupBy(atendimentos.tipo, atendimentos.slaHoras);
+    const atendMatch: Record<string, unknown> = {};
+    if (fromStr || toStr) {
+      atendMatch.$or = [
+        { aberturaAt: dateFilter },
+        { $and: [{ aberturaAt: null }, { finalizacaoAt: dateFilter }] },
+        { $and: [{ aberturaAt: null }, { finalizacaoAt: null }, { createdAt: dateFilter }] },
+      ];
+    }
 
-    const qf = [];
-    if (fromStr) qf.push(gte(qualityRecords.openedAt, new Date(fromStr)));
-    if (toStr) qf.push(lte(qualityRecords.openedAt, new Date(toStr)));
-    const qualityIndicators = await db
-      .select({ indicator: qualityRecords.indicator, total: count() })
-      .from(qualityRecords)
-      .where(and(...qf))
-      .groupBy(qualityRecords.indicator);
+    const qualityMatch: Record<string, unknown> = {};
+    const qualityDateFilter: Record<string, Date> = {};
+    if (fromStr) qualityDateFilter.$gte = new Date(fromStr);
+    if (toStr)   qualityDateFilter.$lte = new Date(toStr);
+    if (fromStr || toStr) qualityMatch.openedAt = qualityDateFilter;
 
-    const slaByTypeWithPercent = slaByType.map((t) => ({
-      ...t,
-      slaUtilPercent: Number(t.concluded) > 0 ? Number(t.withinSlaUtil) / Number(t.concluded) : 0,
+    const [totalResult, slaByTypeRaw, qualityIndicatorsRaw] = await Promise.all([
+      atendCol.countDocuments(atendMatch),
+
+      atendCol.aggregate([
+        { $match: atendMatch },
+        {
+          $group: {
+            _id: { tipo: '$tipo', slaHoras: '$slaHoras' },
+            total:             { $sum: 1 },
+            concluded:         { $sum: { $cond: [{ $ne: ['$finalizacaoAt', null] }, 1, 0] } },
+            withinSlaCorrido:  { $sum: { $cond: [{ $eq: ['$dentroSla', true] }, 1, 0] } },
+            withinSlaUtil:     { $sum: { $cond: [{ $eq: ['$dentroSlaUtil', true] }, 1, 0] } },
+            avgCorridoSeconds: {
+              $avg: { $cond: [{ $ne: ['$finalizacaoAt', null] }, '$slaCorridoSegundos', null] },
+            },
+            avgUtilSeconds: {
+              $avg: { $cond: [{ $ne: ['$finalizacaoAt', null] }, '$slaUtilSegundos', null] },
+            },
+          },
+        },
+      ]).toArray(),
+
+      qualityCol.aggregate([
+        { $match: qualityMatch },
+        { $group: { _id: '$indicator', total: { $sum: 1 } } },
+      ]).toArray(),
+    ]);
+
+    const slaByType = slaByTypeRaw.map((t) => ({
+      activityType:      t._id.tipo,
+      slaTargetHours:    t._id.slaHoras,
+      total:             t.total,
+      concluded:         t.concluded,
+      withinSlaCorrido:  t.withinSlaCorrido,
+      withinSlaUtil:     t.withinSlaUtil,
+      avgCorridoSeconds: t.avgCorridoSeconds,
+      avgUtilSeconds:    t.avgUtilSeconds,
+      slaUtilPercent:    Number(t.concluded) > 0 ? Number(t.withinSlaUtil) / Number(t.concluded) : 0,
       slaCorridoPercent: Number(t.concluded) > 0 ? Number(t.withinSlaCorrido) / Number(t.concluded) : 0,
     }));
 
+    const qualityIndicators = qualityIndicatorsRaw.map((q) => ({
+      indicator: q._id,
+      total:     q.total,
+    }));
+
     return NextResponse.json({
-      totalAtendimentos: totalResult.total,
-      slaUtilGeral: calculateValidAverage(slaByTypeWithPercent.map((t) => t.slaUtilPercent)),
-      slaCorridoGeral: calculateValidAverage(slaByTypeWithPercent.map((t) => t.slaCorridoPercent)),
+      totalAtendimentos: totalResult,
+      slaUtilGeral:    calculateValidAverage(slaByType.map((t) => t.slaUtilPercent)),
+      slaCorridoGeral: calculateValidAverage(slaByType.map((t) => t.slaCorridoPercent)),
       metaSLA: 0.95,
-      slaByType: slaByTypeWithPercent,
+      slaByType,
       qualityIndicators,
     });
   } catch (err) {

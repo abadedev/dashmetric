@@ -2,10 +2,13 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldAlert, ShieldCheck } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Layers3, Shield, ShieldAlert, Users } from 'lucide-react';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSession } from '@/lib/auth-client';
 import { ModuleManager } from '@/components/admin/module-manager';
+import { UsersManager } from '@/components/admin/users-manager';
+import { RolesManager } from '@/components/admin/roles-manager';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -43,22 +46,41 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2 text-primary">
-            <ShieldCheck className="h-5 w-5" />
-            <CardTitle>Painel ADM</CardTitle>
-          </div>
-          <CardDescription>
-            Área administrativa disponível para {user?.name}. A partir daqui você controla a navegação modular da plataforma.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Esta primeira etapa transforma o sistema em uma base modular: o admin passa a controlar quais setores aparecem no menu, qual role mínima acessa cada módulo e se ele aceita importação.
-        </CardContent>
-      </Card>
+      <div>
+        <h1 className="text-xl font-semibold">Painel Administrativo</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Aqui você controla quem pode acessar o quê no sistema.
+        </p>
+      </div>
 
-      <ModuleManager />
+      <Tabs defaultValue="usuarios">
+        <TabsList>
+          <TabsTrigger value="usuarios">
+            <Users className="h-4 w-4" />
+            Usuários
+          </TabsTrigger>
+          <TabsTrigger value="grupos">
+            <Shield className="h-4 w-4" />
+            Grupos de Acesso
+          </TabsTrigger>
+          <TabsTrigger value="modulos">
+            <Layers3 className="h-4 w-4" />
+            Módulos
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="usuarios" className="mt-4">
+          <UsersManager />
+        </TabsContent>
+
+        <TabsContent value="grupos" className="mt-4">
+          <RolesManager />
+        </TabsContent>
+
+        <TabsContent value="modulos" className="mt-4">
+          <ModuleManager />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

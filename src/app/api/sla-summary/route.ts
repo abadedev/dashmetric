@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { atendimentos } from '@/lib/db/schema';
-import { eq, and, count, sql, gte, lte } from 'drizzle-orm';
+import { getAtendimentosCollection } from '@/lib/db/mongo';
 import { requireAuth } from '@/lib/require-auth';
 
 export const runtime = 'nodejs';
@@ -12,37 +10,61 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const fromStr = searchParams.get('from');
-    const toStr = searchParams.get('to');
-    const dataRef = sql<Date>`coalesce(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
-    const periodYearExpr = sql<number>`extract(year from ${dataRef})::int`;
-    const periodMonthExpr = sql<number>`extract(month from ${dataRef})::int`;
+    const toStr   = searchParams.get('to');
 
-    const pf = [];
-    if (fromStr) pf.push(gte(dataRef, new Date(fromStr)));
-    if (toStr) pf.push(lte(dataRef, new Date(toStr)));
+    const col = await getAtendimentosCollection();
 
-    const summary = await db
-      .select({
-        periodYear:       periodYearExpr,
-        periodMonth:      periodMonthExpr,
-        activityType:     atendimentos.tipo,          // alias para compat. frontend
-        total:            count(),
-        concluded:        sql<number>`COUNT(*) FILTER (WHERE ${atendimentos.finalizacaoAt} IS NOT NULL)`,
-        withinSlaCorrido: sql<number>`COUNT(*) FILTER (WHERE ${atendimentos.dentroSla} = true)`,
-        withinSlaUtil:    sql<number>`COUNT(*) FILTER (WHERE ${atendimentos.dentroSlaUtil} = true)`,
-        slaTargetHours:   atendimentos.slaHoras,
-      })
-      .from(atendimentos)
-      .where(and(...pf))
-      .groupBy(
-        periodYearExpr,
-        periodMonthExpr,
-        atendimentos.tipo,
-        atendimentos.slaHoras,
-      )
-      .orderBy(periodYearExpr, periodMonthExpr);
+    const dateFilter: Record<string, Date> = {};
+    if (fromStr) dateFilter.$gte = new Date(fromStr);
+    if (toStr)   dateFilter.$lte = new Date(toStr);
 
-    return NextResponse.json({ data: summary });
+    const match: Record<string, unknown> = {};
+    if (fromStr || toStr) {
+      match.$or = [
+        { aberturaAt: dateFilter },
+        { $and: [{ aberturaAt: null }, { finalizacaoAt: dateFilter }] },
+        { $and: [{ aberturaAt: null }, { finalizacaoAt: null }, { createdAt: dateFilter }] },
+      ];
+    }
+
+    const summaryRaw = await col.aggregate([
+      { $match: match },
+      {
+        $addFields: {
+          _dataRef: {
+            $ifNull: ['$aberturaAt', { $ifNull: ['$finalizacaoAt', '$createdAt'] }],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            periodYear:   { $year: '$_dataRef' },
+            periodMonth:  { $month: '$_dataRef' },
+            activityType: '$tipo',
+            slaTargetHours: '$slaHoras',
+          },
+          total:            { $sum: 1 },
+          concluded:        { $sum: { $cond: [{ $ne: ['$finalizacaoAt', null] }, 1, 0] } },
+          withinSlaCorrido: { $sum: { $cond: [{ $eq: ['$dentroSla', true] }, 1, 0] } },
+          withinSlaUtil:    { $sum: { $cond: [{ $eq: ['$dentroSlaUtil', true] }, 1, 0] } },
+        },
+      },
+      { $sort: { '_id.periodYear': 1, '_id.periodMonth': 1 } },
+    ]).toArray();
+
+    const data = summaryRaw.map((s) => ({
+      periodYear:       s._id.periodYear,
+      periodMonth:      s._id.periodMonth,
+      activityType:     s._id.activityType,
+      slaTargetHours:   s._id.slaTargetHours,
+      total:            s.total,
+      concluded:        s.concluded,
+      withinSlaCorrido: s.withinSlaCorrido,
+      withinSlaUtil:    s.withinSlaUtil,
+    }));
+
+    return NextResponse.json({ data });
   } catch (err) {
     console.error('[sla-summary]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
