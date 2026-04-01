@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileCog, Layers3, PencilLine, Plus, Save, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { StateDisplay, TableSkeleton } from '@/components/ui/state-display';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -44,6 +45,7 @@ type ModuleItem = {
     label: string;
     detectorType: string;
     isActive: boolean;
+    parameters?: Array<{ excelColumn: string; systemField: string }>;
   }>;
 };
 
@@ -53,6 +55,7 @@ type ImportProfileFormState = {
   label: string;
   detectorType: string;
   isActive: boolean;
+  parameters: Array<{ excelColumn: string; systemField: string }>;
 };
 
 type ModuleFormState = {
@@ -91,20 +94,21 @@ const defaultProfileForm: ImportProfileFormState = {
   label: '',
   detectorType: '',
   isActive: true,
+  parameters: [],
 };
 
-const iconOptions = [
-  'LayoutDashboard',
-  'ListTodo',
-  'Trophy',
-  'CheckCircle',
-  'HeadphonesIcon',
-  'TrendingUp',
-  'UserMinus',
-  'Network',
-  'BarChart',
-  'BarChart3',
-  'Upload',
+const iconList = [
+  { value: 'LayoutDashboard', label: 'Painel Inicial (Dashboard)' },
+  { value: 'ListTodo', label: 'Lista de Tarefas' },
+  { value: 'Trophy', label: 'Troféu / Conquista' },
+  { value: 'CheckCircle', label: 'Concluído / OK' },
+  { value: 'HeadphonesIcon', label: 'Suporte / Atendimento' },
+  { value: 'TrendingUp', label: 'Crescimento / Em Alta' },
+  { value: 'UserMinus', label: 'Gestão de Usuários' },
+  { value: 'Network', label: 'Rede / Integrações' },
+  { value: 'BarChart', label: 'Gráfico Simples' },
+  { value: 'BarChart3', label: 'Gráfico Detalhado' },
+  { value: 'Upload', label: 'Upload / Envio de Arquivos' },
 ];
 
 function slugToHref(slug: string) {
@@ -195,6 +199,7 @@ export function ModuleManager() {
           profileKey: profileForm.profileKey,
           label: profileForm.label,
           detectorType: profileForm.detectorType,
+          parameters: profileForm.parameters,
           isActive: profileForm.isActive,
         }),
       });
@@ -263,6 +268,7 @@ export function ModuleManager() {
           profileKey: profileForm.profileKey,
           label: profileForm.label,
           detectorType: profileForm.detectorType,
+          parameters: profileForm.parameters,
           isActive: profileForm.isActive,
         }),
       });
@@ -322,21 +328,21 @@ export function ModuleManager() {
         <CardHeader>
           <div className="flex items-center gap-2 text-primary">
             <Layers3 className="h-5 w-5" />
-            <CardTitle>Gerenciar módulos</CardTitle>
+            <CardTitle>Construtor de Páginas</CardTitle>
           </div>
           <CardDescription>
-            Cadastre, ative, desative e ordene os setores que aparecem no menu lateral e que poderão receber dashboards próprios.
+            Crie, ative, desative e organize as páginas que aparecem no menu lateral do seu sistema.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Nome</span>
+              <span className="text-xs font-medium text-muted-foreground">Nome da Página</span>
               <Input value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} />
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Slug</span>
+              <span className="text-xs font-medium text-muted-foreground">Link (Endereço)</span>
               <Input
                 value={form.slug}
                 onChange={(e) =>
@@ -353,25 +359,25 @@ export function ModuleManager() {
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Rota gerada</span>
+              <span className="text-xs font-medium text-muted-foreground">Caminho de Acesso</span>
               <Input value={derivedHref} readOnly />
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Ordem</span>
+              <span className="text-xs font-medium text-muted-foreground">Posição no Menu (Ordem)</span>
               <Input value={form.sortOrder} onChange={(e) => setForm((prev) => ({ ...prev, sortOrder: e.target.value }))} />
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Ícone</span>
+              <span className="text-xs font-medium text-muted-foreground">Ícone no Menu</span>
               <Select value={form.icon} onValueChange={(value) => setForm((prev) => ({ ...prev, icon: value || prev.icon }))}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {iconOptions.map((icon) => (
-                    <SelectItem key={icon} value={icon}>
-                      {icon}
+                  {iconList.map((icon) => (
+                    <SelectItem key={icon.value} value={icon.value}>
+                      {icon.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -379,7 +385,7 @@ export function ModuleManager() {
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Role mínima</span>
+              <span className="text-xs font-medium text-muted-foreground">Quem pode acessar?</span>
               <Select
                 value={form.requiredRole}
                 onValueChange={(value) => {
@@ -391,15 +397,15 @@ export function ModuleManager() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">Usuário</SelectItem>
-                  <SelectItem value="editor">Editor</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="user">Qualquer Usuário (Básico)</SelectItem>
+                  <SelectItem value="editor">Apenas Editores</SelectItem>
+                  <SelectItem value="admin">Apenas Administradores</SelectItem>
                 </SelectContent>
               </Select>
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Clonar base visual</span>
+              <span className="text-xs font-medium text-muted-foreground">Copiar visual de outra página?</span>
               <Select
                 value={form.templateSource || '__none__'}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, templateSource: !value || value === '__none__' ? '' : value }))}
@@ -408,7 +414,7 @@ export function ModuleManager() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Sem base</SelectItem>
+                  <SelectItem value="__none__">Página em branco</SelectItem>
                   {moduleOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -419,7 +425,7 @@ export function ModuleManager() {
             </label>
 
             <label className="space-y-2 md:col-span-2 xl:col-span-2">
-              <span className="text-xs font-medium text-muted-foreground">Descrição</span>
+              <span className="text-xs font-medium text-muted-foreground">Resumo / Descrição Interna</span>
               <Input
                 value={form.description}
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -428,8 +434,7 @@ export function ModuleManager() {
           </div>
 
           <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-            Novos módulos usam rota padrão no formato <span className="font-mono text-foreground">/{'{slug}'}</span> para manter compatibilidade com a navegação dinâmica.
-            O campo "Clonar base visual" reaproveita a base estrutural do módulo de origem, mas não copia automaticamente dashboards e regras de negócio.
+            Novas páginas usam rota padrão no formato <span className="font-mono text-foreground">/{'{endereço}'}</span>. O campo "Copiar visual de outra página" reaproveita a estrutura da tela, mas não copia seus dados antigos ou tabelas originais de forma automática.
           </div>
 
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
@@ -439,7 +444,7 @@ export function ModuleManager() {
                 checked={form.isActive}
                 onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
               />
-              Módulo ativo
+              Página ativa (Online)
             </label>
             <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
               <input
@@ -447,7 +452,7 @@ export function ModuleManager() {
                 checked={form.showInSidebar}
                 onChange={(e) => setForm((prev) => ({ ...prev, showInSidebar: e.target.checked }))}
               />
-              Exibir no menu
+              Aparecer no menu lateral
             </label>
             <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
               <input
@@ -455,7 +460,7 @@ export function ModuleManager() {
                 checked={form.allowImport}
                 onChange={(e) => setForm((prev) => ({ ...prev, allowImport: e.target.checked }))}
               />
-              Aceita importação
+              Pode receber envios (Uploads)
             </label>
             <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
               <input
@@ -463,14 +468,14 @@ export function ModuleManager() {
                 checked={form.isEditable}
                 onChange={(e) => setForm((prev) => ({ ...prev, isEditable: e.target.checked }))}
               />
-              Editável no admin
+              Liberar edição futura
             </label>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => (editingId ? updateMutation.mutate() : createMutation.mutate())} disabled={isSaving}>
               {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {editingId ? 'Salvar alterações' : 'Criar módulo'}
+              {editingId ? 'Salvar Modificações' : 'Publicar Nova Página'}
             </Button>
             {editingId ? (
               <Button
@@ -489,28 +494,26 @@ export function ModuleManager() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Módulos cadastrados</CardTitle>
+          <CardTitle>Páginas Publicadas</CardTitle>
           <CardDescription>
-            A tabela abaixo já serve de base para a navegação dinâmica e para os próximos módulos de negócio.
+            Veja abaixo todas as páginas criadas no sistema e acesse os atalhos para edição rápida.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="py-6 text-sm text-muted-foreground">Carregando módulos...</div>
+            <TableSkeleton />
           ) : error ? (
-            <div className="py-6 text-sm text-amber-600">
-              Não foi possível carregar os módulos agora. Se a migration nova ainda não foi aplicada, este comportamento é esperado nesta etapa.
-            </div>
+            <StateDisplay variant="error" description="Não foi possível carregar as páginas agora. Aguarde ou atualize a aba." />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Rota</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Menu</TableHead>
-                  <TableHead>Importa</TableHead>
+                  <TableHead>Página / Título</TableHead>
+                  <TableHead>Link</TableHead>
+                  <TableHead>Acesso Restrito</TableHead>
+                  <TableHead>Situação</TableHead>
+                  <TableHead>Menu Lateral</TableHead>
+                  <TableHead>Aceita Upload?</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -570,16 +573,16 @@ export function ModuleManager() {
         <CardHeader>
           <div className="flex items-center gap-2 text-primary">
             <FileCog className="h-5 w-5" />
-            <CardTitle>Perfis de importação</CardTitle>
+            <CardTitle>Configurar Envio de Planilhas (Uploads)</CardTitle>
           </div>
           <CardDescription>
-            Defina quais perfis de arquivo pertencem a cada módulo e mantenha a importação documentada dentro do painel administrativo.
+            Se alguma página precisar receber dados via planilha (CSV/Excel), configure aqui como o sistema deve ler esses arquivos.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Módulo</span>
+              <span className="text-xs font-medium text-muted-foreground">Associar à Página</span>
               <Select
                 value={profileForm.moduleId || '__none__'}
                 onValueChange={(value) =>
@@ -590,7 +593,7 @@ export function ModuleManager() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Selecione</SelectItem>
+                  <SelectItem value="__none__">Selecione uma Página</SelectItem>
                   {modules.map((module) => (
                     <SelectItem key={module.id} value={String(module.id)}>
                       {module.name}
@@ -601,7 +604,7 @@ export function ModuleManager() {
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Chave</span>
+              <span className="text-xs font-medium text-muted-foreground">Código Interno (Chave)</span>
               <Input
                 value={profileForm.profileKey}
                 onChange={(e) => setProfileForm((prev) => ({ ...prev, profileKey: e.target.value.toLowerCase().replace(/\s+/g, '_') }))}
@@ -609,7 +612,7 @@ export function ModuleManager() {
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Rótulo</span>
+              <span className="text-xs font-medium text-muted-foreground">Nome da Planilha no Painel</span>
               <Input
                 value={profileForm.label}
                 onChange={(e) => setProfileForm((prev) => ({ ...prev, label: e.target.value }))}
@@ -617,12 +620,64 @@ export function ModuleManager() {
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Detector</span>
+              <span className="text-xs font-medium text-muted-foreground">Identificador (Detector)</span>
               <Input
                 value={profileForm.detectorType}
                 onChange={(e) => setProfileForm((prev) => ({ ...prev, detectorType: e.target.value.toLowerCase().replace(/\s+/g, '_') }))}
               />
             </label>
+          </div>
+
+          <div className="space-y-4 rounded-lg border border-border p-4 bg-muted/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-medium">Mapeamento de Colunas (Opcional)</h4>
+                <p className="text-xs text-muted-foreground">Relacione as colunas da planilha com os campos do sistema para ler os dados corretamente.</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setProfileForm(prev => ({ ...prev, parameters: [...prev.parameters, { excelColumn: '', systemField: '' }] }))}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Coluna
+              </Button>
+            </div>
+            {profileForm.parameters.length > 0 && (
+              <div className="space-y-3">
+                {profileForm.parameters.map((param, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <Input
+                      placeholder="Nome na Planilha (Ex: Cliente)"
+                      value={param.excelColumn}
+                      onChange={(e) => {
+                        const newParams = [...profileForm.parameters];
+                        newParams[index].excelColumn = e.target.value;
+                        setProfileForm(prev => ({ ...prev, parameters: newParams }));
+                      }}
+                    />
+                    <Input
+                      placeholder="Campo no Sistema (Ex: clientName)"
+                      value={param.systemField}
+                      onChange={(e) => {
+                        const newParams = [...profileForm.parameters];
+                        newParams[index].systemField = e.target.value;
+                        setProfileForm(prev => ({ ...prev, parameters: newParams }));
+                      }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setProfileForm(prev => ({ ...prev, parameters: prev.parameters.filter((_, i) => i !== index) }));
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <label className="flex w-fit items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
@@ -631,7 +686,7 @@ export function ModuleManager() {
               checked={profileForm.isActive}
               onChange={(e) => setProfileForm((prev) => ({ ...prev, isActive: e.target.checked }))}
             />
-            Perfil ativo
+            Planilha ativada (Disponível para uso)
           </label>
 
           <div className="flex flex-wrap gap-2">
@@ -640,7 +695,7 @@ export function ModuleManager() {
               disabled={isSavingProfile || !profileForm.moduleId}
             >
               {editingProfileId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {editingProfileId ? 'Salvar perfil' : 'Criar perfil'}
+              {editingProfileId ? 'Salvar Configuração' : 'Cadastrar Planilha'}
             </Button>
             {editingProfileId ? (
               <Button
@@ -658,11 +713,11 @@ export function ModuleManager() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Módulo</TableHead>
-                <TableHead>Chave</TableHead>
-                <TableHead>Rótulo</TableHead>
-                <TableHead>Detector</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Página Vinculada</TableHead>
+                <TableHead>Código Interno</TableHead>
+                <TableHead>Nome Fácil</TableHead>
+                <TableHead>Identificador</TableHead>
+                <TableHead>Ativo?</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -687,6 +742,7 @@ export function ModuleManager() {
                               profileKey: profile.profileKey,
                               label: profile.label,
                               detectorType: profile.detectorType,
+                              parameters: profile.parameters || [],
                               isActive: profile.isActive,
                             });
                           }}
@@ -710,7 +766,7 @@ export function ModuleManager() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    Nenhum perfil de importação cadastrado.
+                    Nenhuma planilha configurada.
                   </TableCell>
                 </TableRow>
               )}

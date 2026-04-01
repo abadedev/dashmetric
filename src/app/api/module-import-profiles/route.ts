@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
         profileKey: body.profileKey,
         label: body.label,
         detectorType: body.detectorType,
+        parameters: body.parameters || [],
         isActive: body.isActive ?? true,
       })
       .returning();

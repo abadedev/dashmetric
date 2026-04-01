@@ -8,6 +8,7 @@ import { VolumePieChart } from '@/components/dashboard/volume-pie-chart';
 import { Top5Ranking } from '@/components/dashboard/top5-ranking';
 import { QualitySummary } from '@/components/dashboard/quality-summary';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageSkeleton } from '@/components/ui/state-display';
 import {
   Select,
   SelectContent,
@@ -46,7 +47,7 @@ function DashboardPageContent() {
   });
 
   if (isLoadingDash || isLoadingRank) {
-    return <div className="space-y-4 pt-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-96 w-full" /></div>;
+    return <PageSkeleton />;
   }
 
   return (
@@ -76,7 +77,7 @@ function DashboardPageContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="space-y-4 pt-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-96 w-full" /></div>}>
+    <Suspense fallback={<PageSkeleton />}>
       <DashboardPageContent />
     </Suspense>
   );

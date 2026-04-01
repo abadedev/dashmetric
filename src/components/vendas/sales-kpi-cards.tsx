@@ -15,7 +15,13 @@ export function SalesKpiCards({ totals }: { totals: any }) {
     {
       title: 'Clientes fechados',
       value: formatNumber(totals?.closedClients || 0),
-      helper: 'Clientes que avançaram até fechamento/instalação',
+      helper: 'Fechamentos do fluxo comercial padrão',
+      icon: UserRoundCheck,
+    },
+    {
+      title: 'Fechados fora do horário',
+      value: formatNumber(totals?.outsideBusinessHoursClosedClients || 0),
+      helper: 'Contratações presencial/fora do horário separadas do funil padrão',
       icon: UserRoundCheck,
     },
     {

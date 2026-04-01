@@ -122,9 +122,10 @@ function normalizeHeader(h: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-async function getHolidayDates(): Promise<Date[]> {
-  const rows = await db.select().from(holidays);
-  return rows.map((h) => new Date(h.date));
+async function getHolidayDates(): Promise<string[]> {
+  const rows = await db.select({ date: holidays.date }).from(holidays);
+  // Retorna strings "YYYY-MM-DD" diretamente para evitar shift de timezone ao usar new Date()
+  return rows.map((h) => String(h.date).slice(0, 10));
 }
 
 // nameToLogin: mapa de nome normalizado → login code (ex: "Mateus Figueira" → "0541147")

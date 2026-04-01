@@ -26,8 +26,12 @@ export async function GET(req: NextRequest) {
 
     const baseWhere = dateFilters.length ? and(...dateFilters) : undefined;
 
-    // Ranking: só técnicos vinculados (tecnicoId NOT NULL)
-    const rankingFilters: SQL[] = [...dateFilters, isNotNull(atendimentos.tecnicoId)];
+    // Técnicos excluídos do ranking (não contabilizar)
+    const EXCLUDED_FIRST_NAMES = ['Fernanda', 'Vitor', 'Ramon', 'Thiago'];
+    const excludedFilter = sql`split_part(${atendimentos.tecnico}, ' ', 1) NOT IN (${sql.join(EXCLUDED_FIRST_NAMES.map((n) => sql`${n}`), sql`, `)})`;
+
+    // Ranking: só técnicos vinculados (tecnicoId NOT NULL) e não excluídos
+    const rankingFilters: SQL[] = [...dateFilters, isNotNull(atendimentos.tecnicoId), excludedFilter];
     if (city && city !== 'all') rankingFilters.push(eq(atendimentos.cidade, city));
     const rankingWhere = and(...rankingFilters);
 

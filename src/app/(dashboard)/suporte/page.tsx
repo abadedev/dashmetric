@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SupportTable } from '@/components/suporte/support-table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageSkeleton, TableSkeleton } from '@/components/ui/state-display';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { useQueryState } from 'nuqs';
 import { startOfMonth, endOfMonth } from 'date-fns';
@@ -33,7 +34,7 @@ function SuportePageContent() {
       actions={<GlobalDateFilter />}
     >
       {isLoading ? (
-        <Skeleton className="h-[400px] w-full" />
+        <TableSkeleton />
       ) : (
         <div className="max-w-4xl">
           <SupportTable
@@ -50,7 +51,7 @@ function SuportePageContent() {
 
 export default function SuportePage() {
   return (
-    <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+    <Suspense fallback={<PageSkeleton />}>
       <SuportePageContent />
     </Suspense>
   );

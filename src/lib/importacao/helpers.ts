@@ -174,6 +174,7 @@ export function gerarHash(fields: Record<string, string | null | undefined>): st
 export function normalizeTechName(name: string): string {
   return (name ?? '')
     .trim()
+    .replace(/[._-]+/g, ' ')   // "Ian.ferreira" / "Ian_ferreira" → "Ian ferreira"
     .split(/\s+/)
     .filter(Boolean)
     .map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase())

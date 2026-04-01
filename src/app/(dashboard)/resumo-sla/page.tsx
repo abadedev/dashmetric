@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageSkeleton } from '@/components/ui/state-display';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import {
   ComposedChart,
@@ -194,7 +195,7 @@ function ResumoSlaPageContent() {
 
       {/* Charts */}
       {isLoading ? (
-        <Skeleton className="h-[420px] w-full rounded-xl" />
+        <PageSkeleton />
       ) : monthlyData.length === 0 ? (
         <Card>
           <CardContent className="p-16 text-center text-muted-foreground">
@@ -302,7 +303,7 @@ function ResumoSlaPageContent() {
 
 export default function ResumoSlaPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-[420px] w-full rounded-xl" />}>
+    <Suspense fallback={<PageSkeleton />}>
       <ResumoSlaPageContent />
     </Suspense>
   );
