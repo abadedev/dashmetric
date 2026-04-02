@@ -108,6 +108,7 @@ export async function getInstallationsAnalytics(filters: ExternalApiFilters) {
       page: filters.page,
       limit: filters.limit,
       returned: items.length,
+      total: Number(totals?.total ?? 0),
     },
   };
 }
@@ -190,6 +191,7 @@ export async function getAttendancesAnalytics(filters: ExternalApiFilters) {
       page: filters.page,
       limit: filters.limit,
       returned: items.length,
+      total: Number(totals?.total ?? 0),
     },
   };
 }
