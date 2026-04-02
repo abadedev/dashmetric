@@ -1,4 +1,3 @@
-import { Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChatMessageItem } from './chat-types';
 
@@ -105,7 +104,7 @@ function AssistantContent({ content }: { content: string }) {
   const blocks = buildBlocks(content);
 
   return (
-    <div className="space-y-3 text-sm leading-6 text-foreground">
+    <div className="space-y-2.5 text-sm leading-6 text-foreground">
       {blocks.map((block, index) => {
         if (block.type === 'list') {
           const ListTag = block.ordered ? 'ol' : 'ul';
@@ -113,7 +112,7 @@ function AssistantContent({ content }: { content: string }) {
             <ListTag
               key={`list-${index}`}
               className={cn(
-                'space-y-2 pl-5',
+                'space-y-1.5 pl-5',
                 block.ordered ? 'list-decimal marker:text-primary' : 'list-disc marker:text-primary'
               )}
             >
@@ -127,7 +126,7 @@ function AssistantContent({ content }: { content: string }) {
         }
 
         return (
-          <p key={`paragraph-${index}`} className="whitespace-pre-wrap text-foreground/95">
+          <p key={`paragraph-${index}`} className="whitespace-pre-wrap text-foreground/90">
             {block.lines.map((line, lineIndex) => (
               <span key={`${line}-${lineIndex}`}>
                 {renderInline(line)}
@@ -148,23 +147,14 @@ export function ChatMessage({ message }: ChatMessageProps) {
     <div className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[88%] rounded-3xl px-4 py-3 shadow-sm sm:max-w-[80%]',
+          'max-w-[85%] rounded-2xl px-4 py-3 text-sm sm:max-w-[78%]',
           isUser
-            ? 'rounded-br-md bg-primary text-primary-foreground'
-            : 'rounded-bl-md border border-border/70 bg-card'
+            ? 'rounded-br-sm bg-primary text-primary-foreground shadow-sm'
+            : 'rounded-bl-sm bg-card text-foreground shadow-sm ring-1 ring-border/50'
         )}
       >
-        {!isUser && (
-          <div className="mb-2 flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Bot className="h-4 w-4" />
-            </div>
-            <span className="text-sm font-medium text-foreground">Dashiel</span>
-          </div>
-        )}
-
         {isUser ? (
-          <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+          <p className="whitespace-pre-wrap leading-6">{message.content}</p>
         ) : (
           <AssistantContent content={message.content} />
         )}

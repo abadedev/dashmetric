@@ -126,16 +126,18 @@ export function ChatContainer({ variant = 'page', className }: ChatContainerProp
   return (
     <Card
       className={cn(
-        'relative flex flex-col overflow-hidden border-border/70 bg-white py-0 shadow-sm',
-        isWidget ? 'h-[min(72vh,680px)] rounded-[1.4rem]' : 'h-[calc(100vh-8.5rem)]',
+        'relative flex flex-col overflow-hidden py-0 shadow-none',
+        isWidget
+          ? 'h-[min(62vh,520px)] rounded-none border-0 border-t border-border/40'
+          : 'h-[calc(100vh-8.5rem)] rounded-xl border border-border/70',
         className
       )}
     >
       {!isWidget ? (
-        <div className="border-b border-border/70 bg-white px-5 py-4">
+        <div className="border-b border-border/70 bg-card px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_30%,#ff7858,#ff3b12_70%)] text-white shadow-[0_10px_25px_rgba(255,79,34,0.28)]">
-              <Sparkles className="h-5 w-5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Sparkles className="h-4.5 w-4.5" />
             </div>
             <div>
               <h2 className="text-[1.05rem] font-semibold text-foreground">Dashiel</h2>
@@ -145,17 +147,17 @@ export function ChatContainer({ variant = 'page', className }: ChatContainerProp
         </div>
       ) : null}
 
-      <div className="flex-1 overflow-y-auto bg-white px-4 py-5 sm:px-5">
-        <div className="flex w-full flex-col gap-4">
+      <div className="flex-1 overflow-y-auto bg-background px-4 py-4 sm:px-5">
+        <div className="flex w-full flex-col gap-3">
           {messages.length === 0 ? (
-            <div className="flex min-h-full flex-1 items-start justify-start py-3">
-              <div className="flex items-end gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[radial-gradient(circle_at_30%_30%,#ff7858,#ff3b12_70%)] text-white shadow-[0_8px_18px_rgba(255,79,34,0.28)]">
-                  <Sparkles className="h-4 w-4" />
+            <div className="flex items-start justify-start py-1">
+              <div className="flex items-end gap-2.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
                 </div>
-                <div className="max-w-[82%] rounded-[1.35rem] rounded-bl-sm bg-slate-100 px-4 py-4 text-sm leading-7 text-slate-800">
+                <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-card px-4 py-3.5 text-sm leading-6 text-foreground shadow-sm ring-1 ring-border/50">
                   <p>Olá, eu sou o Dashiel.</p>
-                  <p className="mt-3">
+                  <p className="mt-2 text-muted-foreground">
                     Posso te ajudar com dados da operação. Para melhores resultados, faça
                     perguntas curtas e objetivas.
                   </p>
@@ -171,9 +173,9 @@ export function ChatContainer({ variant = 'page', className }: ChatContainerProp
         </div>
       </div>
 
-      <div className="px-4 pb-3 sm:px-5">
+      <div className="px-4 pt-0">
         {error ? (
-          <div className="mb-3 flex items-center gap-2 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="mb-2 flex items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-sm text-destructive">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
