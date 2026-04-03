@@ -1,5 +1,7 @@
 'use client';
 
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -8,10 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { formatPercent } from '@/lib/utils/format';
 import { ACTIVITY_LABELS } from '@/lib/services/sla-engine';
-import { Badge } from '@/components/ui/badge';
+import { formatPercent } from '@/lib/utils/format';
 
 export function SlaByTypeTable({ data }: { data: any[] }) {
   if (!data || data.length === 0) {
@@ -21,17 +21,16 @@ export function SlaByTypeTable({ data }: { data: any[] }) {
           <CardTitle>SLA por Tipo de Atendimento</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center p-8 text-muted-foreground">Sem dados para o período selecionado.</div>
+          <div className="p-8 text-center text-muted-foreground">Sem dados para o período selecionado.</div>
         </CardContent>
       </Card>
     );
   }
 
-  // Ordenar por volume
   const sortedData = [...data].sort((a, b) => Number(b.total) - Number(a.total));
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="flex h-full flex-col">
       <CardHeader>
         <CardTitle>SLA por Tipo de Atendimento</CardTitle>
       </CardHeader>
@@ -54,16 +53,19 @@ export function SlaByTypeTable({ data }: { data: any[] }) {
 
               return (
                 <TableRow key={row.activityType}>
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium text-foreground">
                     {ACTIVITY_LABELS[row.activityType] || row.activityType}
                   </TableCell>
-                  <TableCell className="text-right">{row.total}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right font-medium">{row.total}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">
                     {hasMeta ? `${row.slaTargetHours}h` : '-'}
                   </TableCell>
                   <TableCell className="text-right">
                     {hasMeta ? (
-                      <Badge variant={isUtilOk ? 'default' : 'destructive'} className={isUtilOk ? 'bg-green-600' : ''}>
+                      <Badge
+                        variant={isUtilOk ? 'default' : 'destructive'}
+                        className={isUtilOk ? 'border-emerald-500/20 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400' : ''}
+                      >
                         {formatPercent(utilPct)}
                       </Badge>
                     ) : (

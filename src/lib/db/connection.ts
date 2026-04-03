@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'async_hooks';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as globalSchemaModels from './schemas/global';
 import * as schema from './schema';
@@ -42,11 +42,11 @@ export const globalDb = drizzle(_globalPool, { schema: globalSchemaModels });
 
 // Stores the workspace-scoped drizzle instance for the current async call chain.
 // When set, all calls to `db` from @/lib/db will use this instance.
-export const workspaceDbAls = new AsyncLocalStorage<ReturnType<typeof drizzle<typeof schema>>>();
+export const workspaceDbAls = new AsyncLocalStorage<WorkspaceDb>();
 
 // ── Workspace-scoped db factory ───────────────────────────────────────────────
 
-export type WorkspaceDb = ReturnType<typeof drizzle<typeof schema>>;
+export type WorkspaceDb = ReturnType<typeof drizzle<typeof schema, PoolClient>>;
 
 /**
  * Returns a workspace-scoped db (connection with SET search_path).
@@ -58,7 +58,7 @@ export async function getWorkspaceDb(workspaceSlug: string): Promise<{
 }> {
   const client = await pool.connect();
   await client.query(`SET search_path = "${workspaceSlug}", public`);
-  const wsDb = drizzle(client, { schema }) as WorkspaceDb;
+  const wsDb = drizzle(client, { schema });
   return {
     db: wsDb,
     release: () => client.release(),

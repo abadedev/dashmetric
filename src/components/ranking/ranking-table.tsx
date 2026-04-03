@@ -1,5 +1,9 @@
 'use client';
 
+import { useState } from 'react';
+import { TechDetailDialog } from '@/components/ranking/tech-detail-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -8,11 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ACTIVITY_LABELS } from '@/lib/services/sla-engine';
-import { useState } from 'react';
-import { TechDetailDialog } from '@/components/ranking/tech-detail-dialog';
 
 export function RankingTable({ ranking }: { ranking: any[] }) {
   const [selectedTech, setSelectedTech] = useState<any | null>(null);
@@ -37,7 +36,7 @@ export function RankingTable({ ranking }: { ranking: any[] }) {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
+                <TableRow>
                   <TableHead className="w-12 text-center">Pos</TableHead>
                   <TableHead>Técnico</TableHead>
                   <TableHead className="text-right">Total OS</TableHead>
@@ -56,13 +55,13 @@ export function RankingTable({ ranking }: { ranking: any[] }) {
                 {ranking.map((tech) => (
                   <TableRow
                     key={tech.technicianId}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="cursor-pointer"
                     onClick={() => setSelectedTech(tech)}
                   >
-                    <TableCell className="font-bold text-center border-r">
+                    <TableCell className="border-r border-border/60 text-center font-bold">
                       {tech.position}
                     </TableCell>
-                    <TableCell className="font-medium whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap font-medium">
                       {tech.technicianName}
                     </TableCell>
                     <TableCell className="text-right font-bold text-primary">
@@ -79,7 +78,11 @@ export function RankingTable({ ranking }: { ranking: any[] }) {
                       {tech.slaUtilPercent !== null ? (
                         <Badge
                           variant={tech.slaUtilPercent >= 95 ? 'default' : 'destructive'}
-                          className={tech.slaUtilPercent >= 95 ? 'bg-green-600' : ''}
+                          className={
+                            tech.slaUtilPercent >= 95
+                              ? 'border-emerald-500/20 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
+                              : ''
+                          }
                         >
                           {tech.slaUtilPercent}%
                         </Badge>

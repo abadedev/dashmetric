@@ -22,6 +22,7 @@ import {
   uniqueIndex,
   jsonb,
 } from 'drizzle-orm/pg-core';
+import { roleEnum } from './global';
 
 // Re-use enum definitions from global schema (they live in public)
 // These pgEnum calls must match the enum names already in public schema
@@ -66,7 +67,7 @@ export const salesRecordTypeEnum = pgEnum('sales_record_type', [
 ]);
 
 // Re-export roleEnum for workspace use (also in public)
-export { roleEnum } from './global';
+export { roleEnum };
 
 // ── Workspace-scoped tables ──
 

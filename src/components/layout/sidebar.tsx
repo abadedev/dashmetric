@@ -77,9 +77,9 @@ export function Sidebar({ userWorkspaces, activeWorkspace, userRole }: SidebarPr
     })) ?? fallbackNavItems;
 
   return (
-    <div className="flex w-64 flex-col bg-sidebar h-screen fixed left-0 top-0 z-30 border-r border-border">
+    <div className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col border-r border-sidebar-border bg-[linear-gradient(180deg,color-mix(in_oklab,var(--sidebar)_88%,white_12%),var(--sidebar))] shadow-[10px_0_40px_-28px_color-mix(in_oklab,var(--foreground)_20%,transparent)]">
       {/* Workspace Switcher */}
-      <div className="flex items-center px-3 py-3 border-b border-border shrink-0 h-14">
+      <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border/80 px-3 py-3">
         <WorkspaceSwitcher
           workspaces={userWorkspaces}
           activeWorkspace={activeWorkspace}
@@ -88,8 +88,13 @@ export function Sidebar({ userWorkspaces, activeWorkspace, userRole }: SidebarPr
       </div>
 
       {/* Nav */}
-      <div className="flex-1 overflow-auto py-3 px-3">
-        <nav className="flex flex-col gap-0.5">
+      <div className="flex-1 overflow-auto px-3 py-4">
+        <div className="mb-3 px-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/45">
+            Navegação operacional
+          </p>
+        </div>
+        <nav className="flex flex-col gap-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
@@ -97,16 +102,22 @@ export function Sidebar({ userWorkspaces, activeWorkspace, userRole }: SidebarPr
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                  'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                   isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    ? 'border border-primary/15 bg-primary/12 text-primary shadow-[0_10px_24px_-18px_color-mix(in_oklab,var(--primary)_60%,transparent)] ring-1 ring-primary/10'
+                    : 'border border-transparent text-sidebar-foreground/72 hover:border-sidebar-border/70 hover:bg-sidebar-accent/75 hover:text-sidebar-foreground'
                 )}
               >
+                <span
+                  className={cn(
+                    'absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-transparent transition-all',
+                    isActive && 'bg-primary shadow-[0_0_16px_color-mix(in_oklab,var(--primary)_45%,transparent)]'
+                  )}
+                />
                 <item.icon
                   className={cn(
                     'h-4 w-4 shrink-0 transition-colors',
-                    isActive ? 'text-primary' : 'text-muted-foreground/70'
+                    isActive ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground'
                   )}
                 />
                 {item.name}
@@ -117,8 +128,8 @@ export function Sidebar({ userWorkspaces, activeWorkspace, userRole }: SidebarPr
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-3.5 border-t border-border shrink-0">
-        <span className="text-xs text-muted-foreground/60">NOC Performance Manager v1.0.0</span>
+      <div className="shrink-0 border-t border-sidebar-border/80 px-5 py-3.5">
+        <span className="text-xs text-sidebar-foreground/50">NOC Performance Manager v1.0.0</span>
       </div>
     </div>
   );
