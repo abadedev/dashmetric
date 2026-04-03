@@ -43,6 +43,13 @@
       "when": 1775067908997,
       "tag": "0005_friendly_mathemanic",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775243359176,
+      "tag": "0006_dusty_amazoness",
+      "breakpoints": true
     }
   ]
 }

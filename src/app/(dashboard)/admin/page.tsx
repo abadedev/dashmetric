@@ -2,13 +2,14 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Layers3, Shield, ShieldAlert, Users } from 'lucide-react';
+import { Building2, Layers3, Shield, ShieldAlert, Users } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSession } from '@/lib/auth-client';
 import { ModuleManager } from '@/components/admin/module-manager';
 import { UsersManager } from '@/components/admin/users-manager';
 import { RolesManager } from '@/components/admin/roles-manager';
+import { WorkspaceManager } from '@/components/admin/workspace-manager';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -67,6 +68,10 @@ export default function AdminPage() {
             <Layers3 className="h-4 w-4" />
             Módulos
           </TabsTrigger>
+          <TabsTrigger value="workspaces">
+            <Building2 className="h-4 w-4" />
+            Workspaces
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="usuarios" className="mt-4">
@@ -79,6 +84,10 @@ export default function AdminPage() {
 
         <TabsContent value="modulos" className="mt-4">
           <ModuleManager />
+        </TabsContent>
+
+        <TabsContent value="workspaces" className="mt-4">
+          <WorkspaceManager />
         </TabsContent>
       </Tabs>
     </div>

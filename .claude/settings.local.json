@@ -11,7 +11,13 @@
       "Bash(for d:*)",
       "Bash(do echo:*)",
       "Read(//d/Relatoria.SLA/dstech-noc/src/app/api/external/$d/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(node -e \":*)",
+      "Bash(node --env-file=.env -e \":*)",
+      "Bash(find \"d:/Relatoria.SLA/dstech-noc/src/app/\\(dashboard\\)\" -name \"page.tsx\" -type f)",
+      "Bash(grep -E \"\\\\.ts$\")"
     ]
   }
 }
