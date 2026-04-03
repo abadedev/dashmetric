@@ -1,17 +1,17 @@
 'use client';
 
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ACTIVITY_LABELS } from '@/lib/services/sla-engine';
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 const COLORS = [
-  '#0ea5e9', // Azul
-  '#22c55e', // Verde
-  '#f59e0b', // Amarelo
-  '#ef4444', // Vermelho
-  '#8b5cf6', // Roxo
-  '#ec4899', // Rosa
-  '#64748b', // Cinza
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+  'color-mix(in oklab, var(--chart-1) 65%, var(--chart-2) 35%)',
+  'color-mix(in oklab, var(--chart-2) 50%, var(--foreground) 20%)',
 ];
 
 export function VolumePieChart({ data }: { data: any[] }) {
@@ -22,7 +22,7 @@ export function VolumePieChart({ data }: { data: any[] }) {
           <CardTitle>Volume por Tipo</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center p-8 text-muted-foreground">Sem dados.</div>
+          <div className="p-8 text-center text-muted-foreground">Sem dados.</div>
         </CardContent>
       </Card>
     );
@@ -36,33 +36,47 @@ export function VolumePieChart({ data }: { data: any[] }) {
     .sort((a, b) => b.value - a.value);
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="flex h-full flex-col">
       <CardHeader>
         <CardTitle>Volume por Tipo</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 min-h-[300px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={80}
-              paddingAngle={2}
-              dataKey="value"
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(value: any) => [`${value} OS`, 'Volume']}
-              contentStyle={{ borderRadius: '8px', backgroundColor: '#0f172a', border: 'none', color: '#fff' }}
-            />
-            <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px' }} />
-          </PieChart>
-        </ResponsiveContainer>
+      <CardContent className="flex-1 min-w-0">
+        <div className="h-[320px] min-h-[320px] w-full min-w-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="46%"
+                innerRadius={62}
+                outerRadius={84}
+                paddingAngle={3}
+                stroke="transparent"
+                dataKey="value"
+              >
+                {chartData.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: any) => [`${value} OS`, 'Volume']}
+                contentStyle={{
+                  borderRadius: '18px',
+                  backgroundColor: 'var(--popover)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--popover-foreground)',
+                  boxShadow: '0 18px 48px -24px rgba(15, 23, 42, 0.35)',
+                }}
+              />
+              <Legend
+                layout="horizontal"
+                verticalAlign="bottom"
+                align="center"
+                wrapperStyle={{ fontSize: '12px', color: 'var(--muted-foreground)' }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

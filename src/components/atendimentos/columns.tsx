@@ -22,7 +22,11 @@ export const Columns: ColumnDef<any>[] = [
       else if (type === 'reparo') variant = 'secondary';
       else if (type === 'retirada_kit') variant = 'destructive';
 
-      return <Badge variant={variant} className="whitespace-nowrap">{label}</Badge>;
+      return (
+        <Badge variant={variant} className="whitespace-nowrap">
+          {label}
+        </Badge>
+      );
     },
   },
   {
@@ -35,7 +39,7 @@ export const Columns: ColumnDef<any>[] = [
     header: 'Abertura',
     cell: ({ row }) => {
       const date = new Date(row.getValue('openedAt'));
-      return <div className="text-xs whitespace-nowrap">{date.toLocaleString('pt-BR')}</div>;
+      return <div className="whitespace-nowrap text-xs">{date.toLocaleString('pt-BR')}</div>;
     },
   },
   {
@@ -45,7 +49,7 @@ export const Columns: ColumnDef<any>[] = [
       const raw = row.getValue('closedAt');
       if (!raw) return <span className="text-xs text-muted-foreground">Em aberto</span>;
       const date = new Date(raw as string);
-      return <div className="text-xs whitespace-nowrap">{date.toLocaleString('pt-BR')}</div>;
+      return <div className="whitespace-nowrap text-xs">{date.toLocaleString('pt-BR')}</div>;
     },
   },
   {
@@ -64,7 +68,10 @@ export const Columns: ColumnDef<any>[] = [
       const isWithin = row.getValue('withinSlaUtil') as boolean;
       if (isWithin === null) return <span className="text-muted-foreground">-</span>;
       return (
-        <Badge variant={isWithin ? 'default' : 'destructive'} className={isWithin ? 'bg-green-600 hover:bg-green-700' : ''}>
+        <Badge
+          variant={isWithin ? 'default' : 'destructive'}
+          className={isWithin ? 'border-emerald-500/20 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400' : ''}
+        >
           {isWithin ? 'NO PRAZO' : 'FORA'}
         </Badge>
       );

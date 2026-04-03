@@ -33,20 +33,25 @@ export function QualitySummary({ data }: { data: any[] }) {
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle>Indicadores de Qualidade (Volume Absoluto)</CardTitle>
+        <CardTitle>Indicadores de Qualidade</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {sorted.map((ind) => (
-            <div key={ind.indicator} className="flex items-center justify-between p-3 border rounded-lg bg-card">
+            <div
+              key={ind.indicator}
+              className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/45 p-3.5"
+            >
               <div className="flex flex-col">
-                <span className="font-medium">{ind.indicator}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">{ind.indicator}</span>
+                <span className="text-xs leading-5 text-muted-foreground">
                   {INDICATOR_DESCRIPTIONS[ind.indicator] || ind.indicator}
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-lg font-bold">{formatNumber(ind.total)}</span>
+                <span className="text-lg font-bold tracking-tight text-foreground">
+                  {formatNumber(ind.total)}
+                </span>
                 <Badge variant="secondary">Registros</Badge>
               </div>
             </div>
