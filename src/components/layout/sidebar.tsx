@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
-import { DstechLogo } from '@/components/brand/dstech-logo';
+import { WorkspaceSwitcher } from '@/components/workspace/workspace-switcher';
 import {
   BarChart3,
   Network,
@@ -18,6 +18,7 @@ import {
   BarChart,
   Upload,
 } from 'lucide-react';
+import type { WorkspaceWithRole } from '@/lib/workspace';
 
 const fallbackNavItems = [
   { name: 'Dashboard Executivo', href: '/dashboard', icon: LayoutDashboard },
@@ -46,7 +47,13 @@ const iconMap = {
   Network,
 } as const;
 
-export function Sidebar() {
+interface SidebarProps {
+  userWorkspaces: WorkspaceWithRole[];
+  activeWorkspace: WorkspaceWithRole;
+  userRole: string;
+}
+
+export function Sidebar({ userWorkspaces, activeWorkspace, userRole }: SidebarProps) {
   const pathname = usePathname();
 
   const { data } = useQuery({
@@ -71,11 +78,13 @@ export function Sidebar() {
 
   return (
     <div className="flex w-64 flex-col bg-sidebar h-screen fixed left-0 top-0 z-30 border-r border-border">
-      {/* Logo */}
-      <div className="flex items-center px-5 py-4 border-b border-border shrink-0 h-14">
-        <div className="w-[148px] text-sidebar-foreground">
-          <DstechLogo />
-        </div>
+      {/* Workspace Switcher */}
+      <div className="flex items-center px-3 py-3 border-b border-border shrink-0 h-14">
+        <WorkspaceSwitcher
+          workspaces={userWorkspaces}
+          activeWorkspace={activeWorkspace}
+          userRole={userRole}
+        />
       </div>
 
       {/* Nav */}
