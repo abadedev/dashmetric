@@ -52,7 +52,7 @@ export function Header() {
   }
 
   return (
-    <header className="flex h-14 items-center gap-3 border-b bg-card/80 backdrop-blur-md px-4 md:px-6 shrink-0 w-full z-20 sticky top-0 shadow-sm shadow-border/20">
+    <header className="sticky top-0 z-20 flex h-14 w-full shrink-0 items-center gap-3 border-b border-border/70 bg-background/70 px-4 shadow-[0_10px_28px_-24px_color-mix(in_oklab,var(--foreground)_20%,transparent)] backdrop-blur-xl md:px-6">
       {/* Mobile Menu */}
       <div className="md:hidden shrink-0">
         <Sheet>
@@ -84,7 +84,7 @@ export function Header() {
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           aria-label="Alternar tema"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-all hover:border-border/80 hover:bg-accent/70 hover:text-foreground"
         >
           {!mounted ? (
             <span className="h-4 w-4" />
@@ -96,13 +96,13 @@ export function Header() {
         </button>
 
         {/* Divider */}
-        <div className="w-px h-5 bg-border mx-1" />
+        <div className="mx-1 h-6 w-px bg-border/80" />
 
         {/* User Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger
             type="button"
-            className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
+            className="flex items-center gap-2.5 rounded-2xl border border-transparent px-2 py-1.5 outline-none transition-all hover:border-border/70 hover:bg-card/80 focus-visible:border-border/70 focus-visible:bg-card/80"
             aria-label="Abrir menu da conta"
           >
             <div className="hidden md:flex flex-col text-right">
@@ -113,7 +113,7 @@ export function Header() {
                 {userName}
               </span>
             </div>
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0 overflow-hidden ring-2 ring-border">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/12 text-xs font-bold text-primary ring-1 ring-primary/15">
               {user?.image ? (
                 <img
                   src={user.image}
@@ -128,11 +128,11 @@ export function Header() {
             <ChevronDown className="hidden md:block h-3.5 w-3.5 text-muted-foreground" />
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuContent align="end" className="w-64 rounded-2xl border-border/70 bg-popover/95 shadow-[0_18px_48px_-22px_color-mix(in_oklab,var(--foreground)_20%,transparent)] backdrop-blur-xl">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="px-3 py-2.5">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold overflow-hidden ring-2 ring-border shrink-0">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/12 text-sm font-bold text-primary ring-1 ring-primary/15">
                     {user?.image ? (
                       <img
                         src={user.image}

@@ -32,7 +32,7 @@ export default async function DashboardLayout({
 
   return (
     <DashielProvider initialContext={DASHIEL_DEFAULT_CONTEXT}>
-      <div className="flex h-screen w-full overflow-hidden bg-muted/20">
+      <div className="flex h-screen w-full overflow-hidden bg-background">
         <div className="hidden md:flex">
           <Sidebar
             userWorkspaces={userWorkspaces}
@@ -40,7 +40,7 @@ export default async function DashboardLayout({
             userRole={session.user.role as string}
           />
         </div>
-        <div className="relative flex h-screen w-full flex-1 flex-col overflow-hidden md:pl-64">
+        <div className="relative flex h-screen w-full flex-1 flex-col overflow-hidden bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_92%,white_8%),var(--background))] md:pl-64">
           <Header />
           <main className="w-full flex-1 overflow-auto p-4 md:p-6">{children}</main>
           <DashielWidget />
