@@ -23,7 +23,10 @@ export function Breadcrumb() {
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted-foreground">
-      <Link href="/dashboard" className="flex items-center gap-1 hover:text-foreground transition-colors">
+      <Link
+        href="/dashboard"
+        className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-accent/65 hover:text-foreground"
+      >
         <Home className="h-3 w-3" />
       </Link>
       {segments.map((seg, idx) => {
@@ -33,11 +36,11 @@ export function Breadcrumb() {
 
         return (
           <span key={href} className="flex items-center gap-1">
-            <ChevronRight className="h-3 w-3 opacity-40" />
+            <ChevronRight className="h-3 w-3 opacity-35" />
             {isLast ? (
-              <span className="font-medium text-foreground">{label}</span>
+              <span className="rounded-full bg-primary/10 px-2 py-1 font-medium text-primary">{label}</span>
             ) : (
-              <Link href={href} className="hover:text-foreground transition-colors">{label}</Link>
+              <Link href={href} className="rounded-full px-2 py-1 transition-colors hover:bg-accent/65 hover:text-foreground">{label}</Link>
             )}
           </span>
         );
