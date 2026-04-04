@@ -1,7 +1,20 @@
+import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { LoginForm } from '@/components/login-form';
 import { DstechLogo } from '@/components/brand/dstech-logo';
+import { auth } from '@/lib/auth';
+import { resolveActiveWorkspace } from '@/lib/workspace';
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (session) {
+    const activeWorkspace = await resolveActiveWorkspace(session.user.id);
+    if (activeWorkspace) {
+      redirect(`/${activeWorkspace.slug}/dashboard`);
+    }
+    redirect('/waiting');
+  }
+
   return (
     <main className="relative min-h-screen w-full overflow-hidden" style={{ background: '#0a0a0f' }}>
       {/* Radial gradient top */}

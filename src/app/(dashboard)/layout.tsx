@@ -1,13 +1,9 @@
 import { redirect } from 'next/navigation';
-import { headers, cookies } from 'next/headers';
-import { DashielProvider } from '@/components/ai/dashiel-provider';
-import { DashielWidget } from '@/components/ai/dashiel-widget';
+import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
-import { DASHIEL_DEFAULT_CONTEXT } from '@/lib/dashiel/mock-context';
-import { getUserWorkspaces, resolveActiveWorkspace } from '@/lib/workspace';
+import { getUserWorkspaces } from '@/lib/workspace';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
-import type { WorkspaceWithRole } from '@/lib/workspace';
 
 export default async function DashboardLayout({
   children,
@@ -21,31 +17,23 @@ export default async function DashboardLayout({
   }
 
   const userWorkspaces = await getUserWorkspaces(session.user.id);
-
   if (userWorkspaces.length === 0) {
     redirect('/waiting');
   }
 
-  const cookieStore = await cookies();
-  const preferredSlug = cookieStore.get('active_workspace_slug')?.value ?? null;
-  const activeWorkspace = await resolveActiveWorkspace(session.user.id, preferredSlug);
-
   return (
-    <DashielProvider initialContext={DASHIEL_DEFAULT_CONTEXT}>
-      <div className="flex h-screen w-full overflow-hidden bg-background">
-        <div className="hidden md:flex">
-          <Sidebar
-            userWorkspaces={userWorkspaces}
-            activeWorkspace={activeWorkspace as WorkspaceWithRole}
-            userRole={session.user.role as string}
-          />
-        </div>
-        <div className="relative flex h-screen w-full flex-1 flex-col overflow-hidden bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_92%,white_8%),var(--background))] md:pl-64">
-          <Header />
-          <main className="w-full flex-1 overflow-auto p-4 md:p-6">{children}</main>
-          <DashielWidget />
-        </div>
+    <div className="flex min-h-screen w-full bg-background">
+      <div className="hidden md:flex">
+        <Sidebar />
       </div>
-    </DashielProvider>
+      <div className="relative flex min-h-screen w-full flex-1 flex-col bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_92%,white_8%),var(--background))] md:pl-64">
+        <Header />
+        <main className="w-full flex-1 overflow-auto">
+          <div className="mx-auto w-full max-w-[1440px] px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
   );
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-auth';
-import { db } from '@/lib/db';
-import { workspaces, workspaceMembers } from '@/lib/db/schema';
+import { globalDb as db } from '@/lib/db';
+import { workspaces, workspaceMembers } from '@/lib/db/schemas/global';
+import { provisionWorkspaceSchema } from '@/lib/db/provision';
 import { eq, count } from 'drizzle-orm';
 
 export async function GET(req: NextRequest) {
@@ -36,10 +37,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'name e slug são obrigatórios' }, { status: 400 });
   }
 
+  const slug = body.slug.trim();
+
   // Check slug uniqueness
-  const existing = await db.query.workspaces.findFirst({
-    where: eq(workspaces.slug, body.slug.trim()),
-  });
+  const [existing] = await db
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .where(eq(workspaces.slug, slug))
+    .limit(1);
   if (existing) {
     return NextResponse.json({ error: 'Slug já em uso' }, { status: 409 });
   }
@@ -48,7 +53,7 @@ export async function POST(req: NextRequest) {
     .insert(workspaces)
     .values({
       name: body.name.trim(),
-      slug: body.slug.trim(),
+      slug,
       logoUrl: body.logoUrl ?? null,
       createdBy: session.user.id,
     })
@@ -61,6 +66,9 @@ export async function POST(req: NextRequest) {
     role: 'ADMIN',
     grantedBy: session.user.id,
   });
+
+  // Provision an isolated PostgreSQL schema for this workspace (blank — no modules)
+  await provisionWorkspaceSchema(slug);
 
   return NextResponse.json({ data: created }, { status: 201 });
 }

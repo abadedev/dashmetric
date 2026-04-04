@@ -17,7 +17,18 @@
       "Bash(node -e \":*)",
       "Bash(node --env-file=.env -e \":*)",
       "Bash(find \"d:/Relatoria.SLA/dstech-noc/src/app/\\(dashboard\\)\" -name \"page.tsx\" -type f)",
-      "Bash(grep -E \"\\\\.ts$\")"
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(grep -r \"cookies\\\\|set-cookie\" d:/Relatoria.SLA/dstech-noc/node_modules/next/dist/docs/01-app/03-api-reference/ --include=*.md -l)",
+      "Bash(find d:/Relatoria.SLA/dstech-noc/node_modules/next/dist/docs/01-app/03-api-reference/ -name cookies*)",
+      "Bash(mkdir -p d:/Relatoria.SLA/dstech-noc/src/app/'\\(workspace\\)'/'[workspaceSlug]'/dashboard)",
+      "Bash(mkdir -p d:/Relatoria.SLA/dstech-noc/src/app/'\\(workspace\\)'/'[workspaceSlug]'/atendimentos)",
+      "Bash(mkdir -p d:/Relatoria.SLA/dstech-noc/src/app/'\\(workspace\\)'/'[workspaceSlug]'/qualidade)",
+      "Bash(mkdir -p d:/Relatoria.SLA/dstech-noc/src/app/'\\(workspace\\)'/'[workspaceSlug]'/ranking)",
+      "Bash(mkdir -p d:/Relatoria.SLA/dstech-noc/src/app/'\\(workspace\\)'/'[workspaceSlug]'/resumo-sla)",
+      "Bash(ls \"d:/Relatoria.SLA/dstech-noc/src/app/\\(workspace\\)/[workspaceSlug]/\")",
+      "Bash(mv \"d:/Relatoria.SLA/dstech-noc/src/app/\\(workspace\\)/[workspaceSlug]\" \"d:/Relatoria.SLA/dstech-noc/src/app/\\(workspace\\)/[slug]\")",
+      "Bash(mv \"d:/Relatoria.SLA/dstech-noc/src/app/\\(dashboard\\)/[moduleSlug]\" \"d:/Relatoria.SLA/dstech-noc/src/app/\\(dashboard\\)/[slug]\")",
+      "Bash(find d:/Relatoria.SLA/dstech-noc/src -name *logo* -o -name *Logo*)"
     ]
   }
 }

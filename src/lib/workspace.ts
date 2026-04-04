@@ -1,6 +1,6 @@
 import { cache } from 'react';
-import { db } from '@/lib/db';
-import { workspaces, workspaceMembers } from '@/lib/db/schema';
+import { globalDb } from '@/lib/db';
+import { workspaces, workspaceMembers } from '@/lib/db/schemas/global';
 import { eq, and } from 'drizzle-orm';
 
 export type WorkspaceWithRole = {
@@ -17,7 +17,7 @@ export type WorkspaceWithRole = {
  * Cached per-request via React cache().
  */
 export const getUserWorkspaces = cache(async (userId: string): Promise<WorkspaceWithRole[]> => {
-  const rows = await db
+  const rows = await globalDb
     .select({
       id: workspaces.id,
       name: workspaces.name,

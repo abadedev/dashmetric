@@ -1,13 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { workspaceMembers } from '@/lib/db/schema';
+import { globalDb } from '@/lib/db';
+import { workspaceMembers } from '@/lib/db/schemas/global';
 import { eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
 const PUBLIC_PATHS = ['/auth', '/waiting'];
 const BYPASS_PREFIXES = ['/api/auth', '/_next', '/favicon', '/public'];
+
+// First path segments that are NOT workspace slugs
+const RESERVED_SEGMENTS = new Set(['api', 'auth', 'waiting', '_next', 'favicon', 'public']);
+
+/**
+ * Attempts to extract a workspace slug from a URL like /{slug}/dashboard.
+ * Returns null for paths that cannot be workspace-scoped.
+ */
+function extractWorkspaceSlug(pathname: string): string | null {
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts.length < 2) return null;
+  const first = parts[0]!;
+  if (RESERVED_SEGMENTS.has(first)) return null;
+  return first;
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -35,7 +50,7 @@ export async function middleware(request: NextRequest) {
   if (!pathname.startsWith('/api/')) {
     const accessOk = request.cookies.get('workspace_access_ok')?.value === '1';
     if (!accessOk) {
-      const memberships = await db
+      const memberships = await globalDb
         .select({ id: workspaceMembers.id })
         .from(workspaceMembers)
         .where(eq(workspaceMembers.userId, session.user.id))
@@ -53,6 +68,22 @@ export async function middleware(request: NextRequest) {
         path: '/',
       });
       return response;
+    }
+
+    // Set dwm_active_workspace from URL if this is a workspace-scoped path
+    const slugFromUrl = extractWorkspaceSlug(pathname);
+    if (slugFromUrl) {
+      const currentCookie = request.cookies.get('dwm_active_workspace')?.value;
+      if (currentCookie !== slugFromUrl) {
+        const response = NextResponse.next();
+        response.cookies.set('dwm_active_workspace', slugFromUrl, {
+          httpOnly: false,
+          sameSite: 'lax',
+          maxAge: 86400 * 30,
+          path: '/',
+        });
+        return response;
+      }
     }
   }
 

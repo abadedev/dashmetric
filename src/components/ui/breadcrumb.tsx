@@ -24,7 +24,7 @@ export function Breadcrumb() {
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted-foreground">
       <Link
-        href="/dashboard"
+        href="/"
         className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-accent/65 hover:text-foreground"
       >
         <Home className="h-3 w-3" />
