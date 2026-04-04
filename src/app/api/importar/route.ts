@@ -14,6 +14,7 @@ import { detectFileType } from '@/lib/importacao/detect-file-type';
 import { parseCsv } from '@/lib/importacao/parse-csv';
 import { parseXlsx } from '@/lib/importacao/parse-xlsx';
 import { requireAuth } from '@/lib/require-auth';
+import { runWithWorkspace } from '@/lib/with-workspace';
 import { db } from '@/lib/db';
 
 export const runtime = 'nodejs';
@@ -21,6 +22,7 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
+  return runWithWorkspace(req, async () => {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -168,4 +170,5 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+  });
 }

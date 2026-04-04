@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-auth';
-import { db } from '@/lib/db';
-import { workspaceMembers, user, workspaces } from '@/lib/db/schema';
+import { globalDb as db } from '@/lib/db';
+import { workspaceMembers, workspaces } from '@/lib/db/schemas/global';
+import { user } from '@/lib/db/schemas/global';
 import { eq, and } from 'drizzle-orm';
 
 interface Context {
@@ -38,9 +39,7 @@ export async function POST(req: NextRequest, ctx: Context) {
   const { id: workspaceId } = await ctx.params;
 
   // Verify workspace exists
-  const ws = await db.query.workspaces.findFirst({
-    where: eq(workspaces.id, workspaceId),
-  });
+  const [ws] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1);
   if (!ws) {
     return NextResponse.json({ error: 'Workspace não encontrado' }, { status: 404 });
   }

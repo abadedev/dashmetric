@@ -32,7 +32,7 @@ const DEFAULT_MODULES: Array<{
       slug: 'dashboard',
       description: 'Visao executiva consolidada dos principais indicadores operacionais.',
       icon: 'LayoutDashboard',
-      href: '/dashboard',
+      href: '/',
       sortOrder: 10,
       isActive: true,
       showInSidebar: true,
@@ -281,6 +281,16 @@ export async function ensureDefaultModules() {
       }
 
       continue;
+    }
+
+    if (found.href !== definition.module.href) {
+      await db
+        .update(systemModules)
+        .set({
+          href: definition.module.href!,
+          updatedAt: new Date(),
+        })
+        .where(eq(systemModules.id, found.id));
     }
 
     if (found.slug === 'infraestrutura') {
