@@ -36,6 +36,12 @@ const _globalPool = new Pool({
   ssl: rawUrl.includes('neon.tech') ? { rejectUnauthorized: false } : false,
 });
 
+_globalPool.on('connect', (client) => {
+  client.query('SET search_path = public').catch(() => {
+    // ignore connection-level search_path failures during bootstrap
+  });
+});
+
 export const globalDb = drizzle(_globalPool, { schema: globalSchemaModels });
 
 // ── Workspace db context (AsyncLocalStorage) ──────────────────────────────────

@@ -19,7 +19,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isPending && !isAdmin) {
-      router.replace('/dashboard');
+      router.replace('/');
     }
   }, [isAdmin, isPending, router]);
 

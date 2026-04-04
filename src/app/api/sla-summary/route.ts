@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { atendimentos } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/require-auth';
+import { runWithWorkspace } from '@/lib/with-workspace';
 import { and, asc, count, sql, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -9,6 +10,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
+  return runWithWorkspace(req, async () => {
   try {
     const { searchParams } = new URL(req.url);
     const fromStr = searchParams.get('from');
@@ -62,4 +64,5 @@ export async function GET(req: NextRequest) {
     console.error('[sla-summary]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+  });
 }

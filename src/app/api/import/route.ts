@@ -3,13 +3,14 @@ import { db } from '@/lib/db';
 import { lotesImportacao } from '@/lib/db/schema';
 import { importarAtendimentos } from '@/lib/importacao/importar-atendimentos';
 import { requireAuth } from '@/lib/require-auth';
+import { runWithWorkspace } from '@/lib/with-workspace';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-
+  return runWithWorkspace(req, async () => {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -48,16 +49,14 @@ export async function POST(req: NextRequest) {
     console.error('[import legacy]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+  });
 }
 
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-
-  const batches = await db
-    .select()
-    .from(lotesImportacao)
-    .orderBy(lotesImportacao.createdAt);
-
-  return NextResponse.json(batches);
+  return runWithWorkspace(req, async () => {
+    const batches = await db.select().from(lotesImportacao).orderBy(lotesImportacao.createdAt);
+    return NextResponse.json(batches);
+  });
 }

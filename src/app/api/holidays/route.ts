@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { holidays } from '@/lib/db/schema';
 import { asc, eq } from 'drizzle-orm';
 import { requireAuth } from '@/lib/require-auth';
+import { runWithWorkspace } from '@/lib/with-workspace';
 
 export const runtime = 'nodejs';
 
@@ -10,13 +11,15 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-  try {
-    const rows = await db.select().from(holidays).orderBy(asc(holidays.date));
-    return NextResponse.json({ data: rows });
-  } catch (err) {
-    console.error('[holidays GET]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+  return runWithWorkspace(req, async () => {
+    try {
+      const rows = await db.select().from(holidays).orderBy(asc(holidays.date));
+      return NextResponse.json({ data: rows });
+    } catch (err) {
+      console.error('[holidays GET]', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+  });
 }
 
 // POST /api/holidays — cria um ou vários feriados
@@ -25,6 +28,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
+  return runWithWorkspace(req, async () => {
   try {
     const body = await req.json();
     const items: { date: string; name: string }[] = Array.isArray(body) ? body : [body];
@@ -59,22 +63,25 @@ export async function POST(req: NextRequest) {
     console.error('[holidays POST]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+  });
 }
 
 // DELETE /api/holidays?date=YYYY-MM-DD — remove um feriado
 export async function DELETE(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-  try {
-    const date = new URL(req.url).searchParams.get('date');
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return NextResponse.json({ error: 'Parâmetro "date" (YYYY-MM-DD) obrigatório.' }, { status: 400 });
-    }
+  return runWithWorkspace(req, async () => {
+    try {
+      const date = new URL(req.url).searchParams.get('date');
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return NextResponse.json({ error: 'Parâmetro "date" (YYYY-MM-DD) obrigatório.' }, { status: 400 });
+      }
 
-    await db.delete(holidays).where(eq(holidays.date, date));
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error('[holidays DELETE]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+      await db.delete(holidays).where(eq(holidays.date, date));
+      return NextResponse.json({ ok: true });
+    } catch (err) {
+      console.error('[holidays DELETE]', err);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+  });
 }

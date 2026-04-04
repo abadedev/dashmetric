@@ -1,14 +1,14 @@
-import { db } from '@/lib/db';
-import { workspaceMembers } from '@/lib/db/schema';
+import { globalDb } from '@/lib/db';
+import { workspaceMembers } from '@/lib/db/schemas/global';
 import { eq, and } from 'drizzle-orm';
-import type { WorkspaceMember } from '@/lib/db/schema';
+import type { WorkspaceMember } from '@/lib/db/schemas/global';
 import { NextResponse } from 'next/server';
 
 export async function assertWorkspaceMember(
   workspaceId: string,
   userId: string
 ): Promise<WorkspaceMember> {
-  const member = await db.query.workspaceMembers.findFirst({
+  const member = await globalDb.query.workspaceMembers.findFirst({
     where: and(
       eq(workspaceMembers.workspaceId, workspaceId),
       eq(workspaceMembers.userId, userId)

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
-import { WorkspaceSwitcher } from '@/components/workspace/workspace-switcher';
+import { DstechLogo } from '@/components/brand/dstech-logo';
 import {
   BarChart3,
   Network,
@@ -18,10 +18,8 @@ import {
   BarChart,
   Upload,
 } from 'lucide-react';
-import type { WorkspaceWithRole } from '@/lib/workspace';
-
 const fallbackNavItems = [
-  { name: 'Dashboard Executivo', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Dashboard Executivo', href: '/', icon: LayoutDashboard },
   { name: 'Atendimentos', href: '/atendimentos', icon: ListTodo },
   { name: 'Ranking Técnicos', href: '/ranking', icon: Trophy },
   { name: 'Qualidade & Reclam.', href: '/qualidade', icon: CheckCircle },
@@ -47,13 +45,7 @@ const iconMap = {
   Network,
 } as const;
 
-interface SidebarProps {
-  userWorkspaces: WorkspaceWithRole[];
-  activeWorkspace: WorkspaceWithRole;
-  userRole: string;
-}
-
-export function Sidebar({ userWorkspaces, activeWorkspace, userRole }: SidebarProps) {
+export function Sidebar() {
   const pathname = usePathname();
 
   const { data } = useQuery({
@@ -73,18 +65,17 @@ export function Sidebar({ userWorkspaces, activeWorkspace, userRole }: SidebarPr
   const navItems =
     data?.data?.map((item) => ({
       ...item,
+      href: item.href === '/dashboard' ? '/' : item.href,
       icon: iconMap[item.icon] ?? LayoutDashboard,
     })) ?? fallbackNavItems;
 
   return (
     <div className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col border-r border-sidebar-border bg-[linear-gradient(180deg,color-mix(in_oklab,var(--sidebar)_88%,white_12%),var(--sidebar))] shadow-[10px_0_40px_-28px_color-mix(in_oklab,var(--foreground)_20%,transparent)]">
-      {/* Workspace Switcher */}
-      <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border/80 px-3 py-3">
-        <WorkspaceSwitcher
-          workspaces={userWorkspaces}
-          activeWorkspace={activeWorkspace}
-          userRole={userRole}
-        />
+      {/* Logo */}
+      <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border/80 px-5">
+        <Link href="/" className="flex items-center opacity-85 transition-opacity hover:opacity-100">
+          <DstechLogo className="h-10 w-auto text-sidebar-foreground" />
+        </Link>
       </div>
 
       {/* Nav */}
@@ -96,7 +87,10 @@ export function Sidebar({ userWorkspaces, activeWorkspace, userRole }: SidebarPr
         </div>
         <nav className="flex flex-col gap-1">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isDashboardLink = item.href === '/';
+            const isActive = isDashboardLink
+              ? pathname === '/' || pathname === '/dashboard' || pathname.endsWith('/dashboard')
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-auth';
-import { db } from '@/lib/db';
-import { workspaceMembers } from '@/lib/db/schema';
+import { globalDb as db } from '@/lib/db';
+import { workspaceMembers } from '@/lib/db/schemas/global';
 import { eq, and } from 'drizzle-orm';
 
 interface Context {

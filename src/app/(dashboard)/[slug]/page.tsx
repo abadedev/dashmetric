@@ -73,7 +73,7 @@ function resolveTemplateNarrative(templateSource: string | null, allowImport: bo
 export default async function DynamicModulePage({
   params,
 }: {
-  params: Promise<{ moduleSlug: string }>;
+  params: Promise<{ slug: string }>;
 }) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -83,7 +83,7 @@ export default async function DynamicModulePage({
     redirect('/auth');
   }
 
-  const { moduleSlug } = await params;
+  const { slug: moduleSlug } = await params;
   const module = await getModuleBySlug(moduleSlug);
 
   if (!module || !module.isActive) {
@@ -92,7 +92,7 @@ export default async function DynamicModulePage({
 
   const userRole = ((session.user as { role?: AppRole }).role ?? 'user') as AppRole;
   if (!canAccessModule(userRole, module.requiredRole)) {
-    redirect('/dashboard');
+    redirect('/');
   }
 
   const Icon = iconMap[module.icon as keyof typeof iconMap] ?? LayoutDashboard;

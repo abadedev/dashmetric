@@ -1,11 +1,16 @@
 {
-  "name": "dstech-noc",
+  "name": "dashmetric",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev",
     "build": "next build",
     "start": "next start",
+    "db:bootstrap": "npx tsx scripts/bootstrap-db.ts",
+    "db:create-admin": "npx tsx scripts/create-admin.ts",
+    "db:migrate": "npx drizzle-kit migrate",
+    "db:push": "npx drizzle-kit push",
+    "db:seed": "npx tsx src/lib/db/seed.ts",
     "test:sla": "npx tsx src/lib/sla/calculate-sla.cases.ts",
     "test:classify": "npx tsx --test src/lib/importacao/classify-support.test.ts",
     "seed": "npx tsx src/lib/db/seed.ts",

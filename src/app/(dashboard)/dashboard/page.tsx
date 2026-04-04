@@ -2,9 +2,7 @@
 
 import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { endOfMonth, format, startOfMonth } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { DashielContextBridge } from '@/components/ai/dashiel-context-bridge';
+import { endOfMonth, startOfMonth } from 'date-fns';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
 import { QualitySummary } from '@/components/dashboard/quality-summary';
 import { SlaByTypeTable } from '@/components/dashboard/sla-by-type-table';
@@ -22,8 +20,8 @@ function DashboardPageContent() {
   const rangeEnd = to ?? endOfMonth(new Date());
 
   const queryParams = new URLSearchParams();
-  if (rangeStart) queryParams.set('from', rangeStart.toISOString());
-  if (rangeEnd) queryParams.set('to', rangeEnd.toISOString());
+  queryParams.set('from', rangeStart.toISOString());
+  queryParams.set('to', rangeEnd.toISOString());
   const qs = queryParams.toString();
 
   const { data: dashboardData, isLoading: isLoadingDash } = useQuery({
@@ -46,49 +44,24 @@ function DashboardPageContent() {
     return <PageSkeleton />;
   }
 
-  const sortedByVolume = [...(dashboardData?.slaByType || [])].sort(
-    (a, b) => Number(b.total) - Number(a.total)
-  );
-  const topCategory = sortedByVolume[0]?.activityType || 'Reparo';
-  const validAverageSla = sortedByVolume
-    .map((item) => Number(item.avgUtilSeconds || 0))
-    .filter((value) => value > 0);
-  const averageSlaSeconds =
-    validAverageSla.length > 0
-      ? validAverageSla.reduce((acc, value) => acc + value, 0) / validAverageSla.length
-      : 0;
-  const dashielContext = {
-    periodLabel: `${format(rangeStart, 'dd MMM, yyyy', { locale: ptBR })} - ${format(rangeEnd, 'dd MMM, yyyy', {
-      locale: ptBR,
-    })}`,
-    visibleChart: 'volume_por_tipo',
-    chartTitle: 'Volume por Tipo',
-    summary: {
-      totalAttendances: Number(dashboardData?.totalAtendimentos || 0),
-      averageSlaHours: averageSlaSeconds > 0 ? averageSlaSeconds / 3600 : undefined,
-      topCategory,
-    },
-  };
-
   return (
     <PageLayout
       title="Dashboard Executivo"
       description="Visão geral de SLA, ranking de técnicos e indicadores de qualidade."
       actions={<GlobalDateFilter />}
     >
-      <DashielContextBridge context={dashielContext} />
       <KpiCards data={dashboardData} />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.9fr)]">
+        <div className="min-w-0">
           <SlaByTypeTable data={dashboardData?.slaByType || []} />
         </div>
-        <div className="lg:col-span-1">
+        <div className="min-w-0">
           <VolumePieChart data={dashboardData?.slaByType || []} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Top5Ranking ranking={rankingData?.ranking || []} />
         <QualitySummary data={dashboardData?.qualityIndicators || []} />
       </div>

@@ -14,7 +14,7 @@ export function LoginForm() {
     try {
       await signIn.social({
         provider: 'google',
-        callbackURL: '/dashboard',
+        callbackURL: '/',
       });
     } catch {
       toast.error('Erro ao autenticar com Google.');

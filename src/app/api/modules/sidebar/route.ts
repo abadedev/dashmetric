@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asc } from 'drizzle-orm';
 import { requireAuth } from '@/lib/require-auth';
+import { runWithWorkspace } from '@/lib/with-workspace';
 import { db } from '@/lib/db';
 import { systemModules } from '@/lib/db/schema';
 import { ensureDefaultModules, type AppRole, type SidebarModuleItem } from '@/lib/services/module-service';
@@ -11,7 +12,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const result = await requireAuth(req);
   if (result.response) return result.response;
-
+  return runWithWorkspace(req, async () => {
   try {
     const user = result.session.user as { id?: string; role?: AppRole };
     const role = user.role ?? 'user';
@@ -66,4 +67,5 @@ export async function GET(req: NextRequest) {
     console.error('[modules:sidebar]', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+  });
 }
