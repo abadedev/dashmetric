@@ -38,7 +38,7 @@ export function Breadcrumb() {
           <span key={href} className="flex items-center gap-1">
             <ChevronRight className="h-3 w-3 opacity-35" />
             {isLast ? (
-              <span className="rounded-full bg-primary/10 px-2 py-1 font-medium text-primary">{label}</span>
+              <span className="rounded-full border border-border/70 bg-card/80 px-2.5 py-1 font-medium text-foreground shadow-[0_8px_20px_-18px_rgba(15,23,42,0.24)]">{label}</span>
             ) : (
               <Link href={href} className="rounded-full px-2 py-1 transition-colors hover:bg-accent/65 hover:text-foreground">{label}</Link>
             )}

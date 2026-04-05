@@ -16,6 +16,9 @@ const FILTERS_SCHEMA = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
   page: z.coerce.number().int().min(1).optional().default(1),
   city: z.string().trim().optional(),
+  plan: z.string().trim().optional(),
+  bairro: z.string().trim().optional(),
+  source: z.string().trim().optional(),
   search: z.string().trim().optional(),
   resource: z.string().trim().optional(),
 });
@@ -34,6 +37,9 @@ export type ExternalApiFilters = {
   page: number;
   offset: number;
   city: string | null;
+  plan: string | null;
+  bairro: string | null;
+  source: string | null;
   search: string | null;
   resource: string | null;
 };
@@ -102,6 +108,9 @@ export function parseExternalApiFilters(req: NextRequest): ExternalApiFilters {
     limit: searchParams.get('limit') ?? undefined,
     page: searchParams.get('page') ?? undefined,
     city: searchParams.get('city') ?? undefined,
+    plan: searchParams.get('plan') ?? undefined,
+    bairro: searchParams.get('bairro') ?? undefined,
+    source: searchParams.get('source') ?? undefined,
     search: searchParams.get('search') ?? undefined,
     resource: searchParams.get('resource') ?? undefined,
   });
@@ -132,6 +141,9 @@ export function parseExternalApiFilters(req: NextRequest): ExternalApiFilters {
     page: parsed.page,
     offset: (parsed.page - 1) * parsed.limit,
     city: parsed.city || null,
+    plan: parsed.plan || null,
+    bairro: parsed.bairro || null,
+    source: parsed.source || null,
     search: parsed.search || null,
     resource: parsed.resource || null,
   };
@@ -151,6 +163,9 @@ export function serializeAppliedFilters(filters: ExternalApiFilters) {
     limit: filters.limit,
     page: filters.page,
     city: filters.city,
+    plan: filters.plan,
+    bairro: filters.bairro,
+    source: filters.source,
     search: filters.search,
     resource: filters.resource,
   };

@@ -1,24 +1,22 @@
 import { NextRequest } from 'next/server';
 import { handleExternalApiRequest } from '@/lib/api/external-handler';
-import {
-  ExternalApiRequestError,
-  parseExternalQueryResource,
-  resolveExternalQueryResource,
-} from '@/lib/api/external-query';
+import { getModuleFilterPayload } from '@/lib/search/filter-options-service';
+import { parseModuleFilterResource } from '@/lib/search/module-filters';
+import { ExternalApiRequestError } from '@/lib/api/external-query';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   return handleExternalApiRequest(
     req,
-    'query',
+    'filter-options',
     async (filters) => {
-      const resource = parseExternalQueryResource(filters.resource);
-      return resolveExternalQueryResource(resource, filters);
+      const resource = parseModuleFilterResource(filters.resource);
+      return getModuleFilterPayload(resource);
     },
     {
       buildSuccessExtra: (filters) => ({
-        resource: parseExternalQueryResource(filters.resource),
+        resource: parseModuleFilterResource(filters.resource),
       }),
       buildErrorExtra: (filters, error) => ({
         resource:

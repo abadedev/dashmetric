@@ -16,7 +16,7 @@ export default async function UploadPage() {
   return (
     <PageLayout
       title="DATA INGESTION"
-      description="Interface tecnica de upload. O envio de dados retroalimenta os indicadores analiticos do NOC."
+      description="Interface tecnica de upload do Dashmetric. O envio de dados retroalimenta os indicadores analiticos da plataforma."
     >
       <div className="max-w-4xl space-y-6">
         <CsvDropzone profiles={activeProfiles} />

@@ -1,7 +1,6 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Trophy, Medal, Star } from 'lucide-react';
 
 export function Top5Cards({ ranking }: { ranking: any[] }) {
@@ -13,31 +12,31 @@ export function Top5Cards({ ranking }: { ranking: any[] }) {
     switch (pos) {
       case 1:
         return {
-          border: 'border-yellow-500/50 shadow-yellow-500/20',
-          bg: 'bg-yellow-500/10',
-          text: 'text-yellow-600 dark:text-yellow-500',
-          icon: <Trophy className="h-6 w-6 text-yellow-600 dark:text-yellow-500" />
+          border: 'border-border/80',
+          accent: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+          text: 'text-foreground',
+          icon: <Trophy className="h-6 w-6 text-amber-700 dark:text-amber-300" />,
         };
       case 2:
         return {
-          border: 'border-slate-400/50 shadow-slate-400/20',
-          bg: 'bg-slate-400/10',
-          text: 'text-slate-600 dark:text-slate-400',
-          icon: <Medal className="h-6 w-6 text-slate-600 dark:text-slate-400" />
+          border: 'border-border/75',
+          accent: 'bg-slate-400/10 text-slate-700 dark:text-slate-300',
+          text: 'text-foreground',
+          icon: <Medal className="h-6 w-6 text-slate-700 dark:text-slate-300" />,
         };
       case 3:
         return {
-          border: 'border-amber-600/50 shadow-amber-600/20',
-          bg: 'bg-amber-600/10',
-          text: 'text-amber-700 dark:text-amber-600',
-          icon: <Medal className="h-6 w-6 text-amber-700 dark:text-amber-600" />
+          border: 'border-border/75',
+          accent: 'bg-orange-500/10 text-orange-700 dark:text-orange-300',
+          text: 'text-foreground',
+          icon: <Medal className="h-6 w-6 text-orange-700 dark:text-orange-300" />,
         };
       default:
         return {
-          border: 'border-primary/30',
-          bg: 'bg-primary/5',
-          text: 'text-primary',
-          icon: <Star className="h-6 w-6 text-primary" />
+          border: 'border-border/70',
+          accent: 'bg-foreground/[0.05] text-muted-foreground',
+          text: 'text-foreground',
+          icon: <Star className="h-6 w-6 text-muted-foreground" />,
         };
     }
   };
@@ -47,29 +46,34 @@ export function Top5Cards({ ranking }: { ranking: any[] }) {
       {top5.map((tech) => {
         const style = getStyle(tech.position);
         return (
-          <Card key={tech.technicianId} className={`relative overflow-hidden border-2 ${style.border}`}>
-            <div className={`absolute top-0 right-0 p-4 rounded-bl-3xl ${style.bg}`}>
+          <Card
+            key={tech.technicianId}
+            className={`relative overflow-hidden border ${style.border} bg-[linear-gradient(180deg,color-mix(in_oklab,var(--card)_96%,white_4%),var(--card))] shadow-[0_16px_36px_-30px_rgba(15,23,42,0.28)]`}
+          >
+            <div className={`absolute right-4 top-4 rounded-2xl p-3 ${style.accent}`}>
               {style.icon}
             </div>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-bold flex items-center gap-2">
-                <span className={`text-2xl ${style.text}`}>{tech.position}º</span>
+              <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                <span className={`text-2xl ${style.text}`}>{tech.position}o</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-lg font-semibold truncate mb-1" title={tech.technicianName}>
+              <div className="mb-1 truncate text-lg font-semibold tracking-tight" title={tech.technicianName}>
                 {tech.technicianName}
               </div>
-              <div className="text-2xl font-black mb-2">{tech.totalOS} <span className="text-sm font-normal text-muted-foreground">OS</span></div>
-              
-              <div className="space-y-1 mt-4 border-t pt-3">
+              <div className="mb-2 text-[2rem] font-semibold tracking-[-0.04em] text-foreground">
+                {tech.totalOS} <span className="text-sm font-normal text-muted-foreground">OS</span>
+              </div>
+
+              <div className="mt-4 space-y-1 border-t border-border/70 pt-3">
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">SLA Útil %</span>
-                  <span className="font-medium">{tech.slaUtilPercent ?? '-'}%</span>
+                  <span className="text-muted-foreground">SLA Util %</span>
+                  <span className="font-medium text-foreground">{tech.slaUtilPercent ?? '-'}%</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">SLA Médio</span>
-                  <span className="font-mono">{tech.avgSlaUtilFormatted}</span>
+                  <span className="text-muted-foreground">SLA medio</span>
+                  <span className="font-mono text-foreground">{tech.avgSlaUtilFormatted}</span>
                 </div>
               </div>
             </CardContent>

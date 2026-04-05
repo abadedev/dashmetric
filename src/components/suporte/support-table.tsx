@@ -1,15 +1,19 @@
 'use client';
 
+import { HeadphonesIcon, Trophy } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StateDisplay } from '@/components/ui/state-display';
 import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent } from '@/components/ui/card';
-import { HeadphonesIcon } from 'lucide-react';
+import { formatNumber } from '@/lib/utils/format';
 
 type SupportSummaryItem = {
   tipo: string;
@@ -26,22 +30,19 @@ type SupportTableProps = {
 
 function formatPeriodLabel(from?: Date | null, to?: Date | null) {
   if (!from || !to) {
-    return 'Resumo final consolidado';
+    return 'Consolidado do periodo selecionado';
   }
 
-  const formatter = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
-  const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
-  const end = new Date(to.getFullYear(), to.getMonth(), 1);
-  const labels: string[] = [];
+  const sameMonth = from.getFullYear() === to.getFullYear() && from.getMonth() === to.getMonth();
 
-  while (cursor <= end) {
-    const monthLabel = formatter.format(cursor).replace('.', '');
-    labels.push(monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1));
-    cursor.setMonth(cursor.getMonth() + 1);
+  if (sameMonth) {
+    return new Intl.DateTimeFormat('pt-BR', {
+      month: 'long',
+      year: 'numeric',
+    }).format(from);
   }
 
-  const uniqueLabels = labels.filter((label, index) => labels.indexOf(label) === index);
-  return `Resumo final consolidado ${uniqueLabels.join(' + ')} ${to.getFullYear()}`;
+  return `${new Intl.DateTimeFormat('pt-BR', { month: 'short', year: '2-digit' }).format(from)} a ${new Intl.DateTimeFormat('pt-BR', { month: 'short', year: '2-digit' }).format(to)}`;
 }
 
 function formatPercentage(value: number) {
@@ -51,64 +52,105 @@ function formatPercentage(value: number) {
 export function SupportTable({ summary, total, from, to }: SupportTableProps) {
   if (!summary.length) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center p-12 text-muted-foreground">
-          <HeadphonesIcon className="h-12 w-12 mb-4 opacity-20" />
-          <p>Nenhum registro de suporte encontrado para este período.</p>
+      <Card className="border-border/75 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--card)_96%,white_4%),var(--card))] shadow-[0_16px_40px_-30px_rgba(15,23,42,0.28)]">
+        <CardContent className="p-0">
+          <StateDisplay
+            variant="empty"
+            icon={<HeadphonesIcon className="h-8 w-8 text-muted-foreground/50" />}
+            title="Sem dados de suporte por tipo"
+            description="Nao ha registros classificados para os filtros atuais."
+            className="min-h-[260px]"
+          />
         </CardContent>
       </Card>
     );
   }
 
+  const topCategory = summary[0] ?? null;
+  const periodLabel = formatPeriodLabel(from, to);
+
   return (
-    <Card className="overflow-hidden border-slate-300 bg-white text-slate-900">
-      <div className="border-b border-slate-300 bg-[#1f4fa3] px-4 py-2 text-center text-base font-bold text-white">
-        Resumo por Tipo
-      </div>
-      <div className="border-b border-slate-300 bg-[#1e8f3d] px-4 py-2 text-center text-sm font-semibold text-white">
-        {formatPeriodLabel(from, to)}
-      </div>
+    <Card className="overflow-hidden border-border/75 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--card)_96%,white_4%),var(--card))] shadow-[0_16px_40px_-30px_rgba(15,23,42,0.28)]">
+      <CardHeader className="gap-4 border-b border-border/70 pb-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1.5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Suporte por telefone
+            </div>
+            <CardTitle className="text-lg font-semibold tracking-tight">Resumo por Tipo</CardTitle>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Consolidado das categorias classificadas automaticamente a partir de <span className="font-medium text-foreground/85">ProblemaReclamado</span>.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="border-border/80 bg-background/80 text-foreground">
+              {formatNumber(total)} atendimentos
+            </Badge>
+            <Badge variant="outline" className="border-border/80 bg-background/80 text-muted-foreground">
+              {periodLabel}
+            </Badge>
+          </div>
+        </div>
+
+        {topCategory && (
+          <div className="flex items-start gap-3 rounded-2xl border border-border/70 bg-background/72 px-4 py-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-foreground/[0.045] text-foreground ring-1 ring-border/70">
+              <Trophy className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Maior volume no periodo
+              </p>
+              <p className="mt-1 text-sm font-semibold tracking-tight text-foreground">{topCategory.tipo}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {formatNumber(topCategory.quantidade)} registros, equivalentes a {formatPercentage(topCategory.percentual)} do total.
+              </p>
+            </div>
+          </div>
+        )}
+      </CardHeader>
+
       <CardContent className="p-0">
         <Table>
           <TableHeader>
-            <TableRow className="border-slate-300 bg-[#2a63bb] hover:bg-[#2a63bb]">
-              <TableHead className="w-[60%] border-r border-slate-300 text-center font-bold text-white">
-                Tipo de Atendimento
-              </TableHead>
-              <TableHead className="w-[20%] border-r border-slate-300 text-center font-bold text-white">
-                Quantidade
-              </TableHead>
-              <TableHead className="w-[20%] text-center font-bold text-white">
-                % do Total
-              </TableHead>
+            <TableRow>
+              <TableHead className="w-[58%]">Tipo de Atendimento</TableHead>
+              <TableHead className="w-[21%] text-right">Quantidade</TableHead>
+              <TableHead className="w-[21%] text-right">% do Total</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
-            {summary.map((item) => (
-              <TableRow key={item.tipo} className="border-slate-300 bg-[#f5efe1] hover:bg-[#f5efe1]">
-                <TableCell className="border-r border-slate-300 align-top text-sm font-medium leading-5">
-                  {item.tipo}
+            {summary.map((item, index) => (
+              <TableRow key={item.tipo}>
+                <TableCell className="whitespace-normal">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-7 min-w-7 items-center justify-center rounded-full border border-border/70 bg-background/80 text-[11px] font-semibold text-muted-foreground">
+                      {index + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium leading-5 text-foreground">{item.tipo}</div>
+                    </div>
+                  </div>
                 </TableCell>
-                <TableCell className="border-r border-slate-300 text-center text-sm font-semibold">
-                  {item.quantidade}
+                <TableCell className="text-right">
+                  <span className="text-sm font-semibold text-foreground">{formatNumber(item.quantidade)}</span>
                 </TableCell>
-                <TableCell className="text-center text-sm font-semibold">
-                  {formatPercentage(item.percentual)}
+                <TableCell className="text-right">
+                  <span className="text-sm font-semibold text-foreground">{formatPercentage(item.percentual)}</span>
                 </TableCell>
               </TableRow>
             ))}
-            <TableRow className="border-slate-300 bg-[#f7ea8f] hover:bg-[#f7ea8f]">
-              <TableCell className="border-r border-slate-300 text-sm font-bold">
-                Total
-              </TableCell>
-              <TableCell className="border-r border-slate-300 text-center text-sm font-bold">
-                {total}
-              </TableCell>
-              <TableCell className="text-center text-sm font-bold">
-                {formatPercentage(100)}
-              </TableCell>
-            </TableRow>
           </TableBody>
+
+          <TableFooter>
+            <TableRow className="hover:bg-transparent">
+              <TableCell className="font-semibold text-foreground">Total geral</TableCell>
+              <TableCell className="text-right font-semibold text-foreground">{formatNumber(total)}</TableCell>
+              <TableCell className="text-right font-semibold text-foreground">{formatPercentage(100)}</TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </CardContent>
     </Card>

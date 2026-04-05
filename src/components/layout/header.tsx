@@ -163,7 +163,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-14 w-full shrink-0 items-center gap-3 border-b border-border/70 bg-background/70 px-4 shadow-[0_10px_28px_-24px_color-mix(in_oklab,var(--foreground)_20%,transparent)] backdrop-blur-xl md:px-6">
+      <header className="sticky top-0 z-20 flex h-14 w-full shrink-0 items-center gap-3 border-b border-border/70 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_94%,white_6%),color-mix(in_oklab,var(--background)_98%,black_2%))] px-4 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.22)] backdrop-blur-xl md:px-6">
         {/* Mobile Menu */}
         <div className="md:hidden shrink-0">
           <Sheet>
@@ -193,7 +193,7 @@ export function Header() {
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label="Alternar tema"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-all hover:border-border/80 hover:bg-accent/70 hover:text-foreground"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-all hover:border-border/80 hover:bg-card/80 hover:text-foreground"
           >
             {!mounted ? <span className="h-4 w-4" /> : theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
@@ -211,7 +211,7 @@ export function Header() {
                 <span className="text-xs text-muted-foreground leading-none mb-0.5">{roleLabel}</span>
                 <span className="text-sm font-semibold truncate max-w-44 leading-none text-foreground">{userName}</span>
               </div>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/12 text-xs font-bold text-primary ring-1 ring-primary/15">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-background/90 text-xs font-bold text-foreground">
                 {user?.image ? (
                   <img src={user.image} alt={userName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                 ) : initials}
@@ -224,7 +224,7 @@ export function Header() {
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="px-3 py-2.5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/12 text-sm font-bold text-primary ring-1 ring-primary/15">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-background/90 text-sm font-bold text-foreground">
                       {user?.image ? (
                         <img src={user.image} alt={userName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                       ) : initials}
@@ -248,7 +248,7 @@ export function Header() {
                     </p>
                     {activeWorkspace && (
                       <div className="mt-1 flex items-center gap-2">
-                        <Building2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <Building2 className="h-3.5 w-3.5 shrink-0 text-foreground" />
                         <span className="truncate text-sm font-medium text-foreground">{activeWorkspace.name}</span>
                         <Badge variant="secondary" className="ml-auto text-[10px] shrink-0">
                           {WS_ROLE_LABELS[activeWorkspace.role] ?? activeWorkspace.role}
@@ -321,7 +321,7 @@ export function Header() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-primary" />
+              <UserPlus className="h-5 w-5 text-foreground" />
               <DialogTitle>Convidar membro</DialogTitle>
             </div>
             {activeWorkspace && (
@@ -365,7 +365,7 @@ export function Header() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
+              <Building2 className="h-5 w-5 text-foreground" />
               <DialogTitle>Criar Workspace</DialogTitle>
             </div>
           </DialogHeader>

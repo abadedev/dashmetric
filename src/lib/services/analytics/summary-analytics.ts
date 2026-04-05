@@ -17,8 +17,24 @@ export async function getSummaryAnalytics(filters: ExternalApiFilters) {
     await Promise.all([
       getAttendanceCounts(filters),
       getPhoneSupportCounts(filters),
-      getSalesOverview(filters.startDate, filters.endDate),
-      getCancellationsOverview(filters.startDate, filters.endDate),
+      getSalesOverview({
+        from: filters.startDate,
+        to: filters.endDate,
+        city: filters.city,
+        plan: filters.plan,
+        source: filters.source,
+        search: filters.search,
+        type: filters.type,
+      }),
+      getCancellationsOverview({
+        from: filters.startDate,
+        to: filters.endDate,
+        city: filters.city,
+        plan: filters.plan,
+        source: filters.source,
+        category: filters.category,
+        search: filters.search,
+      }),
       getSlaAnalytics(filters),
       db.select({ total: count() }).from(qualityRecords).where(qualityWhere),
     ]);

@@ -29,29 +29,29 @@ export function QualityTable({ records }: { records: any[] }) {
     switch (indicator) {
       case 'IQIv':
       case 'IQRv':
-        return 'border-primary/20 bg-primary/10 text-primary';
+        return 'border-sky-500/15 bg-sky-500/10 text-sky-700 dark:text-sky-300';
       case 'RTV':
       case 'RST':
-        return 'border-destructive/20 bg-destructive/10 text-destructive';
+        return 'border-destructive/15 bg-destructive/8 text-destructive';
       case 'ICT':
-        return 'border-amber-500/20 bg-amber-500/12 text-amber-600 dark:text-amber-400';
+        return 'border-amber-500/15 bg-amber-500/10 text-amber-700 dark:text-amber-300';
       default:
-        return 'border-border/70 bg-secondary text-secondary-foreground';
+        return 'border-border/70 bg-background/80 text-foreground';
     }
   };
 
   return (
-    <Card className="flex flex-1 flex-col overflow-hidden">
+    <Card className="flex flex-1 flex-col overflow-hidden border-border/75 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--card)_96%,white_4%),var(--card))] shadow-[0_16px_40px_-30px_rgba(15,23,42,0.28)]">
       <CardHeader>
-        <CardTitle>Relação de Registros de Qualidade</CardTitle>
+        <CardTitle>Relacao de Registros de Qualidade</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 overflow-auto p-0">
         <Table>
-          <TableHeader className="sticky top-0 bg-muted/50">
+          <TableHeader className="sticky top-0 bg-muted/35 backdrop-blur-sm">
             <TableRow>
-              <TableHead>Nº OS</TableHead>
+              <TableHead>No OS</TableHead>
               <TableHead>Indicador</TableHead>
-              <TableHead>Técnico</TableHead>
+              <TableHead>Tecnico</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Cidade / Plano</TableHead>
               <TableHead className="w-[300px]">Motivo</TableHead>
@@ -71,7 +71,7 @@ export function QualityTable({ records }: { records: any[] }) {
                 </TableCell>
                 <TableCell className="font-medium">
                   {r.technicianName || (
-                    <span className="text-xs italic text-muted-foreground">Não atribuído</span>
+                    <span className="text-xs italic text-muted-foreground">Nao atribuido</span>
                   )}
                 </TableCell>
                 <TableCell className="max-w-[150px] truncate" title={r.clientName || ''}>
@@ -92,7 +92,7 @@ export function QualityTable({ records }: { records: any[] }) {
                   {r.openedAt ? new Date(r.openedAt).toLocaleDateString('pt-BR') : '-'}
                   {r.durationSeconds ? (
                     <div className="mt-1 font-mono text-muted-foreground">
-                      (Duração: {formatSLATime(r.durationSeconds)})
+                      (Duracao: {formatSLATime(r.durationSeconds)})
                     </div>
                   ) : null}
                 </TableCell>
