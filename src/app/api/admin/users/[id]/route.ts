@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { db } from '@/lib/db';
-import { user } from '@/lib/db/schema';
+import { globalDb as db } from '@/lib/db';
+import { user } from '@/lib/db/schemas/global';
 import { requireAdmin } from '@/lib/require-auth';
 
 export const runtime = 'nodejs';

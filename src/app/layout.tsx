@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import './globals.css';
-import { Providers } from '@/components/providers';
-import { Toaster } from 'sonner';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
+import { Toaster } from 'sonner';
+import { Providers } from '@/components/providers';
+import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'DSTECH | NOC Performance Manager',
-  description: 'Plataforma de Gestão de SLA e Desempenho de Técnicos de Campo',
+  title: 'Dashmetric',
+  description: 'Plataforma operacional para gestao de SLA, suporte, qualidade e performance.',
 };
 
 export default function RootLayout({

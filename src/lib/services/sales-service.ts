@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { salesRecords } from '@/lib/db/schema';
-import { and, gte, lte, sql } from 'drizzle-orm';
+import { and, gte, ilike, lte, sql, SQL } from 'drizzle-orm';
 
 type SalesOverviewRow = {
   recordType: string;
@@ -115,8 +115,19 @@ export function buildSalesOverview(rows: SalesOverviewRow[]) {
   };
 }
 
-export async function getSalesOverview(from?: Date | null, to?: Date | null) {
-  const filters = [];
+export interface SalesOverviewFilters {
+  from?: Date | null;
+  to?: Date | null;
+  city?: string | null;
+  plan?: string | null;
+  source?: string | null;
+  search?: string | null;
+  type?: string | null;
+}
+
+export async function getSalesOverview(filtersInput: SalesOverviewFilters = {}) {
+  const filters: SQL[] = [];
+  const { from, to, city, plan, source, search, type } = filtersInput;
 
   if (from) {
     const fromVal = from.getFullYear() * 100 + (from.getMonth() + 1);
@@ -126,6 +137,21 @@ export async function getSalesOverview(from?: Date | null, to?: Date | null) {
   if (to) {
     const toVal = to.getFullYear() * 100 + (to.getMonth() + 1);
     filters.push(lte(sql<number>`${salesRecords.periodYear} * 100 + ${salesRecords.periodMonth}`, toVal));
+  }
+
+  if (city) filters.push(ilike(salesRecords.city, `%${city}%`));
+  if (plan) filters.push(ilike(salesRecords.plan, `%${plan}%`));
+  if (source) filters.push(ilike(salesRecords.source, `%${source}%`));
+  if (type) filters.push(sql`${salesRecords.recordType} = ${type}`);
+  if (search) {
+    filters.push(
+      sql`(
+        ${ilike(salesRecords.clientName, `%${search}%`)}
+        OR ${ilike(salesRecords.indication, `%${search}%`)}
+        OR ${ilike(salesRecords.plan, `%${search}%`)}
+        OR ${ilike(salesRecords.observation, `%${search}%`)}
+      )`
+    );
   }
 
   const rows = await db

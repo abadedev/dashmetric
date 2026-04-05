@@ -3,6 +3,7 @@
 import { Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Filters } from '@/components/atendimentos/filters';
+import type { AtendimentoFilters } from '@/components/atendimentos/filters';
 import { Columns } from '@/components/atendimentos/columns';
 import { OsDetailSheet } from '@/components/atendimentos/os-detail-sheet';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
@@ -18,7 +19,14 @@ import { PageSkeleton, StateDisplay, TableSkeleton } from '@/components/ui/state
 
 function AtendimentosPageContent() {
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ type: '', slaStatus: '', search: '' });
+  const [filters, setFilters] = useState<AtendimentoFilters>({
+    type: '',
+    slaStatus: '',
+    search: '',
+    city: '',
+    plan: '',
+    bairro: '',
+  });
   const [selectedOs, setSelectedOs] = useState<any | null>(null);
 
   const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
@@ -30,6 +38,9 @@ function AtendimentosPageContent() {
     ...(filters.type && { type: filters.type }),
     ...(filters.slaStatus && { slaStatus: filters.slaStatus }),
     ...(filters.search && { search: filters.search }),
+    ...(filters.city && { city: filters.city }),
+    ...(filters.plan && { plan: filters.plan }),
+    ...(filters.bairro && { bairro: filters.bairro }),
   });
   if (from) queryParams.set('from', from.toISOString());
   if (to) queryParams.set('to', to.toISOString());
@@ -40,6 +51,15 @@ function AtendimentosPageContent() {
       const res = await fetch(`/api/service-orders?${queryParams.toString()}`);
       return res.json();
     },
+  });
+
+  const { data: filterContract } = useQuery({
+    queryKey: ['module-filters', 'attendances'],
+    queryFn: async () => {
+      const res = await fetch('/api/module-filters/attendances');
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 10,
   });
 
   const table = useReactTable({
@@ -57,6 +77,7 @@ function AtendimentosPageContent() {
           <GlobalDateFilter />
           <Filters
             filters={filters}
+            options={filterContract?.options}
             onFilterChange={(newFilters) => {
               setFilters(newFilters);
               setPage(1);

@@ -28,7 +28,16 @@
       "Bash(ls \"d:/Relatoria.SLA/dstech-noc/src/app/\\(workspace\\)/[workspaceSlug]/\")",
       "Bash(mv \"d:/Relatoria.SLA/dstech-noc/src/app/\\(workspace\\)/[workspaceSlug]\" \"d:/Relatoria.SLA/dstech-noc/src/app/\\(workspace\\)/[slug]\")",
       "Bash(mv \"d:/Relatoria.SLA/dstech-noc/src/app/\\(dashboard\\)/[moduleSlug]\" \"d:/Relatoria.SLA/dstech-noc/src/app/\\(dashboard\\)/[slug]\")",
-      "Bash(find d:/Relatoria.SLA/dstech-noc/src -name *logo* -o -name *Logo*)"
+      "Bash(find d:/Relatoria.SLA/dstech-noc/src -name *logo* -o -name *Logo*)",
+      "Bash(find d:Relatoria.SLAdstech-noc -type f -name middleware.ts -o -name auth.ts -o -name *auth*.ts)",
+      "Bash(find d:Relatoria.SLAdstech-noc -path */src/* -name *.ts -o -path */src/* -name *.tsx)",
+      "Bash(npx next:*)",
+      "Bash(taskkill /PID 15196 /F)",
+      "Bash(cmd /c \"taskkill /PID 15196 /F\")",
+      "Bash(cmd /c \"netstat -ano | findstr :3000\")",
+      "Bash(powershell -Command \"Stop-Process -Id 15196 -Force -ErrorAction SilentlyContinue; Start-Sleep 2; Write-Host ''done''\")",
+      "Bash(curl -sv http://localhost:3000/)",
+      "Bash(grep -r scrollbar d:/Relatoria.SLA/dstech-noc/src --include=*.tsx --include=*.css -l)"
     ]
   }
 }

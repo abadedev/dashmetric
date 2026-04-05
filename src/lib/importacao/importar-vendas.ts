@@ -29,13 +29,13 @@ const MARKETING_PATTERNS = [
 ];
 
 const SALES_ALIASES = {
-  clientName: ['cliente', 'client_name', 'nome_cliente', 'nome', 'assinante'],
-  city: ['cidade', 'city', 'cidade_uf', 'municipio'],
-  indication: ['indicacao', 'origem', 'canal', 'origem_lead', 'origem_venda'],
-  plan: ['plano', 'plan', 'produto'],
-  observation: ['observacao', 'obs', 'detalhe', 'comentario', 'status'],
-  requestedAt: ['dataPedido', 'datapedido', 'data_pedido', 'data', 'dataCadastro', 'data_cadastro'],
-  installedAt: ['dataInstalacao', 'datainstalacao', 'data_instalacao', 'instalado_em'],
+  clientName: ['cliente', 'client_name', 'nome_cliente', 'nome', 'assinante', 'nome_assinante', 'razao_social'],
+  city: ['cidade', 'city', 'cidade_uf', 'municipio', 'localidade', 'cidade_cliente'],
+  indication: ['indicacao', 'origem', 'canal', 'origem_lead', 'origem_venda', 'midia', 'campanha', 'canal_venda'],
+  plan: ['plano', 'plan', 'produto', 'pacote', 'combo', 'plano_contratado'],
+  observation: ['observacao', 'obs', 'detalhe', 'comentario', 'status', 'observacoes', 'descricao'],
+  requestedAt: ['dataPedido', 'datapedido', 'data_pedido', 'data', 'dataCadastro', 'data_cadastro', 'data_solicitacao'],
+  installedAt: ['dataInstalacao', 'datainstalacao', 'data_instalacao', 'instalado_em', 'data_ativacao'],
   unnamed3: ['Unnamed: 3', 'Unnamed 3', 'unnamed_3', ''],
 };
 

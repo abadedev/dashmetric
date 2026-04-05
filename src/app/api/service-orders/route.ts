@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { atendimentos } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
-import { and, eq, ilike, desc, count, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, desc, count, or, sql, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +20,9 @@ export async function GET(req: NextRequest) {
     const type         = searchParams.get('type');
     const technicianId = searchParams.get('technicianId');
     const city         = searchParams.get('city');
+    const plan         = searchParams.get('plan');
+    const bairro       = searchParams.get('bairro');
+    const source       = searchParams.get('source');
     const slaStatus    = searchParams.get('slaStatus'); // 'ok' | 'nok' | 'all'
     const search       = searchParams.get('search');
 
@@ -37,10 +40,22 @@ export async function GET(req: NextRequest) {
 
     if (type)         filters.push(eq(atendimentos.tipo, type));
     if (technicianId) filters.push(eq(atendimentos.tecnicoId, Number(technicianId)));
-    if (city)         filters.push(eq(atendimentos.cidade, city));
+    if (city)         filters.push(ilike(atendimentos.cidade, `%${city}%`));
+    if (plan)         filters.push(ilike(atendimentos.plano, `%${plan}%`));
+    if (bairro)       filters.push(ilike(atendimentos.bairro, `%${bairro}%`));
+    if (source)       filters.push(ilike(atendimentos.indicacao, `%${source}%`));
     if (slaStatus === 'ok')  filters.push(eq(atendimentos.dentroSlaUtil, true));
     if (slaStatus === 'nok') filters.push(eq(atendimentos.dentroSlaUtil, false));
-    if (search)       filters.push(ilike(atendimentos.numeroOs, `%${search}%`));
+    if (search) {
+      filters.push(or(
+        ilike(atendimentos.numeroOs, `%${search}%`),
+        ilike(atendimentos.cliente, `%${search}%`),
+        ilike(atendimentos.endereco, `%${search}%`),
+        ilike(atendimentos.bairro, `%${search}%`),
+        ilike(atendimentos.plano, `%${search}%`),
+        ilike(atendimentos.telefones, `%${search}%`)
+      )!);
+    }
 
     const whereClause = filters.length ? and(...filters) : undefined;
     const offset = (page - 1) * pageSize;
@@ -56,6 +71,7 @@ export async function GET(req: NextRequest) {
           cliente:           atendimentos.cliente,
           cidade:            atendimentos.cidade,
           plano:             atendimentos.plano,
+          endereco:          atendimentos.endereco,
           aberturaAt:        atendimentos.aberturaAt,
           finalizacaoAt:     atendimentos.finalizacaoAt,
           slaHoras:          atendimentos.slaHoras,
@@ -95,6 +111,7 @@ export async function GET(req: NextRequest) {
       clientName:       r.cliente,
       city:             r.cidade,
       plan:             r.plano,
+      address:          r.endereco,
       openedAt:         r.aberturaAt,
       closedAt:         r.finalizacaoAt,
       slaTargetHours:   r.slaHoras != null ? Number(r.slaHoras) : null,
@@ -120,6 +137,18 @@ export async function GET(req: NextRequest) {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      filtersApplied: {
+        from: fromStr,
+        to: toStr,
+        type,
+        technicianId,
+        city,
+        plan,
+        bairro,
+        source,
+        slaStatus,
+        search,
+      },
     });
   } catch (err) {
     console.error('[service-orders]', err);

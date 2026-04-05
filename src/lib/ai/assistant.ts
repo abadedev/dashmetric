@@ -58,6 +58,9 @@ function getDefaultFilters(): ExternalApiFilters {
     page: 1,
     offset: 0,
     city: null,
+    plan: null,
+    bairro: null,
+    source: null,
     search: null,
     resource: null,
   };

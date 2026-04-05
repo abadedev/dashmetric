@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { asc } from 'drizzle-orm';
-import { db } from '@/lib/db';
-import { user, userGroups, accessGroups } from '@/lib/db/schema';
+import { asc, eq } from 'drizzle-orm';
+import { globalDb as db } from '@/lib/db';
+import { user, userGroups, accessGroups } from '@/lib/db/schemas/global';
 import { requireAdmin } from '@/lib/require-auth';
-import { eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 

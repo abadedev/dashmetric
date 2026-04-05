@@ -2,60 +2,68 @@
 
 import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PageSkeleton } from '@/components/ui/state-display';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { startOfMonth, endOfMonth } from 'date-fns';
+import { useTheme } from 'next-themes';
+import { useQueryState } from 'nuqs';
 import {
-  ComposedChart,
+  Award,
+  AlertTriangle,
+  Target,
+  TrendingUp,
+} from 'lucide-react';
+import {
   Bar,
-  Line,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
+  Cell,
+  ComposedChart,
   Legend,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
-  Cell,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts';
-import { ACTIVITY_LABELS } from '@/lib/services/sla-engine';
-import { Badge } from '@/components/ui/badge';
-import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
-import { useQueryState } from 'nuqs';
-import { startOfMonth, endOfMonth } from 'date-fns';
-import { TrendingUp, Target, Award, AlertTriangle } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { PageLayout } from '@/components/layout/page-layout';
+import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PageSkeleton } from '@/components/ui/state-display';
+import { ACTIVITY_LABELS } from '@/lib/services/sla-engine';
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-
 const SLA_META = 95;
 
 function getSlaColor(value: number): string {
-  if (value >= SLA_META) return '#22c55e';   // green
-  if (value >= 80) return '#f59e0b';          // amber
-  return '#ef4444';                            // red
+  if (value >= SLA_META) return '#22c55e';
+  if (value >= 80) return '#0ea5e9';
+  return '#ef4444';
 }
 
 function getSlaStatus(value: number) {
   if (value >= SLA_META) return { label: 'Meta atingida', color: 'text-green-500' };
-  if (value >= 80) return { label: 'Próximo da meta', color: 'text-amber-500' };
+  if (value >= 80) return { label: 'Proximo da meta', color: 'text-sky-600 dark:text-sky-400' };
   return { label: 'Abaixo da meta', color: 'text-red-500' };
 }
 
+const surfaceClassName =
+  'border-border/75 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--card)_96%,white_4%),var(--card))] shadow-[0_16px_40px_-30px_rgba(15,23,42,0.28)]';
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
+
   return (
-    <div className="rounded-xl border border-border bg-card/95 backdrop-blur-sm p-3 shadow-xl text-sm">
-      <p className="font-semibold text-foreground mb-2">{label}</p>
+    <div className="rounded-xl border border-border/75 bg-card/95 p-3 text-sm shadow-xl backdrop-blur-sm">
+      <p className="mb-2 font-semibold text-foreground">{label}</p>
       {payload.map((entry: any) => (
         <div key={entry.name} className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: entry.color }} />
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: entry.color }} />
           <span className="text-muted-foreground">{entry.name}:</span>
           <span className="font-medium text-foreground">{entry.value}%</span>
         </div>
       ))}
-      <div className="mt-2 pt-2 border-t border-border text-xs text-muted-foreground">
+      <div className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
         Meta Ouro: {SLA_META}%
       </div>
     </div>
@@ -87,39 +95,47 @@ function ResumoSlaPageContent() {
     new Set(rawData.map((r: any) => `${r.periodYear}-${String(r.periodMonth).padStart(2, '0')}`))
   ).sort();
 
-  const monthlyData = uniquePeriods.map((periodKey: string) => {
-    const [pYearStr, pMonthStr] = periodKey.split('-');
-    const pYear = Number(pYearStr);
-    const pMonth = Number(pMonthStr);
-    const monthRecords = rawData.filter((r: any) =>
-      r.periodYear === pYear && r.periodMonth === pMonth
-    );
+  const monthlyData = uniquePeriods
+    .map((periodKey: string) => {
+      const [pYearStr, pMonthStr] = periodKey.split('-');
+      const pYear = Number(pYearStr);
+      const pMonth = Number(pMonthStr);
+      const monthRecords = rawData.filter((r: any) => r.periodYear === pYear && r.periodMonth === pMonth);
 
-    const monthObj: any = { name: `${MONTH_NAMES[pMonth - 1]}/${pYearStr.slice(-2)}`, totalOS: 0 };
+      const monthObj: any = { name: `${MONTH_NAMES[pMonth - 1]}/${pYearStr.slice(-2)}`, totalOS: 0 };
 
-    const totalConc = monthRecords.reduce((s: number, r: any) => s + Number(r.concluded), 0);
-    const totalUtil = monthRecords.reduce((s: number, r: any) => s + Number(r.withinSlaUtil), 0);
-    const totalAtividades = monthRecords.reduce((s: number, r: any) => s + Number(r.total), 0);
+      const totalConc = monthRecords.reduce((s: number, r: any) => s + Number(r.concluded), 0);
+      const totalUtil = monthRecords.reduce((s: number, r: any) => s + Number(r.withinSlaUtil), 0);
+      const totalAtividades = monthRecords.reduce((s: number, r: any) => s + Number(r.total), 0);
 
-    monthObj.Geral = totalConc > 0 ? Math.round((totalUtil / totalConc) * 100) : 0;
-    monthObj.totalOS = totalAtividades;
+      monthObj.Geral = totalConc > 0 ? Math.round((totalUtil / totalConc) * 100) : 0;
+      monthObj.totalOS = totalAtividades;
 
-    monthRecords.forEach((r: any) => {
-      const type = ACTIVITY_LABELS[r.activityType] || r.activityType;
-      const pct = Number(r.concluded) > 0 ? Math.round((Number(r.withinSlaUtil) / Number(r.concluded)) * 100) : 0;
-      monthObj[type] = pct;
-    });
+      monthRecords.forEach((r: any) => {
+        const type = ACTIVITY_LABELS[r.activityType] || r.activityType;
+        const pct =
+          Number(r.concluded) > 0
+            ? Math.round((Number(r.withinSlaUtil) / Number(r.concluded)) * 100)
+            : 0;
+        monthObj[type] = pct;
+      });
 
-    return monthObj;
-  }).filter((m: any) => m.totalOS > 0);
+      return monthObj;
+    })
+    .filter((m: any) => m.totalOS > 0);
 
-  // KPI derivations
   const avgGeral = monthlyData.length
-    ? Math.round(monthlyData.reduce((s, m) => s + m.Geral, 0) / monthlyData.length)
+    ? Math.round(monthlyData.reduce((s: number, m: any) => s + m.Geral, 0) / monthlyData.length)
     : 0;
-  const bestMonth = monthlyData.reduce((best, m) => (m.Geral > (best?.Geral ?? -1) ? m : best), null as any);
-  const worstMonth = monthlyData.reduce((worst, m) => (m.Geral < (worst?.Geral ?? 101) ? m : worst), null as any);
-  const monthsAboveMeta = monthlyData.filter(m => m.Geral >= SLA_META).length;
+  const bestMonth = monthlyData.reduce(
+    (best: any, m: any) => (m.Geral > (best?.Geral ?? -1) ? m : best),
+    null
+  );
+  const worstMonth = monthlyData.reduce(
+    (worst: any, m: any) => (m.Geral < (worst?.Geral ?? 101) ? m : worst),
+    null
+  );
+  const monthsAboveMeta = monthlyData.filter((m: any) => m.Geral >= SLA_META).length;
 
   const axisColor = isDark ? '#6b7280' : '#9ca3af';
   const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
@@ -127,59 +143,56 @@ function ResumoSlaPageContent() {
 
   return (
     <PageLayout
-      title="Resumo SLA por Período"
-      description="Evolução mensal do percentual de SLA atingido por tipo de atividade."
+      title="Resumo SLA por Periodo"
+      description="Evolucao mensal do percentual de SLA atingido por tipo de atividade."
       actions={<GlobalDateFilter />}
     >
-      {/* KPI Cards */}
       {isLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
         </div>
-      ) : monthlyData.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* SLA Médio */}
-          <Card className="border-border">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+      ) : monthlyData.length > 0 ? (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Card className={surfaceClassName}>
+            <CardContent className="pb-4 pt-4">
+              <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <Target className="h-3.5 w-3.5" />
-                SLA Médio Geral
+                SLA Medio Geral
               </div>
               <div className={`text-3xl font-bold ${getSlaStatus(avgGeral).color}`}>{avgGeral}%</div>
-              <div className="text-xs text-muted-foreground mt-1">{getSlaStatus(avgGeral).label}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{getSlaStatus(avgGeral).label}</div>
             </CardContent>
           </Card>
 
-          {/* Melhor mês */}
-          <Card className="border-border">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+          <Card className={surfaceClassName}>
+            <CardContent className="pb-4 pt-4">
+              <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <Award className="h-3.5 w-3.5" />
-                Melhor Mês
+                Melhor Mes
               </div>
               <div className="text-3xl font-bold text-green-500">{bestMonth?.Geral ?? 0}%</div>
-              <div className="text-xs text-muted-foreground mt-1">{bestMonth?.name ?? '—'}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{bestMonth?.name ?? '-'}</div>
             </CardContent>
           </Card>
 
-          {/* Pior mês */}
-          <Card className="border-border">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+          <Card className={surfaceClassName}>
+            <CardContent className="pb-4 pt-4">
+              <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                Pior Mês
+                Pior Mes
               </div>
               <div className={`text-3xl font-bold ${getSlaStatus(worstMonth?.Geral ?? 0).color}`}>
                 {worstMonth?.Geral ?? 0}%
               </div>
-              <div className="text-xs text-muted-foreground mt-1">{worstMonth?.name ?? '—'}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{worstMonth?.name ?? '-'}</div>
             </CardContent>
           </Card>
 
-          {/* Meses acima da meta */}
-          <Card className="border-border">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+          <Card className={surfaceClassName}>
+            <CardContent className="pb-4 pt-4">
+              <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <TrendingUp className="h-3.5 w-3.5" />
                 Meses com Meta
               </div>
@@ -187,28 +200,26 @@ function ResumoSlaPageContent() {
                 {monthsAboveMeta}
                 <span className="text-base font-normal text-muted-foreground">/{monthlyData.length}</span>
               </div>
-              <div className="text-xs text-muted-foreground mt-1">Acima de {SLA_META}%</div>
+              <div className="mt-1 text-xs text-muted-foreground">Acima de {SLA_META}%</div>
             </CardContent>
           </Card>
         </div>
-      )}
+      ) : null}
 
-      {/* Charts */}
       {isLoading ? (
         <PageSkeleton />
       ) : monthlyData.length === 0 ? (
-        <Card>
+        <Card className={surfaceClassName}>
           <CardContent className="p-16 text-center text-muted-foreground">
-            Sem dados para o período selecionado.
+            Sem dados para o periodo selecionado.
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Main Bar Chart */}
-          <Card className="xl:col-span-2 border-border">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <Card className={`xl:col-span-2 ${surfaceClassName}`}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base">Desempenho por Mês (SLA Útil %)</CardTitle>
-              <Badge variant="outline" className="text-xs border-dashed text-green-500 border-green-500/40">
+              <CardTitle className="text-base">Desempenho por Mes (SLA Util %)</CardTitle>
+              <Badge variant="outline" className="border-border/80 bg-background/80 text-xs text-muted-foreground">
                 Meta Ouro: {SLA_META}%
               </Badge>
             </CardHeader>
@@ -237,23 +248,22 @@ function ResumoSlaPageContent() {
                     label={{ value: 'Meta 95%', position: 'insideTopRight', fill: refLineColor, fontSize: 10 }}
                   />
                   <Bar dataKey="Geral" name="Geral" radius={[6, 6, 0, 0]} barSize={36} maxBarSize={48}>
-                    {monthlyData.map((entry, index) => (
+                    {monthlyData.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={getSlaColor(entry.Geral)} fillOpacity={0.9} />
                     ))}
                   </Bar>
-                  <Bar dataKey="Instalação Nova" name="Instalação" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={16} maxBarSize={24} />
-                  <Bar dataKey="Reparo" name="Reparo" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={16} maxBarSize={24} />
-                  <Bar dataKey="Mudança de Endereço" name="Mudança" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={16} maxBarSize={24} />
+                  <Bar dataKey="Instalação Nova" name="Instalacao" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={16} maxBarSize={24} />
+                  <Bar dataKey="Reparo" name="Reparo" fill="#64748b" radius={[4, 4, 0, 0]} barSize={16} maxBarSize={24} />
+                  <Bar dataKey="Mudança de Endereço" name="Mudanca" fill="#0ea5e9" radius={[4, 4, 0, 0]} barSize={16} maxBarSize={24} />
                 </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Trend Line Chart */}
-          <Card className="border-border">
+          <Card className={surfaceClassName}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Tendência — SLA Geral</CardTitle>
-              <p className="text-xs text-muted-foreground">Evolução mensal do índice geral</p>
+              <CardTitle className="text-base">Tendencia - SLA Geral</CardTitle>
+              <p className="text-xs text-muted-foreground">Evolucao mensal do indice geral</p>
             </CardHeader>
             <CardContent className="h-[360px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -273,7 +283,7 @@ function ResumoSlaPageContent() {
                     type="monotone"
                     dataKey="Geral"
                     name="SLA Geral"
-                    stroke="#3b82f6"
+                    stroke="#0f172a"
                     strokeWidth={2.5}
                     dot={(props: any) => {
                       const { cx, cy, payload } = props;

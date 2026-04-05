@@ -98,20 +98,20 @@ export function Sidebar() {
                 className={cn(
                   'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                   isActive
-                    ? 'border border-primary/15 bg-primary/12 text-primary shadow-[0_10px_24px_-18px_color-mix(in_oklab,var(--primary)_60%,transparent)] ring-1 ring-primary/10'
+                    ? 'border border-sidebar-border/80 bg-sidebar-accent/75 text-sidebar-foreground shadow-[0_14px_28px_-24px_rgba(15,23,42,0.32)]'
                     : 'border border-transparent text-sidebar-foreground/72 hover:border-sidebar-border/70 hover:bg-sidebar-accent/75 hover:text-sidebar-foreground'
                 )}
               >
                 <span
                   className={cn(
                     'absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-transparent transition-all',
-                    isActive && 'bg-primary shadow-[0_0_16px_color-mix(in_oklab,var(--primary)_45%,transparent)]'
+                    isActive && 'bg-sidebar-foreground/40'
                   )}
                 />
                 <item.icon
                   className={cn(
                     'h-4 w-4 shrink-0 transition-colors',
-                    isActive ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground'
+                    isActive ? 'text-sidebar-foreground' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground'
                   )}
                 />
                 {item.name}
@@ -123,7 +123,7 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="shrink-0 border-t border-sidebar-border/80 px-5 py-3.5">
-        <span className="text-xs text-sidebar-foreground/50">NOC Performance Manager v1.0.0</span>
+        <span className="text-xs text-sidebar-foreground/50">Dashmetric v1.0.0</span>
       </div>
     </div>
   );

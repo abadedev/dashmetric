@@ -516,7 +516,7 @@ export default function WaitingPage() {
               </div>
             </div>
             <div>
-              <div className="brand-name">DashMetric</div>
+              <div className="brand-name">Dashmetric</div>
               <div className="brand-sub">KPI · SLA · Analytics</div>
             </div>
           </div>
@@ -552,7 +552,7 @@ export default function WaitingPage() {
 
             <div className="card-body">
               <p className="intro-text">
-                O <strong>DashMetric</strong> nasceu de uma necessidade real: o controle de
+                O <strong>Dashmetric</strong> nasceu de uma necessidade real: o controle de
                 SLA da equipe técnica era gerenciado em uma planilha Excel — com abas de
                 Dashboard Executivo, Resumo por período, Ranking de Técnicos e Qualidade
                 &amp; Reclamações — atualizada manualmente todo mês. Funcional, mas limitada.
@@ -624,7 +624,7 @@ export default function WaitingPage() {
             </button>
           </div>
 
-          <div className="wfooter rise-5">© 2025 DashMetric · Rafael de Souza Abade Junior</div>
+          <div className="wfooter rise-5">© 2025 Dashmetric · Rafael de Souza Abade Junior</div>
 
         </div>
       </div>

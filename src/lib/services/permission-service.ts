@@ -1,13 +1,13 @@
 import { and, eq } from 'drizzle-orm';
-import { db } from '@/lib/db';
+import { globalDb as db } from '@/lib/db';
 import {
   accessGroups,
   groupPermissions,
   permissions,
   userGroups,
   userPermissions,
-  type SystemModule,
-} from '@/lib/db/schema';
+} from '@/lib/db/schemas/global';
+import type { SystemModule } from '@/lib/db/schema';
 
 // ---------------------------------------------------------------------------
 // Bootstrap
