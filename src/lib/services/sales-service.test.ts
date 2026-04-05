@@ -21,6 +21,7 @@ function makeRow(overrides: Partial<SalesRecord>): SalesRecord {
     periodMonth: 2,
     periodYear: 2026,
     createdAt: new Date('2026-02-10T00:00:00.000Z'),
+    workspaceId: null,
     ...overrides,
   };
 }

@@ -4,13 +4,14 @@ import { lotesImportacao } from '@/lib/db/schema';
 import { importarAtendimentos } from '@/lib/importacao/importar-atendimentos';
 import { requireAuth } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
+import { eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const { loteId, resumo } = await importarAtendimentos(buffer, file.name);
+    const { loteId, resumo } = await importarAtendimentos(buffer, file.name, ctx.workspaceId);
 
     return NextResponse.json({
       success: true,
@@ -55,8 +56,12 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
-    const batches = await db.select().from(lotesImportacao).orderBy(lotesImportacao.createdAt);
+  return runWithWorkspace(req, async (ctx) => {
+    const batches = await db
+      .select()
+      .from(lotesImportacao)
+      .where(eq(lotesImportacao.workspaceId, ctx.workspaceId))
+      .orderBy(lotesImportacao.createdAt);
     return NextResponse.json(batches);
   });
 }

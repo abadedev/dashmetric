@@ -1,22 +1,11 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  AlertCircle,
-  Bot,
-  CheckCircle2,
-  ChevronRight,
-  LoaderCircle,
-  MessageSquareText,
-  SendHorizonal,
-  Sparkles,
-  User2,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Skeleton } from '@/components/ui/skeleton';
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { AlertCircle, LoaderCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type InsightCard = {
   label: string;
@@ -33,44 +22,21 @@ type Message = {
   kind?: MessageKind;
 };
 
-const quickPrompts = [
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const STARTER_MESSAGE =
+  'Olá! Eu sou o assistente do sistema. Posso te ajudar com atendimentos, SLA, vendas e ranking técnico.';
+
+const QUICK_PROMPTS = [
   'Como estamos hoje?',
   'Resumo geral',
   'Atendimentos em aberto',
-  'Instalações do período',
   'Ranking dos técnicos',
   'SLA do período',
-  'Suporte por telefone',
-  'Vendas do período',
   'Cancelamentos',
-  'Indicadores de qualidade',
 ];
 
-const starterMessage =
-  'Estou pronto para analisar o workspace com base nos dados reais e responder de forma objetiva. Você pode pedir resumo, ranking, SLA, suporte, vendas, cancelamentos ou qualidade.';
-
-const toneClasses: Record<NonNullable<InsightCard['tone']>, string> = {
-  default: 'border-border/70 bg-background/75 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]',
-  good: 'border-emerald-500/15 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  warning: 'border-amber-500/15 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-};
-
-function classifyAssistantMessage(content: string, fallback: MessageKind = 'default'): MessageKind {
-  const normalized = content.toLowerCase();
-
-  if (
-    normalized.includes('sem dados') ||
-    normalized.includes('nenhum dado') ||
-    normalized.includes('nao encontrei') ||
-    normalized.includes('não encontrei') ||
-    normalized.includes('nenhum registro') ||
-    normalized.includes('nada encontrado')
-  ) {
-    return 'empty';
-  }
-
-  return fallback;
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildMessage(role: Message['role'], content: string, kind?: MessageKind): Message {
   return {
@@ -81,312 +47,194 @@ function buildMessage(role: Message['role'], content: string, kind?: MessageKind
   };
 }
 
-function ChatHeader({ loading }: { loading: boolean }) {
-  return (
-    <SheetHeader className="gap-0 border-b border-border/70 px-5 py-5">
-      <div className="rounded-[28px] border border-border/70 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_92%,white_8%),color-mix(in_oklab,var(--background)_96%,black_4%))] p-4 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)]">
-        <div className="flex items-start gap-3">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary ring-1 ring-primary/15">
-            <Sparkles className="size-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <SheetTitle className="text-[15px] font-semibold tracking-tight">Dashiel</SheetTitle>
-              <Badge variant="outline" className="gap-1.5 border-emerald-500/15 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300">
-                <span className="size-1.5 rounded-full bg-current" />
-                {loading ? 'Processando' : 'Pronto'}
-              </Badge>
-            </div>
-            <SheetDescription className="mt-1 text-[13px] leading-5 text-muted-foreground">
-              Assistente operacional para consultas rápidas do workspace, com respostas baseadas nos dados atuais.
-            </SheetDescription>
-          </div>
-        </div>
-      </div>
-    </SheetHeader>
-  );
+function classifyAssistantMessage(content: string): MessageKind {
+  const n = content.toLowerCase();
+  if (
+    n.includes('sem dados') ||
+    n.includes('nenhum dado') ||
+    n.includes('não encontrei') ||
+    n.includes('nao encontrei') ||
+    n.includes('nenhum registro')
+  ) {
+    return 'empty';
+  }
+  return 'default';
 }
 
-function InsightStrip({ cards }: { cards: InsightCard[] }) {
-  if (cards.length === 0) return null;
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
+function ChatHeader({ loading, onClose }: { loading: boolean; onClose: () => void }) {
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Sinais rápidos
-        </p>
-      </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {cards.map((card) => (
-          <div
-            key={`${card.label}-${card.value}`}
-            className={cn('rounded-2xl border px-4 py-3.5', toneClasses[card.tone ?? 'default'])}
-          >
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">
-              {card.label}
-            </div>
-            <div className="mt-1.5 text-sm font-semibold tracking-tight">{card.value}</div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ChatEmptyState({
-  onPickSuggestion,
-  disabled,
-}: {
-  onPickSuggestion: (suggestion: string) => void;
-  disabled: boolean;
-}) {
-  return (
-    <section className="rounded-[28px] border border-dashed border-border/80 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--card)_88%,white_12%),var(--card))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
-      <div className="flex items-start gap-3">
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15">
-          <Bot className="size-4" />
-        </div>
-        <div className="space-y-2">
-          <p className="text-sm font-semibold tracking-tight text-foreground">
-            Conversa pronta para começar
-          </p>
-          <p className="text-sm leading-6 text-muted-foreground">
-            Faça uma pergunta direta sobre operação, desempenho ou atendimento. O Dashiel responde com foco em leitura rápida e contexto útil para tomada de decisão.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {quickPrompts.slice(0, 4).map((suggestion) => (
-          <button
-            key={suggestion}
-            type="button"
-            disabled={disabled}
-            onClick={() => onPickSuggestion(suggestion)}
-            className="group rounded-2xl border border-border/75 bg-background/80 px-4 py-3 text-left transition-all hover:border-primary/20 hover:bg-accent/40 disabled:pointer-events-none disabled:opacity-50"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium text-foreground">{suggestion}</span>
-              <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
-            </div>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ThinkingState() {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="mt-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15">
-        <LoaderCircle className="size-4 animate-spin" />
-      </div>
-      <div className="max-w-[85%] rounded-[22px] rounded-tl-md border border-border/70 bg-card/80 px-4 py-3.5 shadow-[0_16px_40px_-32px_rgba(15,23,42,0.35)]">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">Analisando os dados</span>
-          <div className="flex items-center gap-1">
-            <span className="size-1.5 animate-pulse rounded-full bg-primary/60 [animation-delay:0ms]" />
-            <span className="size-1.5 animate-pulse rounded-full bg-primary/60 [animation-delay:180ms]" />
-            <span className="size-1.5 animate-pulse rounded-full bg-primary/60 [animation-delay:360ms]" />
-          </div>
-        </div>
-        <div className="mt-3 space-y-2">
-          <Skeleton className="h-3 w-40 rounded-full" />
-          <Skeleton className="h-3 w-56 rounded-full" />
-          <Skeleton className="h-3 w-32 rounded-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NoDataState() {
-  return (
-    <div className="rounded-[24px] border border-border/70 bg-card/70 p-4 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.35)]">
-      <div className="flex items-start gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-          <AlertCircle className="size-4" />
+    <div className="flex items-center justify-between border-b border-border bg-card/60 px-5 py-4">
+      <div className="flex items-center gap-3">
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
+          <span className="text-base font-bold text-primary-foreground">AI</span>
+          <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-background bg-emerald-400" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">Sem dados para este recorte</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Tente ajustar o período, pedir um resumo mais amplo ou consultar outro módulo.
+          <p className="text-sm font-semibold leading-none text-foreground">Dashiel</p>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span
+              className={cn(
+                'h-1.5 w-1.5 rounded-full',
+                loading ? 'animate-pulse bg-amber-400' : 'bg-emerald-400',
+              )}
+            />
+            {loading ? 'Em análise…' : 'Ativo agora'}
           </p>
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground transition hover:bg-accent hover:text-foreground"
+        aria-label="Fechar chat"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }
 
-function ChatMessageBubble({ message }: { message: Message }) {
+function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';
   const isError = message.kind === 'error';
 
   return (
-    <div className={cn('flex items-start gap-3', isUser ? 'justify-end' : 'justify-start')}>
-      {!isUser && (
-        <div
-          className={cn(
-            'mt-1 flex size-9 shrink-0 items-center justify-center rounded-full ring-1',
-            isError
-              ? 'bg-destructive/10 text-destructive ring-destructive/15'
-              : 'bg-primary/10 text-primary ring-primary/15'
-          )}
-        >
-          {isError ? <AlertCircle className="size-4" /> : <Bot className="size-4" />}
-        </div>
-      )}
-
+    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[86%] rounded-[24px] px-4 py-3.5 text-sm leading-6 shadow-[0_16px_40px_-34px_rgba(15,23,42,0.35)]',
+          'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6',
           isUser
-            ? 'rounded-tr-md bg-primary text-primary-foreground'
+            ? 'rounded-br-md bg-primary text-primary-foreground shadow-lg shadow-primary/10'
             : isError
-              ? 'rounded-tl-md border border-destructive/20 bg-destructive/8 text-foreground'
-              : 'rounded-tl-md border border-border/70 bg-card/78 text-card-foreground'
+              ? 'rounded-bl-md border border-destructive/20 bg-destructive/10 text-destructive'
+              : 'rounded-bl-md border border-border bg-card text-card-foreground',
         )}
       >
+        {isError && (
+          <span className="mb-1 flex items-center gap-1.5 text-xs font-medium text-destructive">
+            <AlertCircle className="h-3.5 w-3.5" />
+            Erro ao consultar
+          </span>
+        )}
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
       </div>
-
-      {isUser && (
-        <div className="mt-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground ring-1 ring-border/70">
-          <User2 className="size-4" />
-        </div>
-      )}
     </div>
   );
 }
 
-function ChatSuggestions({
-  suggestions,
-  disabled,
-  onPickSuggestion,
-}: {
-  suggestions: string[];
-  disabled: boolean;
-  onPickSuggestion: (suggestion: string) => void;
-}) {
+function ThinkingBubble() {
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Sugestões rápidas
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Atalhos prontos para acelerar a conversa
-          </p>
+    <div className="flex justify-start">
+      <div className="rounded-2xl rounded-bl-md border border-border bg-card px-4 py-3">
+        <div className="flex items-center gap-1.5">
+          <LoaderCircle className="h-3.5 w-3.5 animate-spin text-primary" />
+          <span className="text-xs text-muted-foreground">Analisando os dados</span>
+          <span className="flex gap-1">
+            {[0, 180, 360].map((delay) => (
+              <span
+                key={delay}
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60"
+                style={{ animationDelay: `${delay}ms` }}
+              />
+            ))}
+          </span>
         </div>
-        <Badge variant="outline" className="hidden sm:inline-flex">
-          <CheckCircle2 className="size-3" />
-          Operação
-        </Badge>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {suggestions.map((suggestion) => (
-          <button
-            key={suggestion}
-            type="button"
-            disabled={disabled}
-            onClick={() => onPickSuggestion(suggestion)}
-            className="rounded-full border border-border/80 bg-background/80 px-3.5 py-2 text-xs font-medium text-foreground transition-all hover:border-primary/20 hover:bg-accent/45 disabled:pointer-events-none disabled:opacity-50"
-          >
-            {suggestion}
-          </button>
-        ))}
-      </div>
-    </section>
+    </div>
   );
 }
 
-function ChatComposer({
-  value,
+function EmptyState({
+  onPick,
   disabled,
-  canSend,
-  onChange,
-  onSubmit,
 }: {
-  value: string;
+  onPick: (prompt: string) => void;
   disabled: boolean;
-  canSend: boolean;
-  onChange: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <form onSubmit={onSubmit} className="rounded-[28px] border border-border/75 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_96%,white_4%),var(--background))] p-3 shadow-[0_24px_44px_-36px_rgba(15,23,42,0.42)]">
-      <div className="overflow-hidden rounded-[22px] border border-border/65 bg-background/85 transition-colors focus-within:border-primary/25">
-        <textarea
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder="Pergunte sobre resumo, SLA, ranking, atendimentos ou qualquer sinal operacional do período..."
-          rows={4}
-          disabled={disabled}
-          className="min-h-[112px] w-full resize-none border-0 bg-transparent px-4 py-3.5 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground/80 disabled:cursor-not-allowed"
-        />
-        <div className="flex items-center justify-between gap-3 border-t border-border/60 px-3 py-3">
-          <p className="text-xs leading-5 text-muted-foreground">
-            Respostas guiadas pelos dados ativos do workspace.
-          </p>
-          <Button type="submit" size="lg" disabled={!canSend} className="min-w-[108px]">
-            {disabled ? <LoaderCircle className="size-4 animate-spin" /> : <SendHorizonal className="size-4" />}
-            {disabled ? 'Enviando' : 'Enviar'}
-          </Button>
-        </div>
+    <div className="space-y-3">
+      <p className="px-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        Sugestões rápidas
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {QUICK_PROMPTS.slice(0, 4).map((prompt) => (
+          <button
+            key={prompt}
+            type="button"
+            disabled={disabled}
+            onClick={() => onPick(prompt)}
+            className="rounded-xl border border-border bg-muted px-3 py-2.5 text-left text-xs font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+          >
+            {prompt}
+          </button>
+        ))}
       </div>
-    </form>
+    </div>
   );
 }
+
+function InsightStrip({ cards }: { cards: InsightCard[] }) {
+  if (!cards.length) return null;
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {cards.map((card) => (
+        <div
+          key={`${card.label}-${card.value}`}
+          className="rounded-xl border border-border bg-card px-3 py-2.5 text-center"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {card.label}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-foreground">{card.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main widget ──────────────────────────────────────────────────────────────
 
 export function DashielWidget() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: starterMessage,
-      kind: 'default',
-    },
-  ]);
-  const [suggestions, setSuggestions] = useState<string[]>(quickPrompts);
   const [insightCards, setInsightCards] = useState<InsightCard[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    buildMessage('assistant', STARTER_MESSAGE, 'default'),
+  ]);
+
   const viewportRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const canSend = input.trim().length > 0 && !loading;
-  const hasUserMessages = messages.some((message) => message.role === 'user');
-  const showEmptyState = !hasUserMessages && !loading;
-  const hasNoDataMessage = messages.some((message) => message.kind === 'empty');
+  const hasUserMessages = messages.some((m) => m.role === 'user');
 
-  const panelLabel = useMemo(() => {
-    return loading ? 'Dashiel está analisando' : 'Abrir Dashiel';
-  }, [loading]);
-
+  // Auto-scroll on new messages
   useEffect(() => {
     if (!open) return;
-
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-
-    viewport.scrollTo({
-      top: viewport.scrollHeight,
-      behavior: 'smooth',
-    });
+    const el = viewportRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages, loading, open]);
+
+  // Focus input when chat opens
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => textareaRef.current?.focus(), 120);
+    }
+  }, [open]);
 
   async function sendMessage(message: string) {
     const trimmed = message.trim();
     if (!trimmed || loading) return;
 
-    const userMessage = buildMessage('user', trimmed);
-
     setLoading(true);
     setInput('');
-    setMessages((current) => [...current, userMessage]);
+    setMessages((prev) => [...prev, buildMessage('user', trimmed)]);
 
     try {
       const response = await fetch('/api/dashiel', {
@@ -398,104 +246,146 @@ export function DashielWidget() {
       const data = (await response.json()) as {
         success?: boolean;
         answer?: string;
-        suggestions?: string[];
         insightCards?: InsightCard[];
         error?: string;
       };
 
       if (!response.ok || !data.answer) {
-        throw new Error(data.error ?? 'Nao foi possivel consultar os dados no momento.');
+        throw new Error(data.error ?? 'Não foi possível consultar os dados no momento.');
       }
 
-      const assistantAnswer = data.answer.trim();
-
-      setMessages((current) => [
-        ...current,
-        buildMessage('assistant', assistantAnswer, classifyAssistantMessage(assistantAnswer)),
+      const answer = data.answer.trim();
+      setMessages((prev) => [
+        ...prev,
+        buildMessage('assistant', answer, classifyAssistantMessage(answer)),
       ]);
-      setSuggestions(data.suggestions?.length ? data.suggestions : quickPrompts);
       setInsightCards(data.insightCards ?? []);
-    } catch (error) {
-      const fallback =
-        error instanceof Error ? error.message : 'Nao foi possivel consultar os dados agora.';
-
-      setMessages((current) => [...current, buildMessage('assistant', fallback, 'error')]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Não foi possível consultar os dados agora.';
+      setMessages((prev) => [...prev, buildMessage('assistant', msg, 'error')]);
     } finally {
       setLoading(false);
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     void sendMessage(input);
   }
 
+  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void sendMessage(input);
+    }
+  }
+
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-end p-4 md:p-6">
-        <SheetTrigger
-          render={
-            <Button
-              size="icon-lg"
-              className="pointer-events-auto rounded-full border border-primary/15 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--primary)_92%,white_8%),var(--primary))] shadow-[0_22px_44px_-20px_color-mix(in_oklab,var(--primary)_52%,transparent)]"
-              aria-label={panelLabel}
-            />
-          }
-        >
-          <MessageSquareText className="size-5" />
-        </SheetTrigger>
-      </div>
-
-      <SheetContent
-        side="right"
-        className="w-[calc(100vw-1rem)] max-w-[440px] border-l border-border/70 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--popover)_95%,white_5%),var(--popover))] p-0 supports-backdrop-filter:backdrop-blur-xl"
-      >
-        <ChatHeader loading={loading} />
-
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div
-            ref={viewportRef}
-            className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-5"
+    <div className="pointer-events-none fixed bottom-0 right-0 z-50 flex flex-col items-end gap-4 p-4 md:p-6">
+      {/* ── Chat window ── */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.96 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="pointer-events-auto w-[400px] overflow-hidden rounded-[28px] border border-border bg-background/95 shadow-2xl shadow-black/50 backdrop-blur-xl"
           >
-            <InsightStrip cards={insightCards} />
+            <ChatHeader loading={loading} onClose={() => setOpen(false)} />
 
-            {showEmptyState && (
-              <ChatEmptyState
-                disabled={loading}
-                onPickSuggestion={(suggestion) => void sendMessage(suggestion)}
-              />
-            )}
+            {/* Messages area */}
+            <div
+              ref={viewportRef}
+              className="flex max-h-[520px] min-h-[320px] flex-col gap-3 overflow-y-auto px-4 py-4"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'oklch(0.28 0.01 255 / 0.35) transparent',
+              }}
+            >
+              {insightCards.length > 0 && <InsightStrip cards={insightCards} />}
 
-            <section className="space-y-3">
-              {messages.map((message) => (
-                <ChatMessageBubble key={message.id} message={message} />
+              {!hasUserMessages && !loading && (
+                <EmptyState
+                  disabled={loading}
+                  onPick={(p) => void sendMessage(p)}
+                />
+              )}
+
+              {messages.map((m) => (
+                <MessageBubble key={m.id} message={m} />
               ))}
 
-              {loading && <ThinkingState />}
-
-              {hasNoDataMessage && !loading && <NoDataState />}
-            </section>
-          </div>
-
-          <div className="border-t border-border/70 bg-background/45 px-4 py-4 sm:px-5">
-            <div className="space-y-4">
-              <ChatSuggestions
-                suggestions={suggestions}
-                disabled={loading}
-                onPickSuggestion={(suggestion) => void sendMessage(suggestion)}
-              />
-
-              <ChatComposer
-                value={input}
-                disabled={loading}
-                canSend={canSend}
-                onChange={setInput}
-                onSubmit={handleSubmit}
-              />
+              {loading && <ThinkingBubble />}
             </div>
-          </div>
+
+            {/* Composer */}
+            <div className="border-t border-border bg-card/60 p-4">
+              <form onSubmit={handleSubmit}>
+                <div className="flex items-end gap-3 rounded-2xl border border-input bg-muted p-2 transition-colors focus-within:border-ring/60 focus-within:bg-accent/40">
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    rows={1}
+                    disabled={loading}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Digite sua pergunta..."
+                    className="min-h-[44px] max-h-32 flex-1 resize-none bg-transparent px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-50"
+                    style={{ scrollbarWidth: 'none' }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!canSend}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition hover:scale-[1.04] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                    aria-label="Enviar mensagem"
+                  >
+                    {loading ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2.2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-4 w-4"
+                      >
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              <div className="mt-3 flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+                <span>Enter para enviar</span>
+                <span>IA operacional</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Trigger button ── */}
+      <motion.button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        whileTap={{ scale: 0.96 }}
+        className="pointer-events-auto flex items-center gap-3 rounded-full border border-border bg-background/90 px-4 py-3 shadow-2xl shadow-black/40 backdrop-blur-xl transition hover:bg-card"
+        aria-label={open ? 'Fechar chat' : 'Abrir chat com IA'}
+      >
+        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30">
+          <span className="text-lg font-semibold text-primary-foreground">AI</span>
+          <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-background bg-emerald-400" />
         </div>
-      </SheetContent>
-    </Sheet>
+        <div className="pr-2 text-left">
+          <p className="text-sm font-medium leading-none text-foreground">Falar com Dashiel</p>
+          <p className="mt-1 text-xs text-muted-foreground">Pergunte sobre sua operação</p>
+        </div>
+      </motion.button>
+    </div>
   );
 }

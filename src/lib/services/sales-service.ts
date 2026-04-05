@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { salesRecords } from '@/lib/db/schema';
-import { and, gte, ilike, lte, sql, SQL } from 'drizzle-orm';
+import { and, eq, gte, ilike, isNotNull, lte, sql, SQL } from 'drizzle-orm';
 
 type SalesOverviewRow = {
   recordType: string;
@@ -116,6 +116,8 @@ export function buildSalesOverview(rows: SalesOverviewRow[]) {
 }
 
 export interface SalesOverviewFilters {
+  /** Required for internal routes; omit only from external API paths (global token). */
+  workspaceId?: string | null;
   from?: Date | null;
   to?: Date | null;
   city?: string | null;
@@ -127,6 +129,7 @@ export interface SalesOverviewFilters {
 
 export async function getSalesOverview(filtersInput: SalesOverviewFilters = {}) {
   const filters: SQL[] = [];
+  if (filtersInput.workspaceId) filters.push(eq(salesRecords.workspaceId, filtersInput.workspaceId));
   const { from, to, city, plan, source, search, type } = filtersInput;
 
   if (from) {

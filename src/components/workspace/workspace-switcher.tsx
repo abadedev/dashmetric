@@ -100,9 +100,9 @@ export function WorkspaceSwitcher({
 
   function switchWorkspace(targetSlug: string) {
     if (targetSlug === activeWorkspace.slug) return;
-    document.cookie = `active_workspace_slug=${targetSlug};path=/;max-age=2592000;samesite=lax`;
+    document.cookie = `dwm_active_workspace=${targetSlug};path=/;max-age=2592000;samesite=lax`;
     document.cookie = `workspace_access_ok=;path=/;max-age=0`;
-    router.refresh();
+    router.push(`/${targetSlug}/dashboard`);
   }
 
   async function handleCreate() {

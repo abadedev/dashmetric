@@ -35,17 +35,21 @@ function VendasPageContent() {
     queryKey: ['sales-overview', qs],
     queryFn: async () => {
       const response = await fetch(`/api/sales?${qs}`);
+      if (!response.ok) throw new Error(`sales error: ${response.status}`);
       return response.json();
     },
+    retry: false,
   });
 
   const { data: filterContract } = useQuery({
     queryKey: ['module-filters', 'sales'],
     queryFn: async () => {
       const response = await fetch('/api/module-filters/sales');
+      if (!response.ok) throw new Error(`module-filters error: ${response.status}`);
       return response.json();
     },
     staleTime: 1000 * 60 * 10,
+    retry: false,
   });
 
   return (

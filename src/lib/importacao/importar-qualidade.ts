@@ -250,6 +250,7 @@ export function inferirPeriodosQualidade(linhas: Record<string, string>[]): Peri
 
 export async function limparQualidadePorPeriodos(
   periodos: PeriodoQualidade[],
+  workspaceId: string,
   executor: DbExecutor = db
 ): Promise<number> {
   let totalRemovido = 0;
@@ -259,6 +260,7 @@ export async function limparQualidadePorPeriodos(
       .delete(qualityRecords)
       .where(
         and(
+          eq(qualityRecords.workspaceId, workspaceId),
           eq(qualityRecords.periodMonth, periodo.periodMonth),
           eq(qualityRecords.periodYear, periodo.periodYear)
         )
@@ -272,6 +274,7 @@ export async function limparQualidadePorPeriodos(
 
 export async function importarQualidade(
   linhas: Record<string, string>[],
+  workspaceId: string,
   executor: DbExecutor = db
 ): Promise<ResumoQualidade> {
   // Reset cache por importação
@@ -341,6 +344,7 @@ export async function importarQualidade(
       const periodDate = openedAt ?? new Date();
 
       const record: NewQualityRecord = {
+        workspaceId,
         osNumber:       trimOrNull(get(row, 'numeroOs')),
         indicator:      indicador,
         reason:         trimOrNull(get(row, 'motivo')),

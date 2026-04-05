@@ -94,8 +94,8 @@ export function SupportChart({ records }: { records: SupportChartRecord[] }) {
         </div>
       </CardHeader>
 
-      <CardContent className="h-[380px] pt-5">
-        <ResponsiveContainer width="100%" height="100%">
+      <CardContent className="pt-5">
+        <ResponsiveContainer width="100%" height={360}>
           <BarChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.18)" />
             <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />

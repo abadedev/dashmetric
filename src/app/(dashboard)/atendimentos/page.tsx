@@ -49,17 +49,21 @@ function AtendimentosPageContent() {
     queryKey: ['service-orders', queryParams.toString()],
     queryFn: async () => {
       const res = await fetch(`/api/service-orders?${queryParams.toString()}`);
+      if (!res.ok) throw new Error(`service-orders error: ${res.status}`);
       return res.json();
     },
+    retry: false,
   });
 
   const { data: filterContract } = useQuery({
     queryKey: ['module-filters', 'attendances'],
     queryFn: async () => {
       const res = await fetch('/api/module-filters/attendances');
+      if (!res.ok) throw new Error(`module-filters error: ${res.status}`);
       return res.json();
     },
     staleTime: 1000 * 60 * 10,
+    retry: false,
   });
 
   const table = useReactTable({

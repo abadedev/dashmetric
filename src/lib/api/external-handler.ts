@@ -4,6 +4,7 @@ import { requireExternalApiAuth, ExternalApiAuthError } from '@/lib/auth/externa
 import { ExternalApiRequestError } from './external-query';
 import { createErrorResponse, createSuccessResponse } from './response';
 import { parseExternalApiFilters, serializeAppliedFilters } from './filters';
+import { resolveWorkspaceId } from '@/lib/db/workspace-context';
 
 export async function handleExternalApiRequest(
   req: NextRequest,
@@ -19,6 +20,16 @@ export async function handleExternalApiRequest(
   try {
     requireExternalApiAuth(req);
     const filters = parseExternalApiFilters(req);
+
+    if (!filters.workspaceSlug) {
+      throw new ExternalApiRequestError(
+        'O parametro "workspaceSlug" e obrigatorio para consultas multi-workspace.',
+        400,
+        'missing_workspace_slug'
+      );
+    }
+
+    filters.workspaceId = await resolveWorkspaceId(filters.workspaceSlug);
     serializedFilters = serializeAppliedFilters(filters);
 
     const data = await resolver(filters);

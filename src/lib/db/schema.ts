@@ -113,6 +113,8 @@ export const technicians = pgTable(
   'technicians',
   {
     id: serial('id').primaryKey(),
+    // nullable during migration — TODO: add .notNull() after data migration
+    workspaceId: uuid('workspace_id'),
     name: varchar('name', { length: 255 }).notNull(),
     login: varchar('login', { length: 100 }),
     active: boolean('active').default(true).notNull(),
@@ -120,26 +122,34 @@ export const technicians = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [
+    // unique name per workspace; legacy global uniqueness kept until migration completes
     uniqueIndex('tech_name_idx').on(table.name),
     index('tech_login_idx').on(table.login),
+    index('tech_workspace_id_idx').on(table.workspaceId),
   ]
 );
 
-export const importBatches = pgTable('import_batches', {
-  id: serial('id').primaryKey(),
-  filename: varchar('filename', { length: 255 }).notNull(),
-  totalRows: integer('total_rows').default(0),
-  importedRows: integer('imported_rows').default(0),
-  errors: integer('errors').default(0),
-  errorDetails: text('error_details'),
-  status: importStatusEnum('status').default('pending').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+export const importBatches = pgTable(
+  'import_batches',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
+    filename: varchar('filename', { length: 255 }).notNull(),
+    totalRows: integer('total_rows').default(0),
+    importedRows: integer('imported_rows').default(0),
+    errors: integer('errors').default(0),
+    errorDetails: text('error_details'),
+    status: importStatusEnum('status').default('pending').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [index('import_batch_workspace_id_idx').on(table.workspaceId)]
+);
 
 export const serviceOrders = pgTable(
   'service_orders',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
     osNumber: varchar('os_number', { length: 20 }),
     activityType: activityTypeEnum('activity_type').notNull(),
     reason: text('reason'),
@@ -161,12 +171,14 @@ export const serviceOrders = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => [
+    index('so_workspace_id_idx').on(table.workspaceId),
     index('so_technician_idx').on(table.technicianId),
     index('so_activity_type_idx').on(table.activityType),
     index('so_period_idx').on(table.periodYear, table.periodMonth),
     index('so_city_idx').on(table.city),
     index('so_opened_at_idx').on(table.openedAt),
     index('so_os_number_idx').on(table.osNumber),
+    index('so_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
   ]
 );
 
@@ -174,6 +186,7 @@ export const qualityRecords = pgTable(
   'quality_records',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
     osNumber: varchar('os_number', { length: 20 }),
     indicator: qualityIndicatorEnum('indicator').notNull(),
     reason: text('reason'),
@@ -191,9 +204,11 @@ export const qualityRecords = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => [
+    index('qr_workspace_id_idx').on(table.workspaceId),
     index('qr_indicator_idx').on(table.indicator),
     index('qr_technician_idx').on(table.technicianId),
     index('qr_period_idx').on(table.periodYear, table.periodMonth),
+    index('qr_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
   ]
 );
 
@@ -201,6 +216,7 @@ export const supportRecords = pgTable(
   'support_records',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
     attendantName: varchar('attendant_name', { length: 255 }).notNull(),
     openedManutExt: integer('opened_manut_ext').default(0),
     percentage: numeric('percentage', { precision: 5, scale: 2 }),
@@ -210,7 +226,11 @@ export const supportRecords = pgTable(
     periodYear: integer('period_year').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
-  (table) => [index('sr_period_idx').on(table.periodYear, table.periodMonth)]
+  (table) => [
+    index('sr_workspace_id_idx').on(table.workspaceId),
+    index('sr_period_idx').on(table.periodYear, table.periodMonth),
+    index('sr_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
+  ]
 );
 
 /**
@@ -221,6 +241,7 @@ export const supportCallCategories = pgTable(
   'support_call_categories',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
     categoria: varchar('categoria', { length: 200 }).notNull(),
     quantidade: integer('quantidade').notNull(),
     percentual: numeric('percentual', { precision: 6, scale: 2 }).notNull(),
@@ -228,13 +249,18 @@ export const supportCallCategories = pgTable(
     periodYear: integer('period_year').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
-  (table) => [index('scc_period_idx').on(table.periodYear, table.periodMonth)]
+  (table) => [
+    index('scc_workspace_id_idx').on(table.workspaceId),
+    index('scc_period_idx').on(table.periodYear, table.periodMonth),
+    index('scc_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
+  ]
 );
 
 export const systemModules = pgTable(
   'system_modules',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
     name: varchar('name', { length: 120 }).notNull(),
     slug: varchar('slug', { length: 120 }).notNull(),
     description: text('description'),
@@ -251,8 +277,9 @@ export const systemModules = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex('system_module_slug_idx').on(table.slug),
-    uniqueIndex('system_module_href_idx').on(table.href),
+    index('system_module_workspace_id_idx').on(table.workspaceId),
+    uniqueIndex('system_module_ws_slug_idx').on(table.workspaceId, table.slug),
+    uniqueIndex('system_module_ws_href_idx').on(table.workspaceId, table.href),
     index('system_module_sort_idx').on(table.sortOrder),
   ]
 );
@@ -290,6 +317,7 @@ export const salesRecords = pgTable(
   'sales_records',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
     recordType: salesRecordTypeEnum('record_type').notNull(),
     originSector: varchar('origin_sector', { length: 50 }).default('vendas').notNull(),
     csvCategory: varchar('csv_category', { length: 50 }).default('padrao').notNull(),
@@ -306,11 +334,13 @@ export const salesRecords = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => [
+    index('sales_record_workspace_id_idx').on(table.workspaceId),
     index('sales_record_period_idx').on(table.periodYear, table.periodMonth),
     index('sales_record_type_idx').on(table.recordType),
     index('sales_record_origin_sector_idx').on(table.originSector),
     index('sales_record_csv_category_idx').on(table.csvCategory),
     index('sales_record_city_idx').on(table.city),
+    index('sales_record_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
   ]
 );
 
@@ -318,6 +348,7 @@ export const cancellationRecords = pgTable(
   'cancellation_records',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
     originSector: varchar('origin_sector', { length: 50 }).default('retencao').notNull(),
     clientName: varchar('client_name', { length: 255 }),
     city: varchar('city', { length: 120 }),
@@ -331,9 +362,11 @@ export const cancellationRecords = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => [
+    index('cancellation_record_workspace_id_idx').on(table.workspaceId),
     index('cancellation_record_origin_sector_idx').on(table.originSector),
     index('cancellation_record_period_idx').on(table.periodYear, table.periodMonth),
     index('cancellation_record_city_idx').on(table.city),
+    index('cancellation_record_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
   ]
 );
 
@@ -341,6 +374,7 @@ export const infrastructureRecords = pgTable(
   'infrastructure_records',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
     title: varchar('title', { length: 255 }),
     category: varchar('category', { length: 120 }),
     city: varchar('city', { length: 120 }),
@@ -351,8 +385,10 @@ export const infrastructureRecords = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => [
+    index('infrastructure_record_workspace_id_idx').on(table.workspaceId),
     index('infrastructure_record_period_idx').on(table.periodYear, table.periodMonth),
     index('infrastructure_record_city_idx').on(table.city),
+    index('infrastructure_record_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
   ]
 );
 
@@ -367,53 +403,89 @@ export const holidays = pgTable(
   (table) => [uniqueIndex('holiday_date_idx').on(table.date)]
 );
 
-export const slaTargets = pgTable('sla_targets', {
-  id: serial('id').primaryKey(),
-  activityType: activityTypeEnum('activity_type').notNull().unique(),
-  targetHours: integer('target_hours'),
-});
+export const slaTargets = pgTable(
+  'sla_targets',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
+    // TODO: after migration, drop the global unique and replace with uniqueIndex on (workspaceId, activityType)
+    activityType: activityTypeEnum('activity_type').notNull(),
+    targetHours: integer('target_hours'),
+  },
+  (table) => [
+    index('sla_target_workspace_id_idx').on(table.workspaceId),
+    index('sla_target_activity_type_idx').on(table.activityType),
+  ]
+);
 
 /**
  * Configurações do cálculo SLA (horário comercial).
  * Chaves: weekday_open, weekday_close, saturday_enabled,
  *         saturday_open, saturday_close, sunday_enabled
  */
-export const slaConfig = pgTable('sla_config', {
-  key:       varchar('key', { length: 100 }).primaryKey(),
-  value:     text('value').notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+export const slaConfig = pgTable(
+  'sla_config',
+  {
+    // Composite PK: (workspaceId, key) — workspaceId nullable during migration
+    workspaceId: uuid('workspace_id'), // nullable during migration
+    key:       varchar('key', { length: 100 }).notNull(),
+    value:     text('value').notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('sla_config_workspace_id_idx').on(table.workspaceId),
+    // TODO: after migration make (workspaceId, key) the PK and drop the legacy single-key PK
+    uniqueIndex('sla_config_ws_key_idx').on(table.workspaceId, table.key),
+  ]
+);
 
 // ========== MÓDULO DE IMPORTAÇÃO (novo) ==========
 
 /** Lote de importação: metadados de cada upload */
-export const lotesImportacao = pgTable('lotes_importacao', {
-  id: serial('id').primaryKey(),
-  arquivo: varchar('arquivo', { length: 255 }).notNull(),
-  tipoArquivo: varchar('tipo_arquivo', { length: 10 }).notNull(), // 'csv' | 'xlsx'
-  status: varchar('status', { length: 20 }).notNull().default('pendente'),
-  totalLidas: integer('total_lidas').default(0),
-  totalValidas: integer('total_validas').default(0),
-  totalInvalidas: integer('total_invalidas').default(0),
-  totalInseridas: integer('total_inseridas').default(0),
-  totalDuplicadas: integer('total_duplicadas').default(0),
-  erros: jsonb('erros'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+export const lotesImportacao = pgTable(
+  'lotes_importacao',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
+    arquivo: varchar('arquivo', { length: 255 }).notNull(),
+    tipoArquivo: varchar('tipo_arquivo', { length: 10 }).notNull(), // 'csv' | 'xlsx'
+    status: varchar('status', { length: 20 }).notNull().default('pendente'),
+    totalLidas: integer('total_lidas').default(0),
+    totalValidas: integer('total_validas').default(0),
+    totalInvalidas: integer('total_invalidas').default(0),
+    totalInseridas: integer('total_inseridas').default(0),
+    totalDuplicadas: integer('total_duplicadas').default(0),
+    erros: jsonb('erros'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('lote_importacao_workspace_id_idx').on(table.workspaceId),
+    index('lote_importacao_status_idx').on(table.status),
+  ]
+);
 
 /** Linhas brutas preservadas para auditoria */
-export const importacoesBrutas = pgTable('importacoes_brutas', {
-  id: serial('id').primaryKey(),
-  loteImportacaoId: integer('lote_importacao_id').references(() => lotesImportacao.id),
-  rawJson: jsonb('raw_json').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+export const importacoesBrutas = pgTable(
+  'importacoes_brutas',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
+    loteImportacaoId: integer('lote_importacao_id').references(() => lotesImportacao.id),
+    rawJson: jsonb('raw_json').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('importacao_bruta_workspace_id_idx').on(table.workspaceId),
+    index('importacao_bruta_lote_idx').on(table.loteImportacaoId),
+  ]
+);
 
 /** Tabela principal de atendimentos normalizada */
 export const atendimentos = pgTable(
   'atendimentos',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'), // nullable during migration
 
     // Campos principais
     numeroOs: varchar('numero_os', { length: 50 }),
@@ -467,12 +539,17 @@ export const atendimentos = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (t) => [
+    index('atend_workspace_id_idx').on(t.workspaceId),
+    // hash dedup scoped per workspace — prevents cross-workspace collision
+    uniqueIndex('atend_ws_hash_idx').on(t.workspaceId, t.hashImportacao),
     index('atend_hash_idx').on(t.hashImportacao),
     index('atend_tecnico_id_idx').on(t.tecnicoId),
     index('atend_tipo_idx').on(t.tipo),
     index('atend_period_idx').on(t.periodYear, t.periodMonth),
     index('atend_abertura_at_idx').on(t.aberturaAt),
     index('atend_cidade_idx').on(t.cidade),
+    index('atend_ws_period_idx').on(t.workspaceId, t.periodYear, t.periodMonth),
+    index('atend_ws_tipo_idx').on(t.workspaceId, t.tipo),
   ]
 );
 

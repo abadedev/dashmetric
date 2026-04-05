@@ -45,6 +45,8 @@ function detectIntent(message: string): AssistantIntent {
 
 function getDefaultFilters(): ExternalApiFilters {
   return {
+    workspaceSlug: null,
+    workspaceId: null,
     startDate: null,
     endDate: null,
     period: 'current_month',

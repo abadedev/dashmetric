@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { systemModules } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
 import { slugToHref } from '@/lib/services/module-service';
@@ -14,7 +14,7 @@ export async function PATCH(
 ) {
   const { response } = await requireAdmin(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
     try {
       const { id } = await params;
       const body = await req.json();
@@ -41,7 +41,7 @@ export async function PATCH(
           isEditable: body.isEditable ?? true,
           updatedAt: new Date(),
         })
-        .where(eq(systemModules.id, Number(id)))
+        .where(and(eq(systemModules.id, Number(id)), eq(systemModules.workspaceId, ctx.workspaceId)))
         .returning();
 
       return NextResponse.json({ data: updated });
@@ -58,10 +58,12 @@ export async function DELETE(
 ) {
   const { response } = await requireAdmin(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
     try {
       const { id } = await params;
-      await db.delete(systemModules).where(eq(systemModules.id, Number(id)));
+      await db
+        .delete(systemModules)
+        .where(and(eq(systemModules.id, Number(id)), eq(systemModules.workspaceId, ctx.workspaceId)));
       return NextResponse.json({ success: true });
     } catch (error) {
       console.error('[modules:delete]', error);

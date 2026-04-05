@@ -20,8 +20,8 @@ export function SalesDistributionChart({ data }: { data: Array<{ type: string; t
       <CardHeader>
         <CardTitle>Distribuição por etapa</CardTitle>
       </CardHeader>
-      <CardContent className="h-[320px]">
-        <ResponsiveContainer width="100%" height="100%">
+      <CardContent>
+        <ResponsiveContainer width="100%" height={280}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="type" tick={{ fontSize: 12 }} />

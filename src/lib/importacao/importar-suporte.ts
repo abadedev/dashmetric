@@ -65,7 +65,8 @@ export interface ResumoSuporte {
 export async function importarSuporte(
   linhas: Record<string, string>[],
   periodMonth: number,
-  periodYear: number
+  periodYear: number,
+  workspaceId: string
 ): Promise<ResumoSuporte> {
   const resumo: ResumoSuporte = {
     totalLidas: linhas.length,
@@ -97,6 +98,7 @@ export async function importarSuporte(
       const year  = anoLinha ? toInt(anoLinha) || periodYear  : periodYear;
 
       registros.push({
+        workspaceId,
         attendantName:  atendente,
         openedManutExt: toInt(get(row, 'aberturaManutExt')),
         percentage:     toDecimal(get(row, 'percentual')),
@@ -133,6 +135,7 @@ export async function importarSuporte(
         .delete(supportCallCategories)
         .where(
           and(
+            eq(supportCallCategories.workspaceId, workspaceId),
             eq(supportCallCategories.periodMonth, periodMonth),
             eq(supportCallCategories.periodYear, periodYear)
           )
@@ -140,6 +143,7 @@ export async function importarSuporte(
 
       await db.insert(supportCallCategories).values(
         summary.map((item) => ({
+          workspaceId,
           categoria:   item.tipo,
           quantidade:  item.quantidade,
           percentual:  String(item.percentual),

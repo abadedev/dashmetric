@@ -39,7 +39,8 @@ export interface ResumoCancelamentos {
 }
 
 export async function importarCancelamentos(
-  linhas: Record<string, string>[]
+  linhas: Record<string, string>[],
+  workspaceId: string
 ): Promise<ResumoCancelamentos> {
   const resumo: ResumoCancelamentos = {
     totalLidas: linhas.length,
@@ -61,6 +62,7 @@ export async function importarCancelamentos(
       const observation = trimOrNull(get(row, 'observation'));
 
       registros.push({
+        workspaceId,
         originSector: 'retencao',
         clientName:  trimOrNull(get(row, 'clientName')),
         city:        trimOrNull(get(row, 'city')),

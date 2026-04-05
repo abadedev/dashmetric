@@ -33,17 +33,21 @@ function CancelamentosPageContent() {
     queryKey: ['cancellations-overview', qs],
     queryFn: async () => {
       const response = await fetch(`/api/cancellations?${qs}`);
+      if (!response.ok) throw new Error(`cancellations error: ${response.status}`);
       return response.json();
     },
+    retry: false,
   });
 
   const { data: filterContract } = useQuery({
     queryKey: ['module-filters', 'cancellations'],
     queryFn: async () => {
       const response = await fetch('/api/module-filters/cancellations');
+      if (!response.ok) throw new Error(`module-filters error: ${response.status}`);
       return response.json();
     },
     staleTime: 1000 * 60 * 10,
+    retry: false,
   });
 
   return (

@@ -34,6 +34,7 @@ export type ModuleFilterDefinition = {
 };
 
 export type ModuleImportContext = {
+  workspaceId: string;
   fileName: string;
   buffer: Buffer;
   rows: Record<string, string>[];
@@ -67,8 +68,8 @@ async function importQualityModule(context: ModuleImportContext): Promise<Module
 
     const transactional = await db.transaction(async (tx) => {
       const txExecutor = tx as unknown as typeof db;
-      const registrosRemovidos = await limparQualidadePorPeriodos(periodos, txExecutor);
-      const resumoTx = await importarQualidade(context.rows, txExecutor);
+      const registrosRemovidos = await limparQualidadePorPeriodos(periodos, context.workspaceId, txExecutor);
+      const resumoTx = await importarQualidade(context.rows, context.workspaceId, txExecutor);
 
       return { registrosRemovidos, resumoTx };
     });
@@ -79,7 +80,7 @@ async function importQualityModule(context: ModuleImportContext): Promise<Module
     };
     resumo = transactional.resumoTx;
   } else {
-    resumo = await importarQualidade(context.rows);
+    resumo = await importarQualidade(context.rows, context.workspaceId);
   }
 
   return {
@@ -93,7 +94,7 @@ async function importQualityModule(context: ModuleImportContext): Promise<Module
 
 async function importSupportModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
   const now = new Date();
-  const resumo = await importarSuporte(context.rows, now.getMonth() + 1, now.getFullYear());
+  const resumo = await importarSuporte(context.rows, now.getMonth() + 1, now.getFullYear(), context.workspaceId);
 
   return {
     success: true,
@@ -104,7 +105,7 @@ async function importSupportModule(context: ModuleImportContext): Promise<Module
 }
 
 async function importSalesModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
-  const resumo = await importarVendas(context.rows, context.fileName);
+  const resumo = await importarVendas(context.rows, context.workspaceId, context.fileName);
 
   return {
     success: true,
@@ -115,7 +116,7 @@ async function importSalesModule(context: ModuleImportContext): Promise<ModuleIm
 }
 
 async function importCancellationsModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
-  const resumo = await importarCancelamentos(context.rows);
+  const resumo = await importarCancelamentos(context.rows, context.workspaceId);
 
   return {
     success: true,
@@ -126,7 +127,7 @@ async function importCancellationsModule(context: ModuleImportContext): Promise<
 }
 
 async function importInfrastructureModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
-  const resumo = await importarInfraestrutura(context.rows);
+  const resumo = await importarInfraestrutura(context.rows, context.workspaceId);
 
   return {
     success: true,
@@ -137,7 +138,7 @@ async function importInfrastructureModule(context: ModuleImportContext): Promise
 }
 
 async function importAttendancesModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
-  const { loteId, resumo } = await importarAtendimentos(context.buffer, context.fileName);
+  const { loteId, resumo } = await importarAtendimentos(context.buffer, context.fileName, context.workspaceId);
 
   return {
     success: true,

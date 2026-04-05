@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import {
   BarChart3,
@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { auth } from '@/lib/auth';
 import { canAccessModule, getModuleBySlug, type AppRole } from '@/lib/services/module-service';
+import { resolveActiveWorkspace } from '@/lib/workspace';
+import { resolveWorkspaceHref } from '@/lib/workspace-navigation';
 import { PageLayout } from '@/components/layout/page-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -83,8 +85,16 @@ export default async function DynamicModulePage({
     redirect('/auth');
   }
 
+  const cookieStore = await cookies();
+  const preferredWorkspaceSlug = cookieStore.get('dwm_active_workspace')?.value ?? null;
+  const activeWorkspace = await resolveActiveWorkspace(session.user.id, preferredWorkspaceSlug);
+
+  if (!activeWorkspace) {
+    redirect('/waiting');
+  }
+
   const { slug: moduleSlug } = await params;
-  const module = await getModuleBySlug(moduleSlug);
+  const module = await getModuleBySlug(moduleSlug, activeWorkspace.id);
 
   if (!module || !module.isActive) {
     notFound();
@@ -107,7 +117,7 @@ export default async function DynamicModulePage({
       }
       actions={
         module.allowImport ? (
-          <Link href="/upload">
+          <Link href={resolveWorkspaceHref('/upload', activeWorkspace.slug)}>
             <Button>
               <Upload className="h-4 w-4" />
               Importar dados

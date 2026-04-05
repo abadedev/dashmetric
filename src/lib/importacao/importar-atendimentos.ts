@@ -64,7 +64,8 @@ async function carregarFeriados(): Promise<Set<string>> {
 
 export async function importarAtendimentos(
   buffer: Buffer,
-  filename: string
+  filename: string,
+  workspaceId: string,
 ): Promise<{ loteId: number; resumo: ResumoImportacao }> {
 
   const tipoArquivo = detectFileType(filename, buffer);
@@ -78,7 +79,7 @@ export async function importarAtendimentos(
   // 2. Cria o lote de importação
   const [lote] = await db
     .insert(lotesImportacao)
-    .values({ arquivo: filename, tipoArquivo, status: 'processando' })
+    .values({ workspaceId, arquivo: filename, tipoArquivo, status: 'processando' })
     .returning();
 
   const resumo: ResumoImportacao = {
@@ -98,6 +99,7 @@ export async function importarAtendimentos(
       for (let i = 0; i < linhasBrutas.length; i += CHUNK_BRUTO) {
         await db.insert(importacoesBrutas).values(
           linhasBrutas.slice(i, i + CHUNK_BRUTO).map((raw) => ({
+            workspaceId,
             loteImportacaoId: lote.id,
             rawJson: raw,
           }))
@@ -179,9 +181,9 @@ export async function importarAtendimentos(
       }
     }
 
-    // 7. Deduplicação: filtra registros já existentes no banco (por hash)
+    // 7. Deduplicação: filtra registros já existentes no banco (por hash, scoped ao workspace)
     const todosHashes = registrosMapeados.map((r) => r.dados.hashImportacao as string);
-    const hashesNoBanco = await buscarHashesExistentes(todosHashes);
+    const hashesNoBanco = await buscarHashesExistentes(todosHashes, workspaceId);
 
     // Também deduplica dentro do próprio lote (caso o arquivo tenha linhas repetidas)
     const hashesNoLote = new Set<string>();
@@ -205,6 +207,7 @@ export async function importarAtendimentos(
       try {
         const values = chunk.map((r) => ({
           ...(r.dados as NewAtendimento),
+          workspaceId,
           createdAt: now,
           updatedAt: now,
         }));
@@ -216,6 +219,7 @@ export async function importarAtendimentos(
           try {
             await db.insert(atendimentos).values({
               ...(item.dados as NewAtendimento),
+              workspaceId,
               createdAt: now,
               updatedAt: now,
             });

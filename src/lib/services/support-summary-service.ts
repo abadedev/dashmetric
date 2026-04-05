@@ -1,4 +1,4 @@
-import { and, desc, gte, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { supportCallCategories, supportRecords } from '@/lib/db/schema';
 
@@ -23,6 +23,7 @@ export type SupportTypeSummaryResult = {
 type SupportSummaryFilters = {
   from?: Date | null;
   to?: Date | null;
+  workspaceId?: string | null;
 };
 
 function toPeriodValue(date: Date) {
@@ -33,6 +34,10 @@ export async function getSupportTypeSummary(
   filters: SupportSummaryFilters = {}
 ): Promise<SupportTypeSummaryResult> {
   const where = [];
+
+  if (filters.workspaceId) {
+    where.push(eq(supportCallCategories.workspaceId, filters.workspaceId));
+  }
 
   if (filters.from) {
     where.push(
@@ -61,6 +66,10 @@ export async function getSupportTypeSummary(
     .where(where.length ? and(...where) : undefined);
 
   const supportWhere = [];
+
+  if (filters.workspaceId) {
+    supportWhere.push(eq(supportRecords.workspaceId, filters.workspaceId));
+  }
 
   if (filters.from) {
     supportWhere.push(

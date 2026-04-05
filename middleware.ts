@@ -1,5 +1,7 @@
-// Re-exports the proxy function as the Next.js middleware entry point.
-// The proxy logic lives in src/proxy.ts so it can be tested/imported independently.
-// Node.js runtime is required because the proxy uses drizzle-orm with node-postgres.
-export { proxy as middleware, config } from '@/proxy';
+export { proxy as middleware } from '@/proxy';
+
 export const runtime = 'nodejs';
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|public/).*)'],
+};

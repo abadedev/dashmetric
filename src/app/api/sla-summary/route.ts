@@ -3,14 +3,14 @@ import { db } from '@/lib/db';
 import { atendimentos } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
-import { and, asc, count, sql, SQL } from 'drizzle-orm';
+import { and, asc, count, eq, sql, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
   try {
     const { searchParams } = new URL(req.url);
     const fromStr = searchParams.get('from');
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     // Filtro de data usando COALESCE(aberturaAt, finalizacaoAt, createdAt)
     // mantém semântica idêntica ao $or original do MongoDB
-    const filters: SQL[] = [];
+    const filters: SQL[] = [eq(atendimentos.workspaceId, ctx.workspaceId)];
     if (fromStr || toStr) {
       const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
       if (fromStr) filters.push(sql`${dataRef} >= ${new Date(fromStr)}`);

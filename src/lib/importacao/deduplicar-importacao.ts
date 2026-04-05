@@ -1,12 +1,13 @@
 import { db } from '@/lib/db';
 import { atendimentos } from '@/lib/db/schema';
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 /**
- * Retorna o conjunto de hashes que já existem no PostgreSQL.
+ * Retorna o conjunto de hashes que já existem no PostgreSQL para o workspace dado.
+ * Scoped by workspaceId to prevent cross-workspace dedup collisions.
  * Feito em chunks para não exceder o limite de parâmetros da query.
  */
-export async function buscarHashesExistentes(hashes: string[]): Promise<Set<string>> {
+export async function buscarHashesExistentes(hashes: string[], workspaceId: string): Promise<Set<string>> {
   if (!hashes.length) return new Set();
 
   const CHUNK = 500;
@@ -17,7 +18,10 @@ export async function buscarHashesExistentes(hashes: string[]): Promise<Set<stri
     const rows = await db
       .select({ hashImportacao: atendimentos.hashImportacao })
       .from(atendimentos)
-      .where(inArray(atendimentos.hashImportacao, slice));
+      .where(and(
+        eq(atendimentos.workspaceId, workspaceId),
+        inArray(atendimentos.hashImportacao, slice)
+      ));
     rows.forEach((r) => existentes.add(r.hashImportacao));
   }
 

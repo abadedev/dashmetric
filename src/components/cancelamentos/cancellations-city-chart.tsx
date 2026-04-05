@@ -20,8 +20,8 @@ export function CancellationsCityChart({ data }: { data: Array<{ city: string; t
       <CardHeader>
         <CardTitle>Cancelamentos por cidade</CardTitle>
       </CardHeader>
-      <CardContent className="h-[320px]">
-        <ResponsiveContainer width="100%" height="100%">
+      <CardContent>
+        <ResponsiveContainer width="100%" height={280}>
           <BarChart data={data.slice(0, 8)}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="city" tick={{ fontSize: 12 }} />
