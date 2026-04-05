@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
   try {
     const { searchParams } = new URL(req.url);
     const fromStr   = searchParams.get('from');
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const search    = searchParams.get('search');
     const technicianId = searchParams.get('technicianId');
 
-    const filters: SQL[] = [];
+    const filters: SQL[] = [eq(qualityRecords.workspaceId, ctx.workspaceId)];
     if (fromStr) filters.push(gte(qualityRecords.openedAt, new Date(fromStr)));
     if (toStr)   filters.push(lte(qualityRecords.openedAt, new Date(toStr)));
     if (indicator) filters.push(eq(qualityRecords.indicator, indicator as never));

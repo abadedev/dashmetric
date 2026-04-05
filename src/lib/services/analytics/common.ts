@@ -12,6 +12,7 @@ export function buildAttendanceBaseFilters(filters: ExternalApiFilters): SQL[] {
   const sqlFilters: SQL[] = [];
   const dateRef = buildAttendanceDateReference();
 
+  if (filters.workspaceId) sqlFilters.push(eq(atendimentos.workspaceId, filters.workspaceId));
   if (filters.startDate) sqlFilters.push(sql`${dateRef} >= ${filters.startDate}`);
   if (filters.endDate) sqlFilters.push(sql`${dateRef} <= ${filters.endDate}`);
   if (filters.type) sqlFilters.push(eq(atendimentos.tipo, filters.type));
@@ -72,6 +73,13 @@ export function buildMonthlyPeriodFilter(
   const sqlFilters: SQL[] = [];
   const periodRef = sql<number>`${periodYearColumn} * 100 + ${periodMonthColumn}`;
 
+  if (filters.workspaceId) {
+    if (periodMonthColumn === supportRecords.periodMonth) {
+      sqlFilters.push(eq(supportRecords.workspaceId, filters.workspaceId));
+    } else {
+      sqlFilters.push(eq(supportCallCategories.workspaceId, filters.workspaceId));
+    }
+  }
   if (filters.startDate) sqlFilters.push(gte(periodRef, buildPeriodInteger(filters.startDate)));
   if (filters.endDate) sqlFilters.push(lte(periodRef, buildPeriodInteger(filters.endDate)));
 

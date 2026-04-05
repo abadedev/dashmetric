@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { withWorkspaceDb } from '@/lib/db';
+import { NextRequest } from 'next/server';
+import { resolveWorkspaceId, type WorkspaceContext } from '@/lib/db/workspace-context';
 
 /**
  * Extracts the active workspace slug from the request cookie.
@@ -10,20 +10,23 @@ export function getWorkspaceSlug(req: NextRequest): string {
 }
 
 /**
- * Wraps an API route handler with workspace-scoped db context.
- * The handler receives the workspace slug and runs with the correct search_path.
+ * Wraps an API route handler with workspace context.
+ * The handler receives a WorkspaceContext ({ slug, workspaceId }) and must
+ * use `ctx.workspaceId` explicitly in queries.
  *
  * Usage:
  *   export async function GET(req: NextRequest) {
- *     return runWithWorkspace(req, async () => {
- *       // db queries here automatically use the correct workspace schema
+ *     return runWithWorkspace(req, async (ctx) => {
+ *       // ctx.workspaceId — use this to scope all queries
  *     });
  *   }
  */
 export async function runWithWorkspace<T>(
   req: NextRequest,
-  fn: (slug: string) => Promise<T>
+  fn: (ctx: WorkspaceContext) => Promise<T>
 ): Promise<T> {
   const slug = getWorkspaceSlug(req);
-  return withWorkspaceDb(slug, () => fn(slug));
+  const workspaceId = await resolveWorkspaceId(slug);
+  const ctx: WorkspaceContext = { slug, workspaceId };
+  return fn(ctx);
 }

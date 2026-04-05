@@ -41,8 +41,8 @@ export function VolumePieChart({ data }: { data: any[] }) {
         <CardTitle>Volume por Tipo</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 min-w-0">
-        <div className="h-[320px] min-h-[320px] w-full min-w-0">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="w-full min-w-0">
+          <ResponsiveContainer width="100%" height={320}>
             <PieChart>
               <Pie
                 data={chartData}

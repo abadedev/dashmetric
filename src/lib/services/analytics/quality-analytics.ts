@@ -6,6 +6,7 @@ import type { ExternalApiFilters } from '@/lib/api/filters';
 function buildQualityFilters(filters: ExternalApiFilters): SQL[] {
   const sqlFilters: SQL[] = [];
 
+  if (filters.workspaceId) sqlFilters.push(eq(qualityRecords.workspaceId, filters.workspaceId));
   if (filters.startDate) sqlFilters.push(gte(qualityRecords.openedAt, filters.startDate));
   if (filters.endDate)   sqlFilters.push(lte(qualityRecords.openedAt, filters.endDate));
   if (filters.type)      sqlFilters.push(sql`${qualityRecords.indicator} = ${filters.type}`);

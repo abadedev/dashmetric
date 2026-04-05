@@ -52,7 +52,7 @@ function slugify(v: string) {
 export function Header() {
   const router = useRouter();
   const pathname = usePathname();
-  const { data } = useSession();
+  const { data, isPending } = useSession();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -90,8 +90,12 @@ export function Header() {
     queryKey: ['my-workspaces'],
     queryFn: async () => {
       const res = await fetch('/api/workspaces/my');
+      if (res.status === 401) {
+        return { data: [] };
+      }
       return res.json() as Promise<{ data: Array<{ id: string; name: string; slug: string; logoUrl: string | null; role: string }> }>;
     },
+    enabled: !isPending && Boolean(data?.user),
     staleTime: 30_000,
   });
   const workspaces = wsData?.data ?? [];

@@ -4,6 +4,7 @@ import { z } from 'zod';
 export type ExternalGroupBy = 'day' | 'week' | 'month';
 
 const FILTERS_SCHEMA = z.object({
+  workspaceSlug: z.string().trim().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   period: z.string().optional(),
@@ -24,6 +25,8 @@ const FILTERS_SCHEMA = z.object({
 });
 
 export type ExternalApiFilters = {
+  workspaceSlug: string | null;
+  workspaceId: string | null;
   startDate: Date | null;
   endDate: Date | null;
   period: string | null;
@@ -96,6 +99,7 @@ function resolvePeriod(period: string | undefined) {
 export function parseExternalApiFilters(req: NextRequest): ExternalApiFilters {
   const searchParams = req.nextUrl.searchParams;
   const parsed = FILTERS_SCHEMA.parse({
+    workspaceSlug: searchParams.get('workspaceSlug') ?? undefined,
     startDate: searchParams.get('startDate') ?? undefined,
     endDate: searchParams.get('endDate') ?? undefined,
     period: searchParams.get('period') ?? undefined,
@@ -128,6 +132,8 @@ export function parseExternalApiFilters(req: NextRequest): ExternalApiFilters {
   }
 
   return {
+    workspaceSlug: parsed.workspaceSlug || null,
+    workspaceId: null,
     startDate,
     endDate,
     period: periodRange.period,
@@ -151,6 +157,8 @@ export function parseExternalApiFilters(req: NextRequest): ExternalApiFilters {
 
 export function serializeAppliedFilters(filters: ExternalApiFilters) {
   return {
+    workspaceSlug: filters.workspaceSlug,
+    workspaceId: filters.workspaceId,
     startDate: filters.startDate?.toISOString() ?? null,
     endDate: filters.endDate?.toISOString() ?? null,
     period: filters.period,

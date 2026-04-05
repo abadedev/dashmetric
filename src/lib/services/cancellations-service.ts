@@ -3,6 +3,8 @@ import { cancellationRecords } from '@/lib/db/schema';
 import { and, eq, gte, ilike, lte, sql, SQL } from 'drizzle-orm';
 
 export interface CancellationOverviewFilters {
+  /** Required for internal routes; omit only from external API paths (global token). */
+  workspaceId?: string | null;
   from?: Date | null;
   to?: Date | null;
   city?: string | null;
@@ -15,6 +17,7 @@ export interface CancellationOverviewFilters {
 export async function getCancellationsOverview(filtersInput: CancellationOverviewFilters = {}) {
   const { from, to, city, plan, source, category, search } = filtersInput;
   const filters: SQL[] = [eq(cancellationRecords.originSector, 'retencao')];
+  if (filtersInput.workspaceId) filters.push(eq(cancellationRecords.workspaceId, filtersInput.workspaceId));
 
   if (from) filters.push(gte(cancellationRecords.cancelledAt, from));
   if (to)   filters.push(lte(cancellationRecords.cancelledAt, to));

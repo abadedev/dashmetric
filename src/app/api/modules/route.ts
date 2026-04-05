@@ -4,28 +4,29 @@ import { systemModules } from '@/lib/db/schema';
 import { requireAdmin } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
 import { listAllModules, slugToHref } from '@/lib/services/module-service';
+import { eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const { response } = await requireAdmin(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
-    try {
-      const modules = await listAllModules();
+  try {
+    return await runWithWorkspace(req, async (ctx) => {
+      const modules = await listAllModules(ctx.workspaceId);
       return NextResponse.json({ data: modules });
-    } catch (error) {
-      console.error('[modules:get]', error);
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
-  });
+    });
+  } catch (error) {
+    console.error('[modules:get]', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
   const { response } = await requireAdmin(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
-    try {
+  try {
+    return await runWithWorkspace(req, async (ctx) => {
       const body = await req.json();
       const slug = String(body.slug || '').trim().toLowerCase().replace(/\s+/g, '-');
 
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
       const [created] = await db
         .insert(systemModules)
         .values({
+          workspaceId: ctx.workspaceId,
           name: body.name,
           slug,
           description: body.description || null,
@@ -52,9 +54,9 @@ export async function POST(req: NextRequest) {
         .returning();
 
       return NextResponse.json({ data: created }, { status: 201 });
-    } catch (error) {
-      console.error('[modules:post]', error);
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
-  });
+    });
+  } catch (error) {
+    console.error('[modules:post]', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

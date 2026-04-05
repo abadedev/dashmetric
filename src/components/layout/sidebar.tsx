@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { getWorkspaceSlugFromPathname, resolveWorkspaceHref } from '@/lib/workspace-navigation';
 import { DstechLogo } from '@/components/brand/dstech-logo';
 import {
   BarChart3,
@@ -18,6 +19,7 @@ import {
   BarChart,
   Upload,
 } from 'lucide-react';
+
 const fallbackNavItems = [
   { name: 'Dashboard Executivo', href: '/', icon: LayoutDashboard },
   { name: 'Atendimentos', href: '/atendimentos', icon: ListTodo },
@@ -47,9 +49,10 @@ const iconMap = {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const workspaceSlug = getWorkspaceSlugFromPathname(pathname);
 
   const { data } = useQuery({
-    queryKey: ['sidebar-modules'],
+    queryKey: ['sidebar-modules', workspaceSlug],
     queryFn: async () => {
       const response = await fetch('/api/modules/sidebar');
       if (!response.ok) {
@@ -65,15 +68,22 @@ export function Sidebar() {
   const navItems =
     data?.data?.map((item) => ({
       ...item,
-      href: item.href === '/dashboard' ? '/' : item.href,
+      href: resolveWorkspaceHref(item.href, workspaceSlug),
       icon: iconMap[item.icon] ?? LayoutDashboard,
-    })) ?? fallbackNavItems;
+    })) ??
+    fallbackNavItems.map((item) => ({
+      ...item,
+      href: resolveWorkspaceHref(item.href, workspaceSlug),
+    }));
 
   return (
     <div className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col border-r border-sidebar-border bg-[linear-gradient(180deg,color-mix(in_oklab,var(--sidebar)_88%,white_12%),var(--sidebar))] shadow-[10px_0_40px_-28px_color-mix(in_oklab,var(--foreground)_20%,transparent)]">
       {/* Logo */}
       <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border/80 px-5">
-        <Link href="/" className="flex items-center opacity-85 transition-opacity hover:opacity-100">
+        <Link
+          href={resolveWorkspaceHref('/', workspaceSlug)}
+          className="flex items-center opacity-85 transition-opacity hover:opacity-100"
+        >
           <DstechLogo className="h-10 w-auto text-sidebar-foreground" />
         </Link>
       </div>
@@ -87,9 +97,9 @@ export function Sidebar() {
         </div>
         <nav className="flex flex-col gap-1">
           {navItems.map((item) => {
-            const isDashboardLink = item.href === '/';
+            const isDashboardLink = item.href.endsWith('/dashboard') || item.href === '/';
             const isActive = isDashboardLink
-              ? pathname === '/' || pathname === '/dashboard' || pathname.endsWith('/dashboard')
+              ? pathname === item.href || pathname === '/' || pathname.endsWith('/dashboard')
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link

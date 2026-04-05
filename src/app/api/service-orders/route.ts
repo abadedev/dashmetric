@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
   try {
     const { searchParams } = new URL(req.url);
     const page         = Math.max(1, Number(searchParams.get('page')     || 1));
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const slaStatus    = searchParams.get('slaStatus'); // 'ok' | 'nok' | 'all'
     const search       = searchParams.get('search');
 
-    const filters: SQL[] = [];
+    const filters: SQL[] = [eq(atendimentos.workspaceId, ctx.workspaceId)];
 
     // Filtro de data: COALESCE(aberturaAt, finalizacaoAt, createdAt) equivalente ao $or do Mongo
     if (fromStr || toStr) {

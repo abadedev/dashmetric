@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
   try {
     const { searchParams } = new URL(req.url);
     const fromStr = searchParams.get('from');
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const city    = searchParams.get('city');
 
     // Filtro de data usando COALESCE equivalente ao $or do MongoDB
-    const dateFilters: SQL[] = [];
+    const dateFilters: SQL[] = [eq(atendimentos.workspaceId, ctx.workspaceId)];
     if (fromStr || toStr) {
       const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
       if (fromStr) dateFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);

@@ -33,17 +33,21 @@ function QualidadePageContent() {
     queryKey: ['quality-records', queryParams.toString()],
     queryFn: async () => {
       const res = await fetch(`/api/quality-records?${queryParams.toString()}`);
+      if (!res.ok) throw new Error(`quality-records error: ${res.status}`);
       return res.json();
     },
+    retry: false,
   });
 
   const { data: filterContract } = useQuery({
     queryKey: ['module-filters', 'quality'],
     queryFn: async () => {
       const res = await fetch('/api/module-filters/quality');
+      if (!res.ok) throw new Error(`module-filters error: ${res.status}`);
       return res.json();
     },
     staleTime: 1000 * 60 * 10,
+    retry: false,
   });
 
   return (

@@ -41,7 +41,8 @@ export interface ResumoInfraestrutura {
 }
 
 export async function importarInfraestrutura(
-  linhas: Record<string, string>[]
+  linhas: Record<string, string>[],
+  workspaceId: string
 ): Promise<ResumoInfraestrutura> {
   const resumo: ResumoInfraestrutura = {
     totalLidas: linhas.length,
@@ -59,6 +60,7 @@ export async function importarInfraestrutura(
       const referenceDate = parseBRDate(get(row, ALIASES.referenceDate)) ?? new Date();
 
       registros.push({
+        workspaceId,
         title: trimOrNull(get(row, ALIASES.title)),
         category: trimOrNull(get(row, ALIASES.category)),
         city: trimOrNull(get(row, ALIASES.city)),

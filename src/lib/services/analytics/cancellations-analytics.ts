@@ -6,6 +6,7 @@ import type { ExternalApiFilters } from '@/lib/api/filters';
 function buildCancellationFilters(filters: ExternalApiFilters): SQL[] {
   const sqlFilters: SQL[] = [eq(cancellationRecords.originSector, 'retencao')];
 
+  if (filters.workspaceId) sqlFilters.push(eq(cancellationRecords.workspaceId, filters.workspaceId));
   if (filters.startDate) sqlFilters.push(gte(cancellationRecords.cancelledAt, filters.startDate));
   if (filters.endDate)   sqlFilters.push(lte(cancellationRecords.cancelledAt, filters.endDate));
   if (filters.city)      sqlFilters.push(ilike(cancellationRecords.city, `%${filters.city}%`));

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     'filter-options',
     async (filters) => {
       const resource = parseModuleFilterResource(filters.resource);
-      return getModuleFilterPayload(resource);
+      return getModuleFilterPayload(resource, filters.workspaceId);
     },
     {
       buildSuccessExtra: (filters) => ({

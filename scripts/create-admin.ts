@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { randomBytes } from 'crypto';
 import { Pool } from 'pg';
 import { hashPassword } from 'better-auth/crypto';
+import { normalizeConnectionString } from '../src/lib/db/normalize-connection-string';
 
 const ADMIN_NAME = process.env.ADMIN_NAME ?? 'Administrador DSTECH';
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? 'abade.ltd@gmail.com').toLowerCase();
@@ -9,7 +10,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin123456!';
 const WORKSPACE_NAME = process.env.ADMIN_WORKSPACE_NAME ?? 'DSTECH';
 const WORKSPACE_SLUG = process.env.ADMIN_WORKSPACE_SLUG ?? 'dstech';
 
-const rawUrl = process.env.DATABASE_URL;
+const rawUrl = normalizeConnectionString(process.env.DATABASE_URL);
 
 if (!rawUrl) {
   throw new Error('DATABASE_URL não definido');

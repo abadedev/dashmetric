@@ -27,6 +27,7 @@ function RankingPageContent() {
     queryKey: ['ranking-full', qs],
     queryFn: async () => {
       const res = await fetch(`/api/ranking?${qs}`);
+      if (!res.ok) throw new Error(`ranking error: ${res.status}`);
       return res.json();
     },
   });

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
 
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
     try {
       const formData = await req.formData();
       const file = formData.get('file') as File | null;
@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
 
       const moduleEntry = getModuleRegistryEntry(tipoPlanilha);
       const result = await moduleEntry.importHandler({
+        workspaceId: ctx.workspaceId,
         fileName: file.name,
         buffer,
         rows: linhasBrutas,

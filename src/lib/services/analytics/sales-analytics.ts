@@ -8,6 +8,7 @@ function buildSalesFilters(filters: ExternalApiFilters): SQL[] {
   const sqlFilters: SQL[] = [];
   const periodRef = sql<number>`${salesRecords.periodYear} * 100 + ${salesRecords.periodMonth}`;
 
+  if (filters.workspaceId) sqlFilters.push(eq(salesRecords.workspaceId, filters.workspaceId));
   if (filters.startDate) {
     const v = filters.startDate.getUTCFullYear() * 100 + (filters.startDate.getUTCMonth() + 1);
     sqlFilters.push(gte(periodRef, v));

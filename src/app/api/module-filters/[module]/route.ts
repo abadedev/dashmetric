@@ -15,41 +15,41 @@ export async function GET(req: NextRequest, context: RouteContext) {
   const { response } = await requireAuth(req);
   if (response) return response;
 
-  return runWithWorkspace(req, async () => {
-    try {
+  try {
+    return await runWithWorkspace(req, async (ctx) => {
       const { module } = await context.params;
       const resource = parseModuleFilterResource(module);
-      const data = await getModuleFilterPayload(resource);
+      const data = await getModuleFilterPayload(resource, ctx.workspaceId);
 
       return NextResponse.json({
         success: true,
         ...data,
       });
-    } catch (error) {
-      if (error instanceof ExternalApiRequestError) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: error.code,
-              message: error.message,
-            },
-          },
-          { status: error.status }
-        );
-      }
-
-      console.error('[module-filters]', error);
+    });
+  } catch (error) {
+    if (error instanceof ExternalApiRequestError) {
       return NextResponse.json(
         {
           success: false,
           error: {
-            code: 'internal_server_error',
-            message: 'Internal server error.',
+            code: error.code,
+            message: error.message,
           },
         },
-        { status: 500 }
+        { status: error.status }
       );
     }
-  });
+
+    console.error('[module-filters]', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'internal_server_error',
+          message: 'Internal server error.',
+        },
+      },
+      { status: 500 }
+    );
+  }
 }

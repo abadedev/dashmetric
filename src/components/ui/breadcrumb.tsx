@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { ChevronRight, Home } from 'lucide-react';
 import Link from 'next/link';
+import { getWorkspaceSlugFromPathname, resolveWorkspaceHref } from '@/lib/workspace-navigation';
 
 const ROUTE_LABELS: Record<string, string> = {
   dashboard: 'Dashboard Executivo',
@@ -18,21 +19,24 @@ const ROUTE_LABELS: Record<string, string> = {
 export function Breadcrumb() {
   const pathname = usePathname();
   const segments = pathname.split('/').filter(Boolean);
+  const workspaceSlug = getWorkspaceSlugFromPathname(pathname);
+  const breadcrumbSegments =
+    workspaceSlug && segments[0] === workspaceSlug ? segments.slice(1) : segments;
 
-  if (segments.length === 0) return null;
+  if (breadcrumbSegments.length === 0) return null;
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted-foreground">
       <Link
-        href="/"
+        href={resolveWorkspaceHref('/', workspaceSlug)}
         className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors hover:bg-accent/65 hover:text-foreground"
       >
         <Home className="h-3 w-3" />
       </Link>
-      {segments.map((seg, idx) => {
-        const href = '/' + segments.slice(0, idx + 1).join('/');
+      {breadcrumbSegments.map((seg, idx) => {
+        const href = resolveWorkspaceHref(`/${breadcrumbSegments.slice(0, idx + 1).join('/')}`, workspaceSlug);
         const label = ROUTE_LABELS[seg] ?? seg;
-        const isLast = idx === segments.length - 1;
+        const isLast = idx === breadcrumbSegments.length - 1;
 
         return (
           <span key={href} className="flex items-center gap-1">

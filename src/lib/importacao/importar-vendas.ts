@@ -184,6 +184,7 @@ export interface ResumoVendas {
 
 export async function importarVendas(
   linhas: Record<string, string>[],
+  workspaceId: string,
   fileName?: string | null
 ): Promise<ResumoVendas> {
   const perfil = detectSalesFileProfile(Object.keys(linhas[0] ?? {}), fileName);
@@ -253,7 +254,9 @@ export async function importarVendas(
   if (registros.length) {
     const CHUNK = 200;
     for (let index = 0; index < registros.length; index += CHUNK) {
-      await db.insert(salesRecords).values(registros.slice(index, index + CHUNK));
+      await db.insert(salesRecords).values(
+        registros.slice(index, index + CHUNK).map((r) => ({ ...r, workspaceId }))
+      );
     }
     resumo.totalInseridas = registros.length;
   }

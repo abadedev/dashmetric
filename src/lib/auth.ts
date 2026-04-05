@@ -1,11 +1,41 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { magicLink } from 'better-auth/plugins';
 import { globalDb } from '@/lib/db';
 import { user, session, account, verification } from '@/lib/db/schemas/global';
+import { sendMagicLink } from '@/lib/email';
+
+const appUrl =
+  process.env.BETTER_AUTH_URL ??
+  process.env.NEXT_PUBLIC_APP_URL ??
+  'http://localhost:3000';
+const appOrigin = new URL(appUrl).origin;
+const appHost = new URL(appUrl).host;
+const appProtocol = new URL(appUrl).protocol === 'https:' ? 'https' : 'http';
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000',
+  baseURL: {
+    allowedHosts: [appHost, 'localhost:3000', '127.0.0.1:3000'],
+    fallback: appUrl,
+    protocol: appProtocol,
+  },
   secret: process.env.BETTER_AUTH_SECRET!,
+  trustedOrigins: async (request) => {
+    const forwardedHost = request?.headers.get('x-forwarded-host');
+    const host = request?.headers.get('host');
+    const forwardedProto = request?.headers.get('x-forwarded-proto');
+    const origin = request?.headers.get('origin');
+    const protocol = forwardedProto === 'https' ? 'https' : appProtocol;
+    const requestOrigin = (forwardedHost ?? host) ? `${protocol}://${forwardedHost ?? host}` : null;
+
+    return [appOrigin, origin, requestOrigin].filter(
+      (value): value is string => Boolean(value)
+    );
+  },
+  advanced: {
+    trustedProxyHeaders: true,
+    useSecureCookies: appUrl.startsWith('https'),
+  },
   database: drizzleAdapter(globalDb, {
     provider: 'pg',
     schema: {
@@ -24,6 +54,13 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     },
   },
+  plugins: [
+    magicLink({
+      sendMagicLink: async ({ email, url }) => {
+        await sendMagicLink(email, url);
+      },
+    }),
+  ],
   user: {
     additionalFields: {
       role: {

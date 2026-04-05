@@ -85,6 +85,7 @@ function ResumoSlaPageContent() {
     queryKey: ['sla-summary', qs],
     queryFn: async () => {
       const res = await fetch(`/api/sla-summary?${qs}`);
+      if (!res.ok) throw new Error(`sla-summary error: ${res.status}`);
       return res.json();
     },
   });
@@ -223,8 +224,8 @@ function ResumoSlaPageContent() {
                 Meta Ouro: {SLA_META}%
               </Badge>
             </CardHeader>
-            <CardContent className="h-[360px]">
-              <ResponsiveContainer width="100%" height="100%">
+            <CardContent>
+              <ResponsiveContainer width="100%" height={312}>
                 <ComposedChart data={monthlyData} margin={{ top: 16, right: 16, left: -16, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: axisColor }} axisLine={false} tickLine={false} />
@@ -265,8 +266,8 @@ function ResumoSlaPageContent() {
               <CardTitle className="text-base">Tendencia - SLA Geral</CardTitle>
               <p className="text-xs text-muted-foreground">Evolucao mensal do indice geral</p>
             </CardHeader>
-            <CardContent className="h-[360px]">
-              <ResponsiveContainer width="100%" height="100%">
+            <CardContent>
+              <ResponsiveContainer width="100%" height={312}>
                 <ComposedChart data={monthlyData} margin={{ top: 16, right: 8, left: -20, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
