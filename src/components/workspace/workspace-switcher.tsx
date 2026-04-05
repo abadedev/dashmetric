@@ -55,7 +55,7 @@ function WorkspaceAvatar({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-md bg-primary/10 font-semibold text-primary',
+        'flex shrink-0 items-center justify-center rounded-md border border-border/70 bg-background/80 font-semibold text-foreground',
         sizeClasses
       )}
     >
@@ -100,9 +100,9 @@ export function WorkspaceSwitcher({
 
   function switchWorkspace(targetSlug: string) {
     if (targetSlug === activeWorkspace.slug) return;
-    document.cookie = `active_workspace_slug=${targetSlug};path=/;max-age=2592000;samesite=lax`;
+    document.cookie = `dwm_active_workspace=${targetSlug};path=/;max-age=2592000;samesite=lax`;
     document.cookie = `workspace_access_ok=;path=/;max-age=0`;
-    router.refresh();
+    router.push(`/${targetSlug}/dashboard`);
   }
 
   async function handleCreate() {
@@ -141,7 +141,7 @@ export function WorkspaceSwitcher({
       <Popover>
         {/* Base UI Trigger renders a <button> natively — style it directly */}
         <PopoverTrigger
-          className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent"
+          className="flex w-full items-center gap-2.5 rounded-xl border border-transparent px-2.5 py-2 text-left transition-all hover:border-sidebar-border/70 hover:bg-sidebar-accent/70"
         >
           <WorkspaceAvatar name={activeWorkspace.name} logoUrl={activeWorkspace.logoUrl} />
           <div className="min-w-0 flex-1">
@@ -152,7 +152,7 @@ export function WorkspaceSwitcher({
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
         </PopoverTrigger>
 
-        <PopoverContent side="bottom" align="start" className="w-64 p-1.5" sideOffset={6}>
+        <PopoverContent side="bottom" align="start" className="w-64 rounded-2xl border-border/70 bg-popover/95 p-1.5 shadow-[0_18px_44px_-24px_rgba(15,23,42,0.28)] backdrop-blur-xl" sideOffset={6}>
           <p className="px-2 pb-1.5 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
             Workspaces
           </p>
@@ -174,7 +174,7 @@ export function WorkspaceSwitcher({
                       {ROLE_LABELS[ws.role] ?? ws.role}
                     </p>
                   </div>
-                  {isActive && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                  {isActive && <Check className="h-4 w-4 shrink-0 text-foreground" />}
                 </button>
               );
             })}
@@ -201,7 +201,7 @@ export function WorkspaceSwitcher({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
+              <Building2 className="h-5 w-5 text-foreground" />
               <DialogTitle>Criar Workspace</DialogTitle>
             </div>
           </DialogHeader>

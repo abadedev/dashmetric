@@ -10,9 +10,13 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
     try {
-      const rows = await db.select().from(technicians).orderBy(technicians.name);
+      const rows = await db
+        .select()
+        .from(technicians)
+        .where(eq(technicians.workspaceId, ctx.workspaceId))
+        .orderBy(technicians.name);
       return NextResponse.json({ data: rows });
     } catch (err) {
       console.error('[technicians]', err);

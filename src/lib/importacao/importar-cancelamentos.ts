@@ -4,12 +4,12 @@ import type { NewCancellationRecord } from '@/lib/db/schema';
 import { normalizeHeader, parseBRDate, trimOrNull } from './helpers';
 
 const ALIASES: Record<string, string[]> = {
-  clientName: ['cliente', 'client_name', 'nome_cliente', 'nome', 'assinante'],
-  city: ['cidade', 'city', 'cidade_uf', 'municipio'],
-  reason: ['motivo', 'reason', 'motivo_cancelamento', 'cancelamento', 'status', 'situacao'],
-  source: ['origem', 'source', 'indicacao', 'canal', 'origem_lead', 'origem_venda'],
-  plan: ['plano', 'plan', 'produto'],
-  observation: ['observacao', 'obs', 'detalhe', 'comentario', 'descricao'],
+  clientName: ['cliente', 'client_name', 'nome_cliente', 'nome', 'assinante', 'nome_assinante', 'razao_social'],
+  city: ['cidade', 'city', 'cidade_uf', 'municipio', 'localidade', 'cidade_cliente'],
+  reason: ['motivo', 'reason', 'motivo_cancelamento', 'cancelamento', 'status', 'situacao', 'causa', 'motivo_saida'],
+  source: ['origem', 'source', 'indicacao', 'canal', 'origem_lead', 'origem_venda', 'canal_venda', 'midia'],
+  plan: ['plano', 'plan', 'produto', 'pacote', 'combo', 'plano_contratado'],
+  observation: ['observacao', 'obs', 'detalhe', 'comentario', 'descricao', 'observacoes', 'nota'],
   cancelledAt: [
     'datacancelamento',
     'data_cancelamento',
@@ -17,6 +17,7 @@ const ALIASES: Record<string, string[]> = {
     'data_pedido',
     'data',
     'data_solicitacao',
+    'data_saida',
   ],
 };
 
@@ -38,7 +39,8 @@ export interface ResumoCancelamentos {
 }
 
 export async function importarCancelamentos(
-  linhas: Record<string, string>[]
+  linhas: Record<string, string>[],
+  workspaceId: string
 ): Promise<ResumoCancelamentos> {
   const resumo: ResumoCancelamentos = {
     totalLidas: linhas.length,
@@ -60,6 +62,7 @@ export async function importarCancelamentos(
       const observation = trimOrNull(get(row, 'observation'));
 
       registros.push({
+        workspaceId,
         originSector: 'retencao',
         clientName:  trimOrNull(get(row, 'clientName')),
         city:        trimOrNull(get(row, 'city')),

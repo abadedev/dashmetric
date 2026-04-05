@@ -12,14 +12,25 @@ export function buildAttendanceBaseFilters(filters: ExternalApiFilters): SQL[] {
   const sqlFilters: SQL[] = [];
   const dateRef = buildAttendanceDateReference();
 
+  if (filters.workspaceId) sqlFilters.push(eq(atendimentos.workspaceId, filters.workspaceId));
   if (filters.startDate) sqlFilters.push(sql`${dateRef} >= ${filters.startDate}`);
   if (filters.endDate) sqlFilters.push(sql`${dateRef} <= ${filters.endDate}`);
   if (filters.type) sqlFilters.push(eq(atendimentos.tipo, filters.type));
   if (filters.technicianId) sqlFilters.push(eq(atendimentos.tecnicoId, filters.technicianId));
-  if (filters.city) sqlFilters.push(eq(atendimentos.cidade, filters.city));
+  if (filters.city) sqlFilters.push(ilike(atendimentos.cidade, `%${filters.city}%`));
+  if (filters.plan) sqlFilters.push(ilike(atendimentos.plano, `%${filters.plan}%`));
+  if (filters.bairro) sqlFilters.push(ilike(atendimentos.bairro, `%${filters.bairro}%`));
+  if (filters.source) sqlFilters.push(ilike(atendimentos.indicacao, `%${filters.source}%`));
   if (filters.search) {
     sqlFilters.push(
-      sql`(${ilike(atendimentos.numeroOs, `%${filters.search}%`)} OR ${ilike(atendimentos.cliente, `%${filters.search}%`)})`
+      sql`(
+        ${ilike(atendimentos.numeroOs, `%${filters.search}%`)}
+        OR ${ilike(atendimentos.cliente, `%${filters.search}%`)}
+        OR ${ilike(atendimentos.endereco, `%${filters.search}%`)}
+        OR ${ilike(atendimentos.bairro, `%${filters.search}%`)}
+        OR ${ilike(atendimentos.plano, `%${filters.search}%`)}
+        OR ${ilike(atendimentos.telefones, `%${filters.search}%`)}
+      )`
     );
   }
 
@@ -62,6 +73,13 @@ export function buildMonthlyPeriodFilter(
   const sqlFilters: SQL[] = [];
   const periodRef = sql<number>`${periodYearColumn} * 100 + ${periodMonthColumn}`;
 
+  if (filters.workspaceId) {
+    if (periodMonthColumn === supportRecords.periodMonth) {
+      sqlFilters.push(eq(supportRecords.workspaceId, filters.workspaceId));
+    } else {
+      sqlFilters.push(eq(supportCallCategories.workspaceId, filters.workspaceId));
+    }
+  }
   if (filters.startDate) sqlFilters.push(gte(periodRef, buildPeriodInteger(filters.startDate)));
   if (filters.endDate) sqlFilters.push(lte(periodRef, buildPeriodInteger(filters.endDate)));
 

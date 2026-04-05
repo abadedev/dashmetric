@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-auth';
 import { globalDb as db } from '@/lib/db';
 import { workspaces, workspaceMembers } from '@/lib/db/schemas/global';
-import { provisionWorkspaceSchema } from '@/lib/db/provision';
 import { eq, count } from 'drizzle-orm';
 
 export async function GET(req: NextRequest) {
@@ -66,9 +65,6 @@ export async function POST(req: NextRequest) {
     role: 'ADMIN',
     grantedBy: session.user.id,
   });
-
-  // Provision an isolated PostgreSQL schema for this workspace (blank — no modules)
-  await provisionWorkspaceSchema(slug);
 
   return NextResponse.json({ data: created }, { status: 201 });
 }

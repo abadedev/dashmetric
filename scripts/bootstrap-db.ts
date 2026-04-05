@@ -1,10 +1,14 @@
 import 'dotenv/config';
 import { Pool } from 'pg';
-import { provisionWorkspaceSchema } from '../src/lib/db/provision';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { holidays, slaTargets } from '../src/lib/db/schema';
+import { workspaces } from '../src/lib/db/schemas/global';
+import { eq } from 'drizzle-orm';
+import { ensureDefaultModules } from '../src/lib/services/module-service';
+import { resolveWorkspaceId } from '../src/lib/db/workspace-context';
+import { normalizeConnectionString } from '../src/lib/db/normalize-connection-string';
 
-const rawUrl = process.env.DATABASE_URL;
+const rawUrl = normalizeConnectionString(process.env.DATABASE_URL);
 
 if (!rawUrl) {
   throw new Error('DATABASE_URL não definido');
@@ -266,11 +270,8 @@ async function seedDefaultWorkspaceData() {
     ssl,
   });
 
-  workspacePool.on('connect', (client) => {
-    client.query('SET search_path = dstech, public').catch(() => undefined);
-  });
-
   const db = drizzle(workspacePool);
+  const workspaceId = await resolveWorkspaceId('dstech');
 
   const targets = [
     { activityType: 'instalacao_nova', targetHours: 24 },
@@ -285,10 +286,10 @@ async function seedDefaultWorkspaceData() {
   for (const target of targets) {
     await db
       .insert(slaTargets)
-      .values(target)
+      .values({ ...target, workspaceId })
       .onConflictDoUpdate({
         target: slaTargets.activityType,
-        set: { targetHours: target.targetHours },
+        set: { targetHours: target.targetHours, workspaceId },
       });
   }
 
@@ -339,6 +340,8 @@ async function seedDefaultWorkspaceData() {
       .onConflictDoNothing({ target: holidays.date });
   }
 
+  await ensureDefaultModules(workspaceId);
+
   await workspacePool.end();
 }
 
@@ -347,8 +350,21 @@ async function main() {
   await ensurePublicGlobals();
   console.log('Tabelas globais em public: OK');
 
-  await provisionWorkspaceSchema('dstech');
-  console.log('Schema do workspace dstech: OK');
+  const globalDb = drizzle(globalPool);
+  const [existingWorkspace] = await globalDb
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .where(eq(workspaces.slug, 'dstech'))
+    .limit(1);
+
+  if (!existingWorkspace) {
+    await globalDb.insert(workspaces).values({
+      name: 'DSTECH',
+      slug: 'dstech',
+      createdBy: 'system-bootstrap',
+    });
+  }
+  console.log('Workspace principal dstech: OK');
 
   await seedDefaultWorkspaceData();
   console.log('Seed inicial do workspace dstech: OK');

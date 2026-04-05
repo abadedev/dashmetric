@@ -84,8 +84,8 @@ export function TechDetailDialog({ tech, isOpen, onClose }: TechDetailDialogProp
 
         <div className="pt-2">
           <h4 className="font-semibold text-sm mb-4">Volume por Tipo de Atividade</h4>
-          <div className="h-[200px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="w-full">
+            <ResponsiveContainer width="100%" height={200}>
               <BarChart data={chartData} margin={{ top: 5, right: 30, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />

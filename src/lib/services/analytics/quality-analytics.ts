@@ -6,14 +6,23 @@ import type { ExternalApiFilters } from '@/lib/api/filters';
 function buildQualityFilters(filters: ExternalApiFilters): SQL[] {
   const sqlFilters: SQL[] = [];
 
+  if (filters.workspaceId) sqlFilters.push(eq(qualityRecords.workspaceId, filters.workspaceId));
   if (filters.startDate) sqlFilters.push(gte(qualityRecords.openedAt, filters.startDate));
   if (filters.endDate)   sqlFilters.push(lte(qualityRecords.openedAt, filters.endDate));
   if (filters.type)      sqlFilters.push(sql`${qualityRecords.indicator} = ${filters.type}`);
-  if (filters.city)      sqlFilters.push(eq(qualityRecords.city, filters.city));
+  if (filters.city)      sqlFilters.push(ilike(qualityRecords.city, `%${filters.city}%`));
+  if (filters.plan)      sqlFilters.push(ilike(qualityRecords.plan, `%${filters.plan}%`));
   if (filters.technicianId) sqlFilters.push(eq(qualityRecords.technicianId, filters.technicianId));
   if (filters.search) {
     sqlFilters.push(
-      sql`(${ilike(qualityRecords.clientName, `%${filters.search}%`)} OR ${ilike(qualityRecords.technicianName, `%${filters.search}%`)})`
+      sql`(
+        ${ilike(qualityRecords.clientName, `%${filters.search}%`)}
+        OR ${ilike(qualityRecords.technicianName, `%${filters.search}%`)}
+        OR ${ilike(qualityRecords.osNumber, `%${filters.search}%`)}
+        OR ${ilike(qualityRecords.reason, `%${filters.search}%`)}
+        OR ${ilike(qualityRecords.solution, `%${filters.search}%`)}
+        OR ${ilike(qualityRecords.plan, `%${filters.search}%`)}
+      )`
     );
   }
 

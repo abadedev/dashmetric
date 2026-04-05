@@ -4,15 +4,23 @@ import { cancellationRecords } from '@/lib/db/schema';
 import type { ExternalApiFilters } from '@/lib/api/filters';
 
 function buildCancellationFilters(filters: ExternalApiFilters): SQL[] {
-  const sqlFilters: SQL[] = [];
+  const sqlFilters: SQL[] = [eq(cancellationRecords.originSector, 'retencao')];
 
+  if (filters.workspaceId) sqlFilters.push(eq(cancellationRecords.workspaceId, filters.workspaceId));
   if (filters.startDate) sqlFilters.push(gte(cancellationRecords.cancelledAt, filters.startDate));
   if (filters.endDate)   sqlFilters.push(lte(cancellationRecords.cancelledAt, filters.endDate));
-  if (filters.city)      sqlFilters.push(eq(cancellationRecords.city, filters.city));
-  if (filters.category)  sqlFilters.push(eq(cancellationRecords.reason, filters.category));
+  if (filters.city)      sqlFilters.push(ilike(cancellationRecords.city, `%${filters.city}%`));
+  if (filters.plan)      sqlFilters.push(ilike(cancellationRecords.plan, `%${filters.plan}%`));
+  if (filters.source)    sqlFilters.push(ilike(cancellationRecords.source, `%${filters.source}%`));
+  if (filters.category)  sqlFilters.push(ilike(cancellationRecords.reason, `%${filters.category}%`));
   if (filters.search) {
     sqlFilters.push(
-      sql`(${ilike(cancellationRecords.clientName, `%${filters.search}%`)} OR ${ilike(cancellationRecords.reason, `%${filters.search}%`)})`
+      sql`(
+        ${ilike(cancellationRecords.clientName, `%${filters.search}%`)}
+        OR ${ilike(cancellationRecords.reason, `%${filters.search}%`)}
+        OR ${ilike(cancellationRecords.observation, `%${filters.search}%`)}
+        OR ${ilike(cancellationRecords.plan, `%${filters.search}%`)}
+      )`
     );
   }
 

@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
   moduleImportProfiles,
@@ -257,10 +257,27 @@ export function canAccessModule(userRole: AppRole, requiredRole: AppRole) {
   return ROLE_WEIGHT[userRole] >= ROLE_WEIGHT[requiredRole];
 }
 
-export async function ensureDefaultModules() {
-  const existing = await db.select().from(systemModules);
+export async function ensureDefaultModules(workspaceId: string) {
+  // Also include rows with NULL workspace_id: these are legacy modules created
+  // before the workspace migration. We'll claim them below instead of re-inserting
+  // (which would hit the old global unique index on slug).
+  const existing = await db
+    .select()
+    .from(systemModules)
+    .where(
+      or(
+        eq(systemModules.workspaceId, workspaceId),
+        isNull(systemModules.workspaceId)
+      )
+    );
   const existingBySlug = new Map(existing.map((item) => [item.slug, item]));
-  const existingProfiles = await db.select().from(moduleImportProfiles);
+  const existingProfiles =
+    existing.length > 0
+      ? await db
+          .select()
+          .from(moduleImportProfiles)
+          .where(inArray(moduleImportProfiles.moduleId, existing.map((item) => item.id)))
+      : [];
 
   for (const definition of DEFAULT_MODULES) {
     const found = existingBySlug.get(definition.module.slug!);
@@ -268,7 +285,10 @@ export async function ensureDefaultModules() {
     if (!found) {
       const [inserted] = await db
         .insert(systemModules)
-        .values(definition.module)
+        .values({
+          ...definition.module,
+          workspaceId,
+        })
         .returning();
 
       if (definition.importProfiles?.length) {
@@ -281,6 +301,14 @@ export async function ensureDefaultModules() {
       }
 
       continue;
+    }
+
+    // Claim legacy rows that have NULL workspace_id (created before workspace migration).
+    if (found.workspaceId === null) {
+      await db
+        .update(systemModules)
+        .set({ workspaceId, updatedAt: new Date() })
+        .where(eq(systemModules.id, found.id));
     }
 
     if (found.href !== definition.module.href) {
@@ -340,18 +368,23 @@ export async function ensureDefaultModules() {
   }
 }
 
-export async function listAllModules() {
-  await ensureDefaultModules();
+export async function listAllModules(workspaceId: string) {
+  await ensureDefaultModules(workspaceId);
 
   const modules = await db
     .select()
     .from(systemModules)
+    .where(eq(systemModules.workspaceId, workspaceId))
     .orderBy(asc(systemModules.sortOrder), asc(systemModules.name));
 
-  const profiles = await db
-    .select()
-    .from(moduleImportProfiles)
-    .orderBy(asc(moduleImportProfiles.label));
+  const profiles =
+    modules.length > 0
+      ? await db
+          .select()
+          .from(moduleImportProfiles)
+          .where(inArray(moduleImportProfiles.moduleId, modules.map((module) => module.id)))
+          .orderBy(asc(moduleImportProfiles.label))
+      : [];
 
   return modules.map((module) => ({
     ...module,
@@ -359,12 +392,13 @@ export async function listAllModules() {
   }));
 }
 
-export async function listSidebarModules(userRole: AppRole): Promise<SidebarModuleItem[]> {
-  await ensureDefaultModules();
+export async function listSidebarModules(userRole: AppRole, workspaceId: string): Promise<SidebarModuleItem[]> {
+  await ensureDefaultModules(workspaceId);
 
   const modules = await db
     .select()
     .from(systemModules)
+    .where(eq(systemModules.workspaceId, workspaceId))
     .orderBy(asc(systemModules.sortOrder), asc(systemModules.name));
 
   return modules
@@ -389,10 +423,13 @@ export async function getModuleById(id: number) {
   return module ?? null;
 }
 
-export async function getModuleBySlug(slug: string) {
-  await ensureDefaultModules();
+export async function getModuleBySlug(slug: string, workspaceId: string) {
+  await ensureDefaultModules(workspaceId);
 
-  const [module] = await db.select().from(systemModules).where(eq(systemModules.slug, slug));
+  const [module] = await db
+    .select()
+    .from(systemModules)
+    .where(and(eq(systemModules.slug, slug), eq(systemModules.workspaceId, workspaceId)));
 
   if (!module) {
     return null;

@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { getUserWorkspaces } from '@/lib/workspace';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
+import { DashielWidget } from '@/components/ai/dashiel-widget';
 
 export default async function DashboardLayout({
   children,
@@ -33,6 +34,7 @@ export default async function DashboardLayout({
             {children}
           </div>
         </main>
+        <DashielWidget />
       </div>
     </div>
   );

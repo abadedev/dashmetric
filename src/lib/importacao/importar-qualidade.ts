@@ -68,16 +68,16 @@ function normalizarIndicador(raw: string): QualityIndicator | null {
 const ALIASES: Record<string, string[]> = {
   numeroOs:       ['#', 'n_os', 'numero_os', 'numeroos', 'os', 'numero'],
   indicador:      ['indicador', 'indicator', 'tipo_indicador', 'ind', 'indicador_qualidade', 'indicadores'],
-  motivo:         ['motivo', 'razao', 'motivo_reclamacao', 'descricao', 'reason'],
-  solucao:        ['solucao', 'solucao_dada', 'resolucao'],
-  tecnico:        ['tecnico', 'instalador', 'responsavel', 'tecnico_nome'],
-  cliente:        ['cliente', 'nome_cliente', 'client'],
-  cidade:         ['cidade', 'municipio'],
-  plano:          ['plano'],
-  dataAbertura:   ['data_abertura', 'datapedido', 'data_pedido', 'abertura', 'data'],
+  motivo:         ['motivo', 'razao', 'motivo_reclamacao', 'descricao', 'reason', 'problema', 'descricao_chamado'],
+  solucao:        ['solucao', 'solucao_dada', 'resolucao', 'tratativa', 'procedimento'],
+  tecnico:        ['tecnico', 'instalador', 'responsavel', 'tecnico_nome', 'nome_tecnico'],
+  cliente:        ['cliente', 'nome_cliente', 'client', 'assinante', 'nome_assinante'],
+  cidade:         ['cidade', 'municipio', 'localidade', 'cidade_uf'],
+  plano:          ['plano', 'plano_contratado', 'produto', 'pacote'],
+  dataAbertura:   ['data_abertura', 'datapedido', 'data_pedido', 'abertura', 'data', 'data_chamado'],
   horaAbertura:   ['hora_abertura', 'hora_inicio'],
-  dataFinalizacao:['data_finalizacao', 'data_final', 'fechamento', 'finalizacao'],
-  horaFinalizacao:['hora_finalizacao', 'hora_saida'],
+  dataFinalizacao:['data_finalizacao', 'data_final', 'fechamento', 'finalizacao', 'data_fechamento'],
+  horaFinalizacao:['hora_finalizacao', 'hora_saida', 'hora_fechamento'],
 };
 
 /**
@@ -250,6 +250,7 @@ export function inferirPeriodosQualidade(linhas: Record<string, string>[]): Peri
 
 export async function limparQualidadePorPeriodos(
   periodos: PeriodoQualidade[],
+  workspaceId: string,
   executor: DbExecutor = db
 ): Promise<number> {
   let totalRemovido = 0;
@@ -259,6 +260,7 @@ export async function limparQualidadePorPeriodos(
       .delete(qualityRecords)
       .where(
         and(
+          eq(qualityRecords.workspaceId, workspaceId),
           eq(qualityRecords.periodMonth, periodo.periodMonth),
           eq(qualityRecords.periodYear, periodo.periodYear)
         )
@@ -272,6 +274,7 @@ export async function limparQualidadePorPeriodos(
 
 export async function importarQualidade(
   linhas: Record<string, string>[],
+  workspaceId: string,
   executor: DbExecutor = db
 ): Promise<ResumoQualidade> {
   // Reset cache por importação
@@ -341,6 +344,7 @@ export async function importarQualidade(
       const periodDate = openedAt ?? new Date();
 
       const record: NewQualityRecord = {
+        workspaceId,
         osNumber:       trimOrNull(get(row, 'numeroOs')),
         indicator:      indicador,
         reason:         trimOrNull(get(row, 'motivo')),

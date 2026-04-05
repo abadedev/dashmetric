@@ -3,20 +3,20 @@ import { requireAuth } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
 import { db } from '@/lib/db';
 import { infrastructureRecords } from '@/lib/db/schema';
-import { and, desc, gte, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
   try {
     const { searchParams } = new URL(req.url);
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
-    const filters = [];
+    const filters = [eq(infrastructureRecords.workspaceId, ctx.workspaceId)];
 
     if (from) {
       const fromDate = new Date(from);

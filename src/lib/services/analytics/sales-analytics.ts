@@ -8,6 +8,7 @@ function buildSalesFilters(filters: ExternalApiFilters): SQL[] {
   const sqlFilters: SQL[] = [];
   const periodRef = sql<number>`${salesRecords.periodYear} * 100 + ${salesRecords.periodMonth}`;
 
+  if (filters.workspaceId) sqlFilters.push(eq(salesRecords.workspaceId, filters.workspaceId));
   if (filters.startDate) {
     const v = filters.startDate.getUTCFullYear() * 100 + (filters.startDate.getUTCMonth() + 1);
     sqlFilters.push(gte(periodRef, v));
@@ -16,15 +17,26 @@ function buildSalesFilters(filters: ExternalApiFilters): SQL[] {
     const v = filters.endDate.getUTCFullYear() * 100 + (filters.endDate.getUTCMonth() + 1);
     sqlFilters.push(lte(periodRef, v));
   }
-  if (filters.type)   sqlFilters.push(sql`${salesRecords.recordType} = ${filters.type}`);
-  if (filters.city)   sqlFilters.push(eq(salesRecords.city, filters.city));
-  if (filters.search) sqlFilters.push(ilike(salesRecords.clientName, `%${filters.search}%`));
+  if (filters.type) sqlFilters.push(sql`${salesRecords.recordType} = ${filters.type}`);
+  if (filters.city) sqlFilters.push(ilike(salesRecords.city, `%${filters.city}%`));
+  if (filters.plan) sqlFilters.push(ilike(salesRecords.plan, `%${filters.plan}%`));
+  if (filters.source) sqlFilters.push(ilike(salesRecords.source, `%${filters.source}%`));
+  if (filters.search) {
+    sqlFilters.push(
+      sql`(
+        ${ilike(salesRecords.clientName, `%${filters.search}%`)}
+        OR ${ilike(salesRecords.indication, `%${filters.search}%`)}
+        OR ${ilike(salesRecords.plan, `%${filters.search}%`)}
+        OR ${ilike(salesRecords.observation, `%${filters.search}%`)}
+      )`
+    );
+  }
 
   return sqlFilters;
 }
 
 export async function getSalesAnalytics(filters: ExternalApiFilters) {
-  const whereClause = filters.startDate || filters.endDate || filters.type || filters.city || filters.search
+  const whereClause = filters.startDate || filters.endDate || filters.type || filters.city || filters.plan || filters.source || filters.search
     ? and(...buildSalesFilters(filters))
     : undefined;
 
@@ -53,6 +65,7 @@ export async function getSalesAnalytics(filters: ExternalApiFilters) {
         plan:        salesRecords.plan,
         source:      salesRecords.source,
         indication:  salesRecords.indication,
+        observation: salesRecords.observation,
         requestedAt: salesRecords.requestedAt,
         installedAt: salesRecords.installedAt,
         periodMonth: salesRecords.periodMonth,

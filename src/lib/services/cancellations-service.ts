@@ -1,12 +1,40 @@
 import { db } from '@/lib/db';
 import { cancellationRecords } from '@/lib/db/schema';
-import { and, eq, gte, lte, SQL } from 'drizzle-orm';
+import { and, eq, gte, ilike, lte, sql, SQL } from 'drizzle-orm';
 
-export async function getCancellationsOverview(from?: Date | null, to?: Date | null) {
+export interface CancellationOverviewFilters {
+  /** Required for internal routes; omit only from external API paths (global token). */
+  workspaceId?: string | null;
+  from?: Date | null;
+  to?: Date | null;
+  city?: string | null;
+  plan?: string | null;
+  source?: string | null;
+  category?: string | null;
+  search?: string | null;
+}
+
+export async function getCancellationsOverview(filtersInput: CancellationOverviewFilters = {}) {
+  const { from, to, city, plan, source, category, search } = filtersInput;
   const filters: SQL[] = [eq(cancellationRecords.originSector, 'retencao')];
+  if (filtersInput.workspaceId) filters.push(eq(cancellationRecords.workspaceId, filtersInput.workspaceId));
 
   if (from) filters.push(gte(cancellationRecords.cancelledAt, from));
   if (to)   filters.push(lte(cancellationRecords.cancelledAt, to));
+  if (city) filters.push(ilike(cancellationRecords.city, `%${city}%`));
+  if (plan) filters.push(ilike(cancellationRecords.plan, `%${plan}%`));
+  if (source) filters.push(ilike(cancellationRecords.source, `%${source}%`));
+  if (category) filters.push(ilike(cancellationRecords.reason, `%${category}%`));
+  if (search) {
+    filters.push(
+      sql`(
+        ${ilike(cancellationRecords.clientName, `%${search}%`)}
+        OR ${ilike(cancellationRecords.reason, `%${search}%`)}
+        OR ${ilike(cancellationRecords.observation, `%${search}%`)}
+        OR ${ilike(cancellationRecords.plan, `%${search}%`)}
+      )`
+    );
+  }
 
   const whereClause = filters.length ? and(...filters) : undefined;
 

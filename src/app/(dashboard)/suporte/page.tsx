@@ -3,12 +3,14 @@
 import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SupportTable } from '@/components/suporte/support-table';
-import { Skeleton } from '@/components/ui/skeleton';
+import { SupportChart } from '@/components/suporte/support-chart';
 import { PageSkeleton, TableSkeleton } from '@/components/ui/state-display';
+import { StateDisplay } from '@/components/ui/state-display';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { useQueryState } from 'nuqs';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { PageLayout } from '@/components/layout/page-layout';
+import { Button } from '@/components/ui/button';
 
 function SuportePageContent() {
   const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
@@ -19,10 +21,13 @@ function SuportePageContent() {
   if (to) queryParams.set('to', to.toISOString());
   const qs = queryParams.toString();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['support-records', qs],
     queryFn: async () => {
       const res = await fetch(`/api/support-records?${qs}`);
+      if (!res.ok) {
+        throw new Error('Falha ao carregar o resumo de suporte.');
+      }
       return res.json();
     },
   });
@@ -35,14 +40,26 @@ function SuportePageContent() {
     >
       {isLoading ? (
         <TableSkeleton />
+      ) : isError ? (
+        <StateDisplay
+          variant="error"
+          title="Nao foi possivel carregar o resumo"
+          description="Tivemos um problema ao consultar o consolidado de suporte por tipo."
+          action={
+            <Button variant="outline" onClick={() => void refetch()}>
+              Tentar novamente
+            </Button>
+          }
+        />
       ) : (
-        <div className="max-w-4xl">
+        <div className="grid w-full max-w-6xl gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
           <SupportTable
             summary={data?.data || []}
             total={data?.total || 0}
             from={from}
             to={to}
           />
+          <SupportChart records={data?.triageByAttendant || []} />
         </div>
       )}
     </PageLayout>

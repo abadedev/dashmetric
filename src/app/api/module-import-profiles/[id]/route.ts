@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { moduleImportProfiles } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { moduleImportProfiles, systemModules } from '@/lib/db/schema';
+import { and, eq } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
 
@@ -13,15 +13,43 @@ export async function PATCH(
 ) {
   const { response } = await requireAdmin(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
     try {
       const { id } = await params;
       const body = await req.json();
+      const profileId = Number(id);
+      const moduleId = Number(body.moduleId);
+
+      const [existing] = await db
+        .select({ id: moduleImportProfiles.id })
+        .from(moduleImportProfiles)
+        .innerJoin(systemModules, eq(systemModules.id, moduleImportProfiles.moduleId))
+        .where(
+          and(
+            eq(moduleImportProfiles.id, profileId),
+            eq(systemModules.workspaceId, ctx.workspaceId)
+          )
+        )
+        .limit(1);
+
+      if (!existing) {
+        return NextResponse.json({ error: 'Perfil nao pertence ao workspace ativo' }, { status: 404 });
+      }
+
+      const [targetModule] = await db
+        .select({ id: systemModules.id })
+        .from(systemModules)
+        .where(and(eq(systemModules.id, moduleId), eq(systemModules.workspaceId, ctx.workspaceId)))
+        .limit(1);
+
+      if (!targetModule) {
+        return NextResponse.json({ error: 'Modulo nao pertence ao workspace ativo' }, { status: 404 });
+      }
 
       const [updated] = await db
         .update(moduleImportProfiles)
         .set({
-          moduleId: Number(body.moduleId),
+          moduleId,
           profileKey: body.profileKey,
           label: body.label,
           detectorType: body.detectorType,
@@ -29,7 +57,7 @@ export async function PATCH(
           isActive: body.isActive ?? true,
           updatedAt: new Date(),
         })
-        .where(eq(moduleImportProfiles.id, Number(id)))
+        .where(eq(moduleImportProfiles.id, profileId))
         .returning();
 
       return NextResponse.json({ data: updated });
@@ -46,10 +74,27 @@ export async function DELETE(
 ) {
   const { response } = await requireAdmin(req);
   if (response) return response;
-  return runWithWorkspace(req, async () => {
+  return runWithWorkspace(req, async (ctx) => {
     try {
       const { id } = await params;
-      await db.delete(moduleImportProfiles).where(eq(moduleImportProfiles.id, Number(id)));
+      const profileId = Number(id);
+      const [existing] = await db
+        .select({ id: moduleImportProfiles.id })
+        .from(moduleImportProfiles)
+        .innerJoin(systemModules, eq(systemModules.id, moduleImportProfiles.moduleId))
+        .where(
+          and(
+            eq(moduleImportProfiles.id, profileId),
+            eq(systemModules.workspaceId, ctx.workspaceId)
+          )
+        )
+        .limit(1);
+
+      if (!existing) {
+        return NextResponse.json({ error: 'Perfil nao pertence ao workspace ativo' }, { status: 404 });
+      }
+
+      await db.delete(moduleImportProfiles).where(eq(moduleImportProfiles.id, profileId));
       return NextResponse.json({ success: true });
     } catch (error) {
       console.error('[module-import-profiles:delete]', error);

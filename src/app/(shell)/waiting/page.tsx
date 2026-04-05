@@ -2,22 +2,32 @@
 
 import { useEffect, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signOut } from '@/lib/auth-client';
+import { signOut, useSession } from '@/lib/auth-client';
 
 export default function WaitingPage() {
   const router = useRouter();
+  const { data, isPending } = useSession();
   const [checking, setChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
   const checkAccess = useCallback(async () => {
+    if (isPending || !data?.user) {
+      return;
+    }
+
     setChecking(true);
     try {
-      const res = await fetch('/api/workspaces/my');
+      const res = await fetch('/api/workspaces/my', { cache: 'no-store' });
+      if (res.status === 401) {
+        router.replace('/auth');
+        return;
+      }
       const data = (await res.json()) as { data?: { slug: string }[] };
       const workspaces = data.data ?? [];
       if (workspaces.length > 0 && workspaces[0]) {
         document.cookie = 'workspace_access_ok=;path=/;max-age=0';
-        router.replace('/');
+        document.cookie = `dwm_active_workspace=${workspaces[0].slug};path=/;max-age=${86400 * 30};samesite=lax`;
+        router.replace(`/${workspaces[0].slug}/dashboard`);
         return;
       }
       setLastChecked(new Date());
@@ -26,9 +36,10 @@ export default function WaitingPage() {
     } finally {
       setChecking(false);
     }
-  }, [router]);
+  }, [data?.user, isPending, router]);
 
   useEffect(() => {
+    void checkAccess();
     const interval = setInterval(checkAccess, 30_000);
     return () => clearInterval(interval);
   }, [checkAccess]);
@@ -508,15 +519,15 @@ export default function WaitingPage() {
               <div className="wring ring-2" />
               <div className="icon-circle">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-                     stroke="#3b82f6" strokeWidth="1.5"
-                     strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/>
-                  <polyline points="9 12 11 14 15 10" stroke="#60a5fa"/>
+                  stroke="#3b82f6" strokeWidth="1.5"
+                  strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" />
+                  <polyline points="9 12 11 14 15 10" stroke="#60a5fa" />
                 </svg>
               </div>
             </div>
             <div>
-              <div className="brand-name">DashMetric</div>
+              <div className="brand-name">Dashmetric</div>
               <div className="brand-sub">KPI · SLA · Analytics</div>
             </div>
           </div>
@@ -552,7 +563,7 @@ export default function WaitingPage() {
 
             <div className="card-body">
               <p className="intro-text">
-                O <strong>DashMetric</strong> nasceu de uma necessidade real: o controle de
+                O <strong>Dashmetric</strong> nasceu de uma necessidade real: o controle de
                 SLA da equipe técnica era gerenciado em uma planilha Excel — com abas de
                 Dashboard Executivo, Resumo por período, Ranking de Técnicos e Qualidade
                 &amp; Reclamações — atualizada manualmente todo mês. Funcional, mas limitada.
@@ -607,24 +618,24 @@ export default function WaitingPage() {
           <div className="rise-4" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button className="btn-primary" onClick={checkAccess} disabled={checking}>
               <svg className={checking ? 'wspin' : ''} width="14" height="14" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <polyline points="23 4 23 10 17 10"/>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
               </svg>
               {checking ? 'Verificando...' : 'Verificar acesso'}
             </button>
             <button className="btn-ghost" onClick={handleSignOut}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
               Sair da conta
             </button>
           </div>
 
-          <div className="wfooter rise-5">© 2025 DashMetric · Rafael de Souza Abade Junior</div>
+          <div className="wfooter rise-5">© 2025 Dashmetric · Rafael de Souza Abade Junior</div>
 
         </div>
       </div>

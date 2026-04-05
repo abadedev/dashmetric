@@ -1,4 +1,4 @@
-import { count, gte, lte, and } from 'drizzle-orm';
+import { count, gte, lte, and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { qualityRecords } from '@/lib/db/schema';
 import type { ExternalApiFilters } from '@/lib/api/filters';
@@ -9,6 +9,7 @@ import { getCancellationsOverview } from '../cancellations-service';
 
 export async function getSummaryAnalytics(filters: ExternalApiFilters) {
   const qualityFilters = [];
+  if (filters.workspaceId) qualityFilters.push(eq(qualityRecords.workspaceId, filters.workspaceId));
   if (filters.startDate) qualityFilters.push(gte(qualityRecords.openedAt, filters.startDate));
   if (filters.endDate) qualityFilters.push(lte(qualityRecords.openedAt, filters.endDate));
   const qualityWhere = qualityFilters.length ? and(...qualityFilters) : undefined;
@@ -17,8 +18,26 @@ export async function getSummaryAnalytics(filters: ExternalApiFilters) {
     await Promise.all([
       getAttendanceCounts(filters),
       getPhoneSupportCounts(filters),
-      getSalesOverview(filters.startDate, filters.endDate),
-      getCancellationsOverview(filters.startDate, filters.endDate),
+      getSalesOverview({
+        workspaceId: filters.workspaceId,
+        from: filters.startDate,
+        to: filters.endDate,
+        city: filters.city,
+        plan: filters.plan,
+        source: filters.source,
+        search: filters.search,
+        type: filters.type,
+      }),
+      getCancellationsOverview({
+        workspaceId: filters.workspaceId,
+        from: filters.startDate,
+        to: filters.endDate,
+        city: filters.city,
+        plan: filters.plan,
+        source: filters.source,
+        category: filters.category,
+        search: filters.search,
+      }),
       getSlaAnalytics(filters),
       db.select({ total: count() }).from(qualityRecords).where(qualityWhere),
     ]);
