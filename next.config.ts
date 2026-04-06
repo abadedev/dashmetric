@@ -14,7 +14,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self'",
-      "connect-src 'self' https://accounts.google.com",
+      "connect-src 'self' https://accounts.google.com https://n8nabade.squareweb.app",
       "frame-ancestors 'none'",
     ].join('; '),
   },
