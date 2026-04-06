@@ -154,6 +154,15 @@ async function resolverTecnico(
     tecnicoCache.set(cacheKey, existing.id);
     return existing.id;
   }
+
+  const existingGlobal = await executor.query.technicians.findFirst({
+    where: (t, { sql }) => sql`lower(${t.name}) = lower(${normNome})`,
+  });
+  if (existingGlobal) {
+    tecnicoCache.set(cacheKey, existingGlobal.id);
+    return existingGlobal.id;
+  }
+
   const [created] = await executor
     .insert(technicians)
     .values({ workspaceId, name: normNome })
