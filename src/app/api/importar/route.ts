@@ -72,12 +72,32 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error('[importar]', err);
 
+      const message = err instanceof Error ? err.message : String(err);
+      const dbError = err as Error & {
+        code?: string;
+        detail?: string;
+        constraint?: string;
+        column?: string;
+        table?: string;
+      };
+
+      const debug =
+        dbError.code || dbError.detail || dbError.constraint || dbError.column || dbError.table
+          ? {
+              code: dbError.code,
+              detail: dbError.detail,
+              constraint: dbError.constraint,
+              column: dbError.column,
+              table: dbError.table,
+            }
+          : undefined;
+
       if (err instanceof Error && err.message.includes('reimportacao segura')) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }
 
       return NextResponse.json(
-        { success: false, error: 'Internal server error' },
+        { success: false, error: message || 'Internal server error', debug },
         { status: 500 }
       );
     }

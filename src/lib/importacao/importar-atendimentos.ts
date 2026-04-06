@@ -47,11 +47,28 @@ async function resolverTecnicos(
       }
       cache.set(nome, existing.id);
     } else {
-      const [created] = await db
-        .insert(technicians)
-        .values({ workspaceId, name: nome, login: loginMap.get(nome) ?? null })
-        .returning();
-      cache.set(nome, created.id);
+      const existingGlobal = await db.query.technicians.findFirst({
+        where: (t, { or, eq: eqFn }) => or(eqFn(t.name, nome), eqFn(t.login, nome)),
+      });
+
+      if (existingGlobal) {
+        const loginCode = loginMap.get(nome) ?? null;
+        // Legacy compatibility: some environments still enforce global unique technician names.
+        // Reuse the existing technician instead of failing the import on duplicate name.
+        if (!existingGlobal.login && loginCode) {
+          await db
+            .update(technicians)
+            .set({ login: loginCode, updatedAt: new Date() })
+            .where(eq(technicians.id, existingGlobal.id));
+        }
+        cache.set(nome, existingGlobal.id);
+      } else {
+        const [created] = await db
+          .insert(technicians)
+          .values({ workspaceId, name: nome, login: loginMap.get(nome) ?? null })
+          .returning();
+        cache.set(nome, created.id);
+      }
     }
   }
 
