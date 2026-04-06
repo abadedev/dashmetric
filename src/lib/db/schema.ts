@@ -13,6 +13,7 @@ import {
   uniqueIndex,
   jsonb,
   uuid,
+  foreignKey,
 } from 'drizzle-orm/pg-core';
 
 // ========== ENUMS ==========
@@ -100,14 +101,13 @@ export const qualityIndicatorEnum = pgEnum('quality_indicator', [
   'Retorno',
 ]);
 
-export const importStatusEnum = pgEnum('import_status', [
-  'pending',
-  'processing',
-  'completed',
-  'failed',
-]);
-
 // ========== TABELAS ==========
+//
+// LEGACY MIGRATION NOTE:
+// Several operational tables still keep `workspaceId` nullable in the canonical schema
+// for cross-environment rollout safety. The current environment is already backfilled,
+// but we are intentionally not enforcing mass `NOT NULL` here until every deployed
+// database is verified and covered by broader integration checks.
 
 export const technicians = pgTable(
   'technicians',
@@ -126,59 +126,6 @@ export const technicians = pgTable(
     uniqueIndex('tech_name_idx').on(table.name),
     index('tech_login_idx').on(table.login),
     index('tech_workspace_id_idx').on(table.workspaceId),
-  ]
-);
-
-export const importBatches = pgTable(
-  'import_batches',
-  {
-    id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
-    filename: varchar('filename', { length: 255 }).notNull(),
-    totalRows: integer('total_rows').default(0),
-    importedRows: integer('imported_rows').default(0),
-    errors: integer('errors').default(0),
-    errorDetails: text('error_details'),
-    status: importStatusEnum('status').default('pending').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-  },
-  (table) => [index('import_batch_workspace_id_idx').on(table.workspaceId)]
-);
-
-export const serviceOrders = pgTable(
-  'service_orders',
-  {
-    id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
-    osNumber: varchar('os_number', { length: 20 }),
-    activityType: activityTypeEnum('activity_type').notNull(),
-    reason: text('reason'),
-    solution: text('solution'),
-    technicianId: integer('technician_id').references(() => technicians.id),
-    clientName: varchar('client_name', { length: 255 }),
-    city: varchar('city', { length: 100 }),
-    plan: varchar('plan', { length: 255 }),
-    openedAt: timestamp('opened_at'),
-    closedAt: timestamp('closed_at'),
-    slaTargetHours: integer('sla_target_hours'),
-    slaCorridoSeconds: integer('sla_corrido_seconds'),
-    slaUtilSeconds: integer('sla_util_seconds'),
-    withinSlaCorrido: boolean('within_sla_corrido'),
-    withinSlaUtil: boolean('within_sla_util'),
-    importBatchId: integer('import_batch_id').references(() => importBatches.id),
-    periodMonth: integer('period_month'),
-    periodYear: integer('period_year'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-  },
-  (table) => [
-    index('so_workspace_id_idx').on(table.workspaceId),
-    index('so_technician_idx').on(table.technicianId),
-    index('so_activity_type_idx').on(table.activityType),
-    index('so_period_idx').on(table.periodYear, table.periodMonth),
-    index('so_city_idx').on(table.city),
-    index('so_opened_at_idx').on(table.openedAt),
-    index('so_os_number_idx').on(table.osNumber),
-    index('so_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
   ]
 );
 
@@ -471,6 +418,10 @@ export const importacoesBrutas = pgTable(
     id: serial('id').primaryKey(),
     workspaceId: uuid('workspace_id'), // nullable during migration
     loteImportacaoId: integer('lote_importacao_id').references(() => lotesImportacao.id),
+    /**
+     * Current strategy: preserve the full raw payload indefinitely for audit/reprocessing safety.
+     * TODO(next phase): define retention, archival or purge policy by workspace/import batch.
+     */
     rawJson: jsonb('raw_json').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
@@ -480,7 +431,10 @@ export const importacoesBrutas = pgTable(
   ]
 );
 
-/** Tabela principal de atendimentos normalizada */
+/**
+ * @deprecated Naming legacy kept for production compatibility.
+ * `atendimentos` remains the persisted operational contract; new technical abstractions should prefer English names around it.
+ */
 export const atendimentos = pgTable(
   'atendimentos',
   {
@@ -555,13 +509,24 @@ export const atendimentos = pgTable(
 
 // ========== PERMISSION SYSTEM ==========
 
-export const accessGroups = pgTable('access_groups', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 120 }).notNull(),
-  description: text('description'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+export const accessGroups = pgTable(
+  'access_groups',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 120 }).notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('access_group_workspace_name_idx').on(table.workspaceId, table.name),
+    uniqueIndex('access_group_id_workspace_idx').on(table.id, table.workspaceId),
+    index('access_group_workspace_idx').on(table.workspaceId),
+  ]
+);
 
 export const permissions = pgTable(
   'permissions',
@@ -572,11 +537,9 @@ export const permissions = pgTable(
     action: varchar('action', { length: 20 }).notNull(), // 'read' | 'write'
     description: text('description'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
-  (table) => [
-    uniqueIndex('permission_key_idx').on(table.key),
-    index('permission_module_slug_idx').on(table.moduleSlug),
-  ]
+  (table) => [index('permission_module_slug_idx').on(table.moduleSlug)]
 );
 
 export const groupPermissions = pgTable(
@@ -597,20 +560,33 @@ export const userGroups = pgTable(
   'user_groups',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    groupId: integer('group_id')
-      .notNull()
-      .references(() => accessGroups.id, { onDelete: 'cascade' }),
+    groupId: integer('group_id').notNull(),
   },
-  (table) => [uniqueIndex('user_group_unique_idx').on(table.userId, table.groupId)]
+  (table) => [
+    foreignKey({
+      columns: [table.groupId, table.workspaceId],
+      foreignColumns: [accessGroups.id, accessGroups.workspaceId],
+      name: 'user_groups_group_workspace_fk',
+    }).onDelete('cascade'),
+    uniqueIndex('user_group_unique_idx').on(table.workspaceId, table.userId, table.groupId),
+    index('user_group_workspace_user_idx').on(table.workspaceId, table.userId),
+    index('user_group_workspace_group_idx').on(table.workspaceId, table.groupId),
+  ]
 );
 
 export const userPermissions = pgTable(
   'user_permissions',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
@@ -618,7 +594,11 @@ export const userPermissions = pgTable(
       .notNull()
       .references(() => permissions.id, { onDelete: 'cascade' }),
   },
-  (table) => [uniqueIndex('user_permission_unique_idx').on(table.userId, table.permissionId)]
+  (table) => [
+    uniqueIndex('user_permission_unique_idx').on(table.workspaceId, table.userId, table.permissionId),
+    index('user_permission_workspace_user_idx').on(table.workspaceId, table.userId),
+    index('user_permission_workspace_permission_idx').on(table.workspaceId, table.permissionId),
+  ]
 );
 
 export type SlaConfig = typeof slaConfig.$inferSelect;
@@ -627,8 +607,6 @@ export type SlaConfig = typeof slaConfig.$inferSelect;
 
 export type Technician = typeof technicians.$inferSelect;
 export type NewTechnician = typeof technicians.$inferInsert;
-export type ServiceOrder = typeof serviceOrders.$inferSelect;
-export type NewServiceOrder = typeof serviceOrders.$inferInsert;
 export type QualityRecord = typeof qualityRecords.$inferSelect;
 export type NewQualityRecord = typeof qualityRecords.$inferInsert;
 export type SupportRecord = typeof supportRecords.$inferSelect;
@@ -646,7 +624,6 @@ export type NewCancellationRecord = typeof cancellationRecords.$inferInsert;
 export type InfrastructureRecord = typeof infrastructureRecords.$inferSelect;
 export type NewInfrastructureRecord = typeof infrastructureRecords.$inferInsert;
 export type Holiday = typeof holidays.$inferSelect;
-export type ImportBatch = typeof importBatches.$inferSelect;
 export type ActivityType = typeof activityTypeEnum.enumValues[number];
 export type QualityIndicator = typeof qualityIndicatorEnum.enumValues[number];
 export type SalesRecordType = typeof salesRecordTypeEnum.enumValues[number];
@@ -676,11 +653,13 @@ export const workspaces = pgTable(
     name: text('name').notNull(),
     slug: text('slug').notNull().unique(),
     logoUrl: text('logo_url'),
+    defaultTheme: varchar('default_theme', { length: 20 }).default('dark').notNull(),
     createdBy: text('created_by').notNull(),
     isActive: boolean('is_active').default(true).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
-  (table) => [uniqueIndex('workspace_slug_idx').on(table.slug)]
+  () => []
 );
 
 export const workspaceMembers = pgTable(
@@ -696,6 +675,7 @@ export const workspaceMembers = pgTable(
     role: workspaceMemberRoleEnum('role').default('MEMBER').notNull(),
     grantedBy: text('granted_by').notNull(),
     grantedAt: timestamp('granted_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('workspace_member_unique_idx').on(table.workspaceId, table.userId),

@@ -33,52 +33,6 @@ export async function provisionWorkspaceSchema(workspaceSlug: string): Promise<v
       CREATE INDEX IF NOT EXISTS tech_login_idx ON technicians(login)
     `);
 
-    // ── import_batches ───────────────────────────────────────────────────────
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS import_batches (
-        id            serial PRIMARY KEY,
-        filename      varchar(255) NOT NULL,
-        total_rows    integer DEFAULT 0,
-        imported_rows integer DEFAULT 0,
-        errors        integer DEFAULT 0,
-        error_details text,
-        status        public.import_status DEFAULT 'pending' NOT NULL,
-        created_at    timestamp DEFAULT now() NOT NULL
-      )
-    `);
-
-    // ── service_orders ───────────────────────────────────────────────────────
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS service_orders (
-        id                  serial PRIMARY KEY,
-        os_number           varchar(20),
-        activity_type       public.activity_type NOT NULL,
-        reason              text,
-        solution            text,
-        technician_id       integer REFERENCES technicians(id),
-        client_name         varchar(255),
-        city                varchar(100),
-        plan                varchar(255),
-        opened_at           timestamp,
-        closed_at           timestamp,
-        sla_target_hours    integer,
-        sla_corrido_seconds integer,
-        sla_util_seconds    integer,
-        within_sla_corrido  boolean,
-        within_sla_util     boolean,
-        import_batch_id     integer REFERENCES import_batches(id),
-        period_month        integer,
-        period_year         integer,
-        created_at          timestamp DEFAULT now() NOT NULL
-      )
-    `);
-    await client.query(`CREATE INDEX IF NOT EXISTS so_technician_idx ON service_orders(technician_id)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS so_activity_type_idx ON service_orders(activity_type)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS so_period_idx ON service_orders(period_year, period_month)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS so_city_idx ON service_orders(city)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS so_opened_at_idx ON service_orders(opened_at)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS so_os_number_idx ON service_orders(os_number)`);
-
     // ── quality_records ──────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS quality_records (
@@ -290,11 +244,15 @@ export async function provisionWorkspaceSchema(workspaceSlug: string): Promise<v
       CREATE TABLE IF NOT EXISTS importacoes_brutas (
         id                  serial PRIMARY KEY,
         lote_importacao_id  integer REFERENCES lotes_importacao(id),
+        -- Current strategy: keep raw payloads indefinitely for audit/reprocessing safety.
+        -- TODO(next phase): define retention/archival policy by workspace and import batch.
         raw_json            jsonb NOT NULL,
         created_at          timestamp DEFAULT now() NOT NULL
       )
     `);
 
+    // LEGACY NAMING: `atendimentos` is preserved here only because the production schema already depends on it.
+    // New technical abstractions should prefer English names and adapt to this contract instead of renaming destructively.
     // ── atendimentos ─────────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS atendimentos (

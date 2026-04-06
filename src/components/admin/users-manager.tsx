@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UserCog } from 'lucide-react';
+import { useSession } from '@/lib/auth-client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { StateDisplay, TableSkeleton } from '@/components/ui/state-display';
@@ -17,14 +18,10 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from '@/components/ui/sheet';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 type UserGroup = { id: number; name: string };
 
@@ -33,7 +30,9 @@ type UserItem = {
   name: string;
   email: string;
   image: string | null;
-  role: 'user' | 'editor' | 'admin';
+  globalRole: 'user' | 'editor' | 'admin';
+  workspaceRole: 'ADMIN' | 'MEMBER' | 'VIEWER' | null;
+  workspaceGrantedAt: string | null;
   createdAt: string;
   groups: UserGroup[];
 };
@@ -52,49 +51,43 @@ type GroupItem = {
   description: string | null;
 };
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function roleLabel(role: string) {
-  if (role === 'admin') return 'Administrador';
-  if (role === 'editor') return 'Editor';
-  return 'Visualizador';
+function globalRoleLabel(role: UserItem['globalRole']) {
+  if (role === 'admin') return 'Administrador global';
+  if (role === 'editor') return 'Editor global';
+  return 'Usuario global';
 }
 
-function roleBadgeVariant(role: string): 'destructive' | 'default' | 'secondary' {
-  if (role === 'admin') return 'destructive';
-  if (role === 'editor') return 'default';
-  return 'secondary';
+function workspaceRoleLabel(role: UserItem['workspaceRole']) {
+  if (role === 'ADMIN') return 'Admin do workspace';
+  if (role === 'MEMBER') return 'Membro do workspace';
+  if (role === 'VIEWER') return 'Leitor do workspace';
+  return 'Sem vinculacao';
 }
 
 function humanizeSlug(slug: string) {
   return slug
+    .split('.')
+    .join(' / ')
     .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
 
 function groupByModule(perms: PermissionItem[]) {
   const map = new Map<string, PermissionItem[]>();
-  for (const p of perms) {
-    const list = map.get(p.moduleSlug) ?? [];
-    list.push(p);
-    map.set(p.moduleSlug, list);
+  for (const permission of perms) {
+    const list = map.get(permission.moduleSlug) ?? [];
+    list.push(permission);
+    map.set(permission.moduleSlug, list);
   }
   return map;
 }
 
 function UserAvatar({ user }: { user: UserItem }) {
   if (user.image) {
-    return (
-      <img
-        src={user.image}
-        alt={user.name}
-        className="h-9 w-9 rounded-full object-cover"
-      />
-    );
+    return <img src={user.image} alt={user.name} className="h-9 w-9 rounded-full object-cover" />;
   }
+
   return (
     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
       {user.name.charAt(0).toUpperCase()}
@@ -102,69 +95,51 @@ function UserAvatar({ user }: { user: UserItem }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// User sheet
-// ---------------------------------------------------------------------------
-
 function UserSheet({
   user,
   allGroups,
   allPermissions,
-  onClose,
 }: {
   user: UserItem;
   allGroups: GroupItem[];
   allPermissions: PermissionItem[];
-  onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { data: sessionData } = useSession();
+  const isPlatformAdmin = (sessionData?.user as { role?: string } | undefined)?.role === 'admin';
 
-  // Role state
-  const [selectedRole, setSelectedRole] = useState<'user' | 'editor' | 'admin'>(user.role);
+  const [globalRole, setGlobalRole] = useState<UserItem['globalRole']>(user.globalRole);
+  const [workspaceRole, setWorkspaceRole] = useState<UserItem['workspaceRole']>(user.workspaceRole);
+  const [userGroupIds, setUserGroupIds] = useState<Set<number>>(new Set(user.groups.map((group) => group.id)));
+  const [localPermIds, setLocalPermIds] = useState<Set<number> | null>(null);
 
-  // Group state — set of groupIds the user belongs to
-  const [userGroupIds, setUserGroupIds] = useState<Set<number>>(
-    new Set(user.groups.map((g) => g.id))
-  );
-
-  // Individual permission state — set of permissionIds
   const { data: indivData } = useQuery({
     queryKey: ['user-individual-permissions', user.id],
     queryFn: async () => {
       const res = await fetch(`/api/admin/users/${user.id}/permissions`);
-      if (!res.ok) throw new Error('Falha ao carregar permissões individuais');
+      if (!res.ok) throw new Error('Falha ao carregar permissoes individuais');
       const json = await res.json() as { data: PermissionItem[] };
       return json.data;
     },
   });
 
-  const [selectedPermIds, setSelectedPermIds] = useState<Set<number>>(
-    new Set(indivData?.map((p) => p.id) ?? [])
-  );
+  const effectivePermIds = localPermIds ?? new Set(indivData?.map((permission) => permission.id) ?? []);
 
-  // Keep selectedPermIds in sync after query loads
-  const resolvedPermIds =
-    indivData !== undefined ? new Set(indivData.map((p) => p.id)) : selectedPermIds;
-  const [localPermIds, setLocalPermIds] = useState<Set<number> | null>(null);
-  const effectivePermIds = localPermIds ?? resolvedPermIds;
-
-  // Role mutation
   const roleMutation = useMutation({
-    mutationFn: async (role: 'user' | 'editor' | 'admin') => {
+    mutationFn: async (payload: Partial<Pick<UserItem, 'globalRole' | 'workspaceRole'>>) => {
       const res = await fetch(`/api/admin/users/${user.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Falha ao atualizar nível de acesso');
+      if (!res.ok) throw new Error('Falha ao atualizar papeis');
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
   });
 
-  // Group toggle mutation
   const groupAddMutation = useMutation({
     mutationFn: async (groupId: number) => {
       const res = await fetch(`/api/admin/users/${user.id}/groups`, {
@@ -175,8 +150,8 @@ function UserSheet({
       if (!res.ok) throw new Error('Falha ao adicionar grupo');
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
   });
 
@@ -190,26 +165,11 @@ function UserSheet({
       if (!res.ok) throw new Error('Falha ao remover grupo');
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
   });
 
-  const handleGroupToggle = (groupId: number, checked: boolean) => {
-    setUserGroupIds((prev) => {
-      const next = new Set(prev);
-      if (checked) {
-        next.add(groupId);
-        groupAddMutation.mutate(groupId);
-      } else {
-        next.delete(groupId);
-        groupRemoveMutation.mutate(groupId);
-      }
-      return next;
-    });
-  };
-
-  // Individual permissions mutation
   const permsMutation = useMutation({
     mutationFn: async (permissionIds: number[]) => {
       const res = await fetch(`/api/admin/users/${user.id}/permissions`, {
@@ -217,28 +177,19 @@ function UserSheet({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ permissionIds }),
       });
-      if (!res.ok) throw new Error('Falha ao salvar permissões individuais');
+      if (!res.ok) throw new Error('Falha ao salvar permissoes individuais');
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-individual-permissions', user.id] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['user-individual-permissions', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
   });
 
-  const handlePermToggle = (permId: number, checked: boolean) => {
-    setLocalPermIds((prev) => {
-      const base = prev ?? resolvedPermIds;
-      const next = new Set(base);
-      if (checked) next.add(permId);
-      else next.delete(permId);
-      return next;
-    });
-  };
-
-  const byModule = groupByModule(allPermissions);
+  const byModule = useMemo(() => groupByModule(allPermissions), [allPermissions]);
 
   return (
-    <div className="flex h-full flex-col gap-0 overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       <SheetHeader className="border-b px-4 pb-4">
         <div className="flex items-center gap-3">
           <UserAvatar user={user} />
@@ -249,61 +200,100 @@ function UserSheet({
         </div>
       </SheetHeader>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-        {/* Role */}
+      <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4">
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold">Nível de acesso</h3>
-          <div className="flex items-center gap-3">
-            <Select
-              value={selectedRole}
-              onValueChange={(v) => {
-                if (!v) return;
-                const role = v as 'user' | 'editor' | 'admin';
-                setSelectedRole(role);
-                roleMutation.mutate(role);
-              }}
-            >
-              <SelectTrigger className="w-52">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">Visualizador</SelectItem>
-                <SelectItem value="editor">Editor</SelectItem>
-                <SelectItem value="admin">Administrador</SelectItem>
-              </SelectContent>
-            </Select>
-            {roleMutation.isPending && (
-              <span className="text-xs text-muted-foreground">Salvando...</span>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Visualizador: acesso de leitura. Editor: pode importar dados. Administrador: acesso total ao painel.
-          </p>
+          <h3 className="text-sm font-semibold">Papel global</h3>
+          {isPlatformAdmin ? (
+            <div className="flex items-center gap-3">
+              <Select
+                value={globalRole}
+                onValueChange={(value) => {
+                  const nextRole = value as UserItem['globalRole'];
+                  setGlobalRole(nextRole);
+                  roleMutation.mutate({ globalRole: nextRole });
+                }}
+              >
+                <SelectTrigger className="w-56">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Usuario global</SelectItem>
+                  <SelectItem value="editor">Editor global</SelectItem>
+                  <SelectItem value="admin">Administrador global</SelectItem>
+                </SelectContent>
+              </Select>
+              <Badge variant="secondary">{globalRoleLabel(globalRole)}</Badge>
+            </div>
+          ) : (
+            <Badge variant="secondary">{globalRoleLabel(globalRole)}</Badge>
+          )}
         </section>
 
-        {/* Groups */}
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold">Grupos de acesso</h3>
-          {allGroups.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhum grupo cadastrado ainda.</p>
+          <h3 className="text-sm font-semibold">Papel no workspace ativo</h3>
+          {workspaceRole ? (
+            <div className="flex items-center gap-3">
+              <Select
+                value={workspaceRole}
+                onValueChange={(value) => {
+                  const nextRole = value as Exclude<UserItem['workspaceRole'], null>;
+                  setWorkspaceRole(nextRole);
+                  roleMutation.mutate({ workspaceRole: nextRole });
+                }}
+              >
+                <SelectTrigger className="w-56">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ADMIN">Admin do workspace</SelectItem>
+                  <SelectItem value="MEMBER">Membro do workspace</SelectItem>
+                  <SelectItem value="VIEWER">Leitor do workspace</SelectItem>
+                </SelectContent>
+              </Select>
+              <Badge variant="outline">{workspaceRoleLabel(workspaceRole)}</Badge>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Este usuario ainda nao esta vinculado ao workspace ativo. O papel pode ser atribuido na area de membros do workspace.
+            </p>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold">Grupos do workspace</h3>
+          {workspaceRole === null ? (
+            <p className="text-xs text-muted-foreground">Somente membros do workspace podem receber grupos.</p>
+          ) : allGroups.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum grupo cadastrado neste workspace.</p>
           ) : (
             <div className="space-y-2">
               {allGroups.map((group) => (
                 <label
                   key={group.id}
-                  className="flex items-start gap-2 rounded-lg border border-border px-3 py-2 text-sm cursor-pointer hover:bg-muted/30"
+                  className="flex cursor-pointer items-start gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/30"
                 >
                   <input
                     type="checkbox"
                     className="mt-0.5"
                     checked={userGroupIds.has(group.id)}
-                    onChange={(e) => handleGroupToggle(group.id, e.target.checked)}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setUserGroupIds((prev) => {
+                        const next = new Set(prev);
+                        if (checked) {
+                          next.add(group.id);
+                          groupAddMutation.mutate(group.id);
+                        } else {
+                          next.delete(group.id);
+                          groupRemoveMutation.mutate(group.id);
+                        }
+                        return next;
+                      });
+                    }}
                   />
                   <div>
                     <span className="font-medium">{group.name}</span>
-                    {group.description && (
-                      <p className="text-xs text-muted-foreground">{group.description}</p>
-                    )}
+                    {group.description ? <p className="text-xs text-muted-foreground">{group.description}</p> : null}
                   </div>
                 </label>
               ))}
@@ -311,40 +301,39 @@ function UserSheet({
           )}
         </section>
 
-        {/* Individual permissions */}
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold">Permissões individuais extras</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Essas permissões se somam às do grupo. Use para casos específicos.
+            <h3 className="text-sm font-semibold">Permissoes extras do workspace</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Essas permissoes se somam aos grupos do workspace e nao afetam outros workspaces.
             </p>
           </div>
 
-          {byModule.size === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Carregando permissões...
-            </p>
+          {workspaceRole === null ? (
+            <p className="text-xs text-muted-foreground">Somente membros do workspace podem receber permissoes extras.</p>
           ) : (
             <div className="space-y-4">
               {Array.from(byModule.entries()).map(([slug, perms]) => (
                 <div key={slug} className="rounded-lg border border-border bg-muted/30 px-3 py-3">
-                  <p className="text-xs font-semibold text-foreground mb-2">
-                    {humanizeSlug(slug)}
-                  </p>
+                  <p className="mb-2 text-xs font-semibold">{humanizeSlug(slug)}</p>
                   <div className="space-y-1.5">
                     {perms.map((perm) => (
-                      <label
-                        key={perm.id}
-                        className="flex items-center gap-2 text-xs cursor-pointer"
-                      >
+                      <label key={perm.id} className="flex cursor-pointer items-center gap-2 text-xs">
                         <input
                           type="checkbox"
                           checked={effectivePermIds.has(perm.id)}
-                          onChange={(e) => handlePermToggle(perm.id, e.target.checked)}
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            setLocalPermIds((prev) => {
+                              const base = prev ?? new Set(indivData?.map((permission) => permission.id) ?? []);
+                              const next = new Set(base);
+                              if (checked) next.add(perm.id);
+                              else next.delete(perm.id);
+                              return next;
+                            });
+                          }}
                         />
-                        <span>
-                          {perm.action === 'read' ? 'Visualizar' : 'Editar / Importar dados'}
-                        </span>
+                        <span>{perm.key}</span>
                       </label>
                     ))}
                   </div>
@@ -355,10 +344,10 @@ function UserSheet({
 
           <Button
             size="sm"
+            disabled={workspaceRole === null || permsMutation.isPending}
             onClick={() => permsMutation.mutate(Array.from(effectivePermIds))}
-            disabled={permsMutation.isPending}
           >
-            {permsMutation.isPending ? 'Salvando...' : 'Salvar permissões individuais'}
+            {permsMutation.isPending ? 'Salvando...' : 'Salvar permissoes extras'}
           </Button>
         </section>
       </div>
@@ -366,18 +355,14 @@ function UserSheet({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
-
 export function UsersManager() {
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
 
-  const { data: usersData, isLoading: usersLoading } = useQuery({
+  const { data: usersData, isLoading: usersLoading, error: usersError } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
       const res = await fetch('/api/admin/users');
-      if (!res.ok) throw new Error('Falha ao carregar usuários');
+      if (!res.ok) throw new Error('Falha ao carregar usuarios');
       return res.json() as Promise<{ data: UserItem[] }>;
     },
   });
@@ -386,7 +371,7 @@ export function UsersManager() {
     queryKey: ['admin-permissions'],
     queryFn: async () => {
       const res = await fetch('/api/admin/permissions');
-      if (!res.ok) throw new Error('Falha ao carregar permissões');
+      if (!res.ok) throw new Error('Falha ao carregar permissoes');
       return res.json() as Promise<{ data: PermissionItem[] }>;
     },
   });
@@ -410,50 +395,48 @@ export function UsersManager() {
         <CardHeader>
           <div className="flex items-center gap-2 text-primary">
             <UserCog className="h-5 w-5" />
-            <CardTitle>Usuários</CardTitle>
+            <CardTitle>Membros e acessos</CardTitle>
           </div>
           <CardDescription>
-            Gerencie o nível de acesso de cada pessoa e os grupos aos quais ela pertence.
+            Cada linha mostra o papel global separado do papel, grupos e permissoes extras do workspace ativo.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {usersLoading ? (
             <TableSkeleton />
+          ) : usersError ? (
+            <StateDisplay
+              variant="empty"
+              title="Nao foi possivel carregar os usuarios"
+              description="Revise a autorizacao do workspace ativo."
+            />
           ) : users.length === 0 ? (
-            <div className="py-6 text-sm text-muted-foreground">Nenhum usuário encontrado.</div>
+            <div className="py-6 text-sm text-muted-foreground">Nenhum usuario encontrado.</div>
           ) : (
             <div className="divide-y divide-border">
-              {users.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center gap-4 py-3"
-                >
-                  <UserAvatar user={u} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{u.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                    {u.groups.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {u.groups.map((g) => (
-                          <Badge key={g.id} variant="outline" className="text-[10px] px-1.5 py-0">
-                            {g.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+              {users.map((user) => (
+                <div key={user.id} className="flex items-center gap-4 py-3">
+                  <UserAvatar user={user} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{user.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <Badge variant="secondary" className="text-[10px]">
+                        {globalRoleLabel(user.globalRole)}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        {workspaceRoleLabel(user.workspaceRole)}
+                      </Badge>
+                      {user.groups.map((group) => (
+                        <Badge key={group.id} variant="outline" className="text-[10px]">
+                          {group.name}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant={roleBadgeVariant(u.role)}>
-                      {roleLabel(u.role)}
-                    </Badge>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedUser(u)}
-                    >
-                      Gerenciar
-                    </Button>
-                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setSelectedUser(user)}>
+                    Gerenciar
+                  </Button>
                 </div>
               ))}
             </div>
@@ -462,15 +445,10 @@ export function UsersManager() {
       </Card>
 
       <Sheet open={!!selectedUser} onOpenChange={(open) => { if (!open) setSelectedUser(null); }}>
-        <SheetContent side="right" showCloseButton className="w-full sm:max-w-lg p-0">
-          {selectedUser && (
-            <UserSheet
-              user={selectedUser}
-              allGroups={allGroups}
-              allPermissions={allPermissions}
-              onClose={() => setSelectedUser(null)}
-            />
-          )}
+        <SheetContent side="right" showCloseButton className="w-full p-0 sm:max-w-lg">
+          {selectedUser ? (
+            <UserSheet user={selectedUser} allGroups={allGroups} allPermissions={allPermissions} />
+          ) : null}
         </SheetContent>
       </Sheet>
     </>

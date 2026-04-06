@@ -1,7 +1,7 @@
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { lotesImportacao, importacoesBrutas, technicians, holidays, atendimentos } from '@/lib/db/schema';
 import type { NewAtendimento } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
 
 import { detectFileType } from './detect-file-type';
 import { parseCsv } from './parse-csv';
@@ -12,7 +12,6 @@ import { normalizeTechName } from './helpers';
 import { linhaNormalizadaSchema } from '../validators/import-atendimento.schema';
 import type { ResumoImportacao } from '../validators/import-atendimento.schema';
 import { normalizeHolidayKeys } from '@/lib/sla/calculate-sla';
-import { buscarHashesExistentes } from './deduplicar-importacao';
 
 const SHOULD_STORE_RAW_IMPORT_ROWS =
   process.env.STORE_RAW_IMPORT_ROWS === 'true' ||
@@ -21,6 +20,7 @@ const SHOULD_STORE_RAW_IMPORT_ROWS =
 // ── Resolução de técnicos ─────────────────────────────────────────────────────
 
 async function resolverTecnicos(
+  workspaceId: string,
   nomes: Set<string>,
   loginMap: Map<string, string>
 ): Promise<Map<string, number>> {
@@ -30,7 +30,10 @@ async function resolverTecnicos(
     if (!nome) continue;
 
     const existing = await db.query.technicians.findFirst({
-      where: (t, { or, eq: eqFn }) => or(eqFn(t.name, nome), eqFn(t.login, nome)),
+      where: (t, { or, eq: eqFn, and: andFn }) => andFn(
+        eqFn(t.workspaceId, workspaceId),
+        or(eqFn(t.name, nome), eqFn(t.login, nome)),
+      ),
     });
 
     if (existing) {
@@ -40,13 +43,13 @@ async function resolverTecnicos(
         await db
           .update(technicians)
           .set({ login: loginCode, updatedAt: new Date() })
-          .where(eq(technicians.id, existing.id));
+          .where(and(eq(technicians.id, existing.id), eq(technicians.workspaceId, workspaceId)));
       }
       cache.set(nome, existing.id);
     } else {
       const [created] = await db
         .insert(technicians)
-        .values({ name: nome, login: loginMap.get(nome) ?? null })
+        .values({ workspaceId, name: nome, login: loginMap.get(nome) ?? null })
         .returning();
       cache.set(nome, created.id);
     }
@@ -58,6 +61,98 @@ async function resolverTecnicos(
 async function carregarFeriados(): Promise<Set<string>> {
   const rows = await db.select({ date: holidays.date }).from(holidays);
   return normalizeHolidayKeys(rows.map((row) => row.date as Date | string));
+}
+
+type AttendanceInsertRow = {
+  idx: number;
+  dados: Record<string, unknown>;
+};
+
+type AttendanceInsertResult = {
+  inserted: number;
+  duplicated: number;
+  errored: number;
+  errors: Array<{ linha: number; erro: string }>;
+};
+
+type AttendanceInsertHandlers = {
+  insertMany?: (values: Array<NewAtendimento & { workspaceId: string; createdAt: Date; updatedAt: Date }>) => Promise<Array<{ id: number }>>;
+  insertOne?: (value: NewAtendimento & { workspaceId: string; createdAt: Date; updatedAt: Date }) => Promise<Array<{ id: number }>>;
+};
+
+export async function insertAttendanceChunk(
+  chunk: AttendanceInsertRow[],
+  workspaceId: string,
+  now: Date,
+  handlers: AttendanceInsertHandlers = {},
+): Promise<AttendanceInsertResult> {
+  const insertMany = handlers.insertMany ?? ((values) =>
+    db
+      .insert(atendimentos)
+      .values(values)
+      .onConflictDoNothing({ target: [atendimentos.workspaceId, atendimentos.hashImportacao] })
+      .returning({ id: atendimentos.id }));
+
+  const insertOne = handlers.insertOne ?? ((value) =>
+    db
+      .insert(atendimentos)
+      .values(value)
+      .onConflictDoNothing({ target: [atendimentos.workspaceId, atendimentos.hashImportacao] })
+      .returning({ id: atendimentos.id }));
+
+  const values = chunk.map((item) => ({
+    ...(item.dados as NewAtendimento),
+    workspaceId,
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  try {
+    const insertedRows = await insertMany(values);
+    return {
+      inserted: insertedRows.length,
+      duplicated: chunk.length - insertedRows.length,
+      errored: 0,
+      errors: [],
+    };
+  } catch (error: unknown) {
+    console.error('[importar-atendimentos] batch insert failed, falling back to row-by-row', {
+      workspaceId,
+      chunkSize: chunk.length,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    let inserted = 0;
+    let duplicated = 0;
+    let errored = 0;
+    const errors: Array<{ linha: number; erro: string }> = [];
+
+    for (const item of chunk) {
+      try {
+        const insertedRow = await insertOne({
+          ...(item.dados as NewAtendimento),
+          workspaceId,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        if (insertedRow.length > 0) {
+          inserted++;
+        } else {
+          duplicated++;
+        }
+      } catch (itemErr: unknown) {
+        const cause = itemErr instanceof Error ? itemErr.message : String(itemErr);
+        errored++;
+        errors.push({
+          linha: item.idx,
+          erro: `PostgreSQL Error: ${cause}`,
+        });
+      }
+    }
+
+    return { inserted, duplicated, errored, errors };
+  }
 }
 
 // ── Serviço principal ─────────────────────────────────────────────────────────
@@ -149,7 +244,7 @@ export async function importarAtendimentos(
       }
     }
 
-    const tecnicoCache = await resolverTecnicos(nomesTecnicos, loginMap);
+    const tecnicoCache = await resolverTecnicos(workspaceId, nomesTecnicos, loginMap);
 
     const feriados = await carregarFeriados();
 
@@ -181,15 +276,11 @@ export async function importarAtendimentos(
       }
     }
 
-    // 7. Deduplicação: filtra registros já existentes no banco (por hash, scoped ao workspace)
-    const todosHashes = registrosMapeados.map((r) => r.dados.hashImportacao as string);
-    const hashesNoBanco = await buscarHashesExistentes(todosHashes, workspaceId);
-
-    // Também deduplica dentro do próprio lote (caso o arquivo tenha linhas repetidas)
+    // 7. Deduplicação dentro do próprio lote (caso o arquivo tenha linhas repetidas)
     const hashesNoLote = new Set<string>();
     const paraInserir = registrosMapeados.filter((r) => {
       const hash = r.dados.hashImportacao as string;
-      if (hashesNoBanco.has(hash) || hashesNoLote.has(hash)) {
+      if (hashesNoLote.has(hash)) {
         resumo.totalDuplicadas++;
         return false;
       }
@@ -204,37 +295,12 @@ export async function importarAtendimentos(
 
     for (let i = 0; i < paraInserir.length; i += CHUNK_INSERT) {
       const chunk = paraInserir.slice(i, i + CHUNK_INSERT);
-      try {
-        const values = chunk.map((r) => ({
-          ...(r.dados as NewAtendimento),
-          workspaceId,
-          createdAt: now,
-          updatedAt: now,
-        }));
-        await db.insert(atendimentos).values(values);
-        resumo.totalInseridas += chunk.length;
-      } catch (error: unknown) {
-        // Fallback: tenta inserir um a um para identificar qual linha causa erro
-        for (const item of chunk) {
-          try {
-            await db.insert(atendimentos).values({
-              ...(item.dados as NewAtendimento),
-              workspaceId,
-              createdAt: now,
-              updatedAt: now,
-            });
-            resumo.totalInseridas++;
-          } catch (itemErr: unknown) {
-            const cause = itemErr instanceof Error ? itemErr.message : String(itemErr);
-            resumo.erros.push({
-              linha: item.idx,
-              erro: `PostgreSQL Error: ${cause}`,
-            });
-            resumo.totalInvalidas++;
-            resumo.totalValidas--;
-          }
-        }
-      }
+      const result = await insertAttendanceChunk(chunk, workspaceId, now);
+      resumo.totalInseridas += result.inserted;
+      resumo.totalDuplicadas += result.duplicated;
+      resumo.totalInvalidas += result.errored;
+      resumo.totalValidas -= result.errored;
+      resumo.erros.push(...result.errors);
     }
 
     // 9. Atualiza lote
@@ -254,6 +320,12 @@ export async function importarAtendimentos(
     return { loteId: lote.id, resumo };
 
   } catch (err) {
+    console.error('[importar-atendimentos] import failed', {
+      workspaceId,
+      filename,
+      loteId: lote.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
     await db
       .update(lotesImportacao)
       .set({ status: 'falhou', erros: [{ erro: String(err) }] })

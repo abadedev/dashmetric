@@ -156,9 +156,11 @@ async function ensurePublicGlobals() {
         name text NOT NULL,
         slug text NOT NULL UNIQUE,
         logo_url text,
+        default_theme varchar(20) DEFAULT 'dark' NOT NULL,
         created_by text NOT NULL,
         is_active boolean DEFAULT true NOT NULL,
-        created_at timestamp DEFAULT now() NOT NULL
+        created_at timestamp DEFAULT now() NOT NULL,
+        updated_at timestamp DEFAULT now() NOT NULL
       )
     `);
 
@@ -169,7 +171,8 @@ async function ensurePublicGlobals() {
         user_id text NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
         role public.workspace_member_role DEFAULT 'MEMBER' NOT NULL,
         granted_by text NOT NULL,
-        granted_at timestamp DEFAULT now() NOT NULL
+        granted_at timestamp DEFAULT now() NOT NULL,
+        updated_at timestamp DEFAULT now() NOT NULL
       )
     `);
 
@@ -186,18 +189,26 @@ async function ensurePublicGlobals() {
       ON public.workspace_members(workspace_id)
     `);
     await client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS workspace_slug_idx
-      ON public.workspaces(slug)
-    `);
-
-    await client.query(`
       CREATE TABLE IF NOT EXISTS public.access_groups (
         id serial PRIMARY KEY,
+        workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
         name varchar(120) NOT NULL,
         description text,
         created_at timestamp DEFAULT now() NOT NULL,
         updated_at timestamp DEFAULT now() NOT NULL
       )
+    `);
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS access_group_workspace_name_idx
+      ON public.access_groups(workspace_id, name)
+    `);
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS access_group_id_workspace_idx
+      ON public.access_groups(id, workspace_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS access_group_workspace_idx
+      ON public.access_groups(workspace_id)
     `);
 
     await client.query(`
@@ -207,12 +218,9 @@ async function ensurePublicGlobals() {
         module_slug varchar(120) NOT NULL,
         action varchar(20) NOT NULL,
         description text,
-        created_at timestamp DEFAULT now() NOT NULL
+        created_at timestamp DEFAULT now() NOT NULL,
+        updated_at timestamp DEFAULT now() NOT NULL
       )
-    `);
-    await client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS permission_key_idx
-      ON public.permissions(key)
     `);
     await client.query(`
       CREATE INDEX IF NOT EXISTS permission_module_slug_idx
@@ -234,25 +242,47 @@ async function ensurePublicGlobals() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.user_groups (
         id serial PRIMARY KEY,
+        workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
         user_id text NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
-        group_id integer NOT NULL REFERENCES public.access_groups(id) ON DELETE CASCADE
+        group_id integer NOT NULL,
+        CONSTRAINT user_groups_group_workspace_fk
+          FOREIGN KEY (group_id, workspace_id)
+          REFERENCES public.access_groups(id, workspace_id)
+          ON DELETE CASCADE
       )
     `);
     await client.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS user_group_unique_idx
-      ON public.user_groups(user_id, group_id)
+      ON public.user_groups(workspace_id, user_id, group_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS user_group_workspace_user_idx
+      ON public.user_groups(workspace_id, user_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS user_group_workspace_group_idx
+      ON public.user_groups(workspace_id, group_id)
     `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.user_permissions (
         id serial PRIMARY KEY,
+        workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
         user_id text NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
         permission_id integer NOT NULL REFERENCES public.permissions(id) ON DELETE CASCADE
       )
     `);
     await client.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS user_permission_unique_idx
-      ON public.user_permissions(user_id, permission_id)
+      ON public.user_permissions(workspace_id, user_id, permission_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS user_permission_workspace_user_idx
+      ON public.user_permissions(workspace_id, user_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS user_permission_workspace_permission_idx
+      ON public.user_permissions(workspace_id, permission_id)
     `);
 
     await client.query('COMMIT');
@@ -361,6 +391,7 @@ async function main() {
     await globalDb.insert(workspaces).values({
       name: 'DSTECH',
       slug: 'dstech',
+      defaultTheme: 'dark',
       createdBy: 'system-bootstrap',
     });
   }

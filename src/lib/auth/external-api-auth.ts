@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { NextRequest } from 'next/server';
+import { getRequiredEnv } from '@/lib/env';
 
 export class ExternalApiAuthError extends Error {
   constructor(
@@ -12,7 +13,11 @@ export class ExternalApiAuthError extends Error {
 }
 
 function getConfiguredToken() {
-  return process.env.EXTERNAL_API_TOKEN?.trim() ?? '';
+  try {
+    return getRequiredEnv('EXTERNAL_API_TOKEN');
+  } catch {
+    return '';
+  }
 }
 
 function safeEqual(left: string, right: string) {

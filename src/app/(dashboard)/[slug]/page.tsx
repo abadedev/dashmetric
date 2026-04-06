@@ -15,7 +15,8 @@ import {
   UserMinus,
 } from 'lucide-react';
 import { auth } from '@/lib/auth';
-import { canAccessModule, getModuleBySlug, type AppRole } from '@/lib/services/module-service';
+import { buildAuthorizationContext, canAccessModule } from '@/lib/authorization';
+import { getModuleBySlug, type AppRole } from '@/lib/services/module-service';
 import { resolveActiveWorkspace } from '@/lib/workspace';
 import { resolveWorkspaceHref } from '@/lib/workspace-navigation';
 import { PageLayout } from '@/components/layout/page-layout';
@@ -100,8 +101,9 @@ export default async function DynamicModulePage({
     notFound();
   }
 
-  const userRole = ((session.user as { role?: AppRole }).role ?? 'user') as AppRole;
-  if (!canAccessModule(userRole, module.requiredRole)) {
+  const authorization = await buildAuthorizationContext(await headers(), activeWorkspace.slug);
+
+  if (!authorization || !canAccessModule(authorization, module)) {
     redirect('/');
   }
 

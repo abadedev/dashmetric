@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { moduleImportProfiles, systemModules } from '@/lib/db/schema';
-import { requireAdmin } from '@/lib/require-auth';
-import { runWithWorkspace } from '@/lib/with-workspace';
-import { and, eq } from 'drizzle-orm';
+import { requireWorkspacePermission } from '@/lib/require-auth';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  const { response } = await requireAdmin(req);
-  if (response) return response;
-  return runWithWorkspace(req, async (ctx) => {
+  const result = await requireWorkspacePermission(req, 'admin.modules.manage');
+  if (result.response) return result.response;
+
   try {
     const body = await req.json();
     const moduleId = Number(body.moduleId);
@@ -18,7 +17,7 @@ export async function POST(req: NextRequest) {
     const [moduleRow] = await db
       .select({ id: systemModules.id })
       .from(systemModules)
-      .where(and(eq(systemModules.id, moduleId), eq(systemModules.workspaceId, ctx.workspaceId)))
+      .where(and(eq(systemModules.id, moduleId), eq(systemModules.workspaceId, result.context.workspaceId)))
       .limit(1);
 
     if (!moduleRow) {
@@ -42,5 +41,4 @@ export async function POST(req: NextRequest) {
     console.error('[module-import-profiles:post]', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-  });
 }

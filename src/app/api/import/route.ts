@@ -8,6 +8,11 @@ import { eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
+/**
+ * LEGACY compatibility endpoint.
+ * Keep delegating to the canonical attendance import flow until old clients are fully migrated.
+ * TODO(next phase): remove this adapter only after confirming no callers still depend on `/api/import`.
+ */
 export async function POST(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
@@ -47,7 +52,10 @@ export async function POST(req: NextRequest) {
       deprecated: true,
     });
   } catch (err) {
-    console.error('[import legacy]', err);
+    console.error('[import legacy]', {
+      workspaceId: ctx.workspaceId,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
   });

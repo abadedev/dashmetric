@@ -1,33 +1,73 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { Building2, Layers3, Shield, ShieldAlert, Users } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { useSession } from '@/lib/auth-client';
 import { ModuleManager } from '@/components/admin/module-manager';
 import { UsersManager } from '@/components/admin/users-manager';
 import { RolesManager } from '@/components/admin/roles-manager';
 import { WorkspaceManager } from '@/components/admin/workspace-manager';
 
+function readActiveWorkspaceCookie() {
+  if (typeof document === 'undefined') return null;
+
+  const match = document.cookie
+    .split('; ')
+    .find((item) => item.startsWith('dwm_active_workspace='));
+
+  return match ? decodeURIComponent(match.split('=')[1] ?? '') : null;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const { data, isPending } = useSession();
+  const [activeWorkspaceSlug, setActiveWorkspaceSlug] = useState<string | null>(null);
   const user = data?.user as { name?: string; role?: string } | undefined;
-  const isAdmin = user?.role === 'admin';
+  const isPlatformAdmin = user?.role === 'admin';
 
   useEffect(() => {
-    if (!isPending && !isAdmin) {
-      router.replace('/');
+    setActiveWorkspaceSlug(readActiveWorkspaceCookie());
+  }, []);
+
+  const { data: workspaceData } = useQuery({
+    queryKey: ['my-workspaces', 'admin-page'],
+    queryFn: async () => {
+      const res = await fetch('/api/workspaces/my');
+      if (!res.ok) throw new Error('Falha ao carregar workspaces');
+      return res.json() as Promise<{
+        data: Array<{ id: string; name: string; slug: string; role: 'ADMIN' | 'MEMBER' | 'VIEWER' }>;
+      }>;
+    },
+    enabled: !isPending && Boolean(data?.user),
+  });
+
+  const activeWorkspace = useMemo(() => {
+    const workspaces = workspaceData?.data ?? [];
+    if (workspaces.length === 0) return null;
+    if (activeWorkspaceSlug) {
+      return workspaces.find((workspace) => workspace.slug === activeWorkspaceSlug) ?? workspaces[0] ?? null;
     }
-  }, [isAdmin, isPending, router]);
+    return workspaces[0] ?? null;
+  }, [activeWorkspaceSlug, workspaceData?.data]);
+
+  const canManageCurrentWorkspace = Boolean(isPlatformAdmin || activeWorkspace?.role === 'ADMIN');
+
+  useEffect(() => {
+    if (!isPending && !data?.user) {
+      router.replace('/auth');
+    }
+  }, [data?.user, isPending, router]);
 
   if (isPending) {
     return null;
   }
 
-  if (!isAdmin) {
+  if (!canManageCurrentWorkspace) {
     return (
       <div className="mx-auto max-w-3xl">
         <Card>
@@ -37,7 +77,7 @@ export default function AdminPage() {
               <CardTitle>Acesso restrito</CardTitle>
             </div>
             <CardDescription>
-              Esta área está disponível apenas para contas com perfil administrador.
+              Esta area administrativa exige papel global de administrador ou papel `ADMIN` no workspace ativo.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -47,10 +87,14 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">Painel Administrativo</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Aqui você controla quem pode acessar o quê no sistema.
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-xl font-semibold">Painel Administrativo</h1>
+          {isPlatformAdmin ? <Badge variant="destructive">Papel global: administrador</Badge> : null}
+          {activeWorkspace ? <Badge variant="secondary">Workspace: {activeWorkspace.name}</Badge> : null}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Usuarios, grupos, permissoes extras e modulos abaixo operam no workspace ativo.
         </p>
       </div>
 
@@ -58,20 +102,22 @@ export default function AdminPage() {
         <TabsList>
           <TabsTrigger value="usuarios">
             <Users className="h-4 w-4" />
-            Usuários
+            Usuarios
           </TabsTrigger>
           <TabsTrigger value="grupos">
             <Shield className="h-4 w-4" />
-            Grupos de Acesso
+            Grupos do Workspace
           </TabsTrigger>
           <TabsTrigger value="modulos">
             <Layers3 className="h-4 w-4" />
-            Módulos
+            Modulos
           </TabsTrigger>
-          <TabsTrigger value="workspaces">
-            <Building2 className="h-4 w-4" />
-            Workspaces
-          </TabsTrigger>
+          {isPlatformAdmin ? (
+            <TabsTrigger value="workspaces">
+              <Building2 className="h-4 w-4" />
+              Workspaces
+            </TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="usuarios" className="mt-4">
@@ -86,9 +132,11 @@ export default function AdminPage() {
           <ModuleManager />
         </TabsContent>
 
-        <TabsContent value="workspaces" className="mt-4">
-          <WorkspaceManager />
-        </TabsContent>
+        {isPlatformAdmin ? (
+          <TabsContent value="workspaces" className="mt-4">
+            <WorkspaceManager />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );
