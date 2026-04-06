@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/require-auth';
-import { runWithWorkspace } from '@/lib/with-workspace';
+import { requireWorkspacePermission } from '@/lib/require-auth';
 import { getModuleFilterPayload } from '@/lib/search/filter-options-service';
 import { parseModuleFilterResource } from '@/lib/search/module-filters';
 import { ExternalApiRequestError } from '@/lib/api/external-query';
@@ -12,19 +11,23 @@ type RouteContext = {
 };
 
 export async function GET(req: NextRequest, context: RouteContext) {
-  const { response } = await requireAuth(req);
-  if (response) return response;
+  const { module } = await context.params;
 
   try {
-    return await runWithWorkspace(req, async (ctx) => {
-      const { module } = await context.params;
-      const resource = parseModuleFilterResource(module);
-      const data = await getModuleFilterPayload(resource, ctx.workspaceId);
+    const result = await requireWorkspacePermission(req, `${module}.view`, {
+      moduleSlug: module,
+      action: 'view',
+      requiredRole: 'user',
+    });
 
-      return NextResponse.json({
-        success: true,
-        ...data,
-      });
+    if (result.response) return result.response;
+
+    const resource = parseModuleFilterResource(module);
+    const data = await getModuleFilterPayload(resource, result.context.workspaceId);
+
+    return NextResponse.json({
+      success: true,
+      ...data,
     });
   } catch (error) {
     if (error instanceof ExternalApiRequestError) {

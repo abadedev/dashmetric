@@ -247,6 +247,27 @@ const DEFAULT_MODULES: Array<{
   },
 ];
 
+export const NEW_WORKSPACE_ENABLED_MODULE_SLUGS = new Set(['dashboard', 'upload']);
+
+export function getDefaultModuleActivationState(
+  module: Pick<NewSystemModule, 'slug' | 'isActive' | 'showInSidebar'>,
+  options?: { isNewWorkspaceBootstrap?: boolean }
+) {
+  if (!options?.isNewWorkspaceBootstrap) {
+    return {
+      isActive: module.isActive ?? true,
+      showInSidebar: module.showInSidebar ?? true,
+    };
+  }
+
+  const enabledByDefault = NEW_WORKSPACE_ENABLED_MODULE_SLUGS.has(module.slug ?? '');
+
+  return {
+    isActive: enabledByDefault,
+    showInSidebar: enabledByDefault,
+  };
+}
+
 const ROLE_WEIGHT: Record<AppRole, number> = {
   user: 1,
   editor: 2,
@@ -261,6 +282,8 @@ export async function ensureDefaultModules(workspaceId: string) {
   // Also include rows with NULL workspace_id: these are legacy modules created
   // before the workspace migration. We'll claim them below instead of re-inserting
   // (which would hit the old global unique index on slug).
+  // TODO(next phase): once every environment is verified and backfilled,
+  // stop claiming NULL workspace rows here and enforce workspace ownership at the schema level.
   const existing = await db
     .select()
     .from(systemModules)
@@ -278,15 +301,21 @@ export async function ensureDefaultModules(workspaceId: string) {
           .from(moduleImportProfiles)
           .where(inArray(moduleImportProfiles.moduleId, existing.map((item) => item.id)))
       : [];
+  const hasWorkspaceOwnedModules = existing.some((item) => item.workspaceId === workspaceId);
 
   for (const definition of DEFAULT_MODULES) {
     const found = existingBySlug.get(definition.module.slug!);
 
     if (!found) {
+      const activationState = getDefaultModuleActivationState(definition.module, {
+        isNewWorkspaceBootstrap: !hasWorkspaceOwnedModules,
+      });
+
       const [inserted] = await db
         .insert(systemModules)
         .values({
           ...definition.module,
+          ...activationState,
           workspaceId,
         })
         .returning();

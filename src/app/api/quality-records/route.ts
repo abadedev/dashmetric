@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { qualityRecords } from '@/lib/db/schema';
-import { requireAuth } from '@/lib/require-auth';
-import { runWithWorkspace } from '@/lib/with-workspace';
+import { requireWorkspacePermission } from '@/lib/require-auth';
 import { and, desc, eq, gte, ilike, lte, or, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
-  const { response } = await requireAuth(req);
-  if (response) return response;
-  return runWithWorkspace(req, async (ctx) => {
+  const result = await requireWorkspacePermission(req, 'qualidade.view', {
+    moduleSlug: 'qualidade',
+    action: 'view',
+    requiredRole: 'user',
+  });
+  if (result.response) return result.response;
   try {
     const { searchParams } = new URL(req.url);
     const fromStr   = searchParams.get('from');
@@ -21,7 +23,7 @@ export async function GET(req: NextRequest) {
     const search    = searchParams.get('search');
     const technicianId = searchParams.get('technicianId');
 
-    const filters: SQL[] = [eq(qualityRecords.workspaceId, ctx.workspaceId)];
+    const filters: SQL[] = [eq(qualityRecords.workspaceId, result.context.workspaceId)];
     if (fromStr) filters.push(gte(qualityRecords.openedAt, new Date(fromStr)));
     if (toStr)   filters.push(lte(qualityRecords.openedAt, new Date(toStr)));
     if (indicator) filters.push(eq(qualityRecords.indicator, indicator as never));
@@ -96,5 +98,4 @@ export async function GET(req: NextRequest) {
     console.error('[quality-records]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-  });
 }

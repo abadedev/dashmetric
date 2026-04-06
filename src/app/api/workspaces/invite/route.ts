@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/require-auth';
+import { requireWorkspacePermission } from '@/lib/require-auth';
 import { globalDb as db } from '@/lib/db';
 import { workspaces, workspaceMembers, user } from '@/lib/db/schemas/global';
-import { eq, and } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
-/**
- * POST /api/workspaces/invite
- * Simplified invite: workspace ADMIN sends invite by email.
- * Body: { workspaceSlug: string, email: string, role?: 'MEMBER' | 'VIEWER' | 'ADMIN' }
- */
 export async function POST(req: NextRequest) {
-  const { session, response } = await requireAuth(req);
-  if (response) return response;
+  const result = await requireWorkspacePermission(req, 'admin.users.manage');
+  if (result.response) return result.response;
 
   const body = (await req.json()) as {
     workspaceSlug?: string;
@@ -22,12 +17,11 @@ export async function POST(req: NextRequest) {
   };
 
   if (!body.workspaceSlug || !body.email) {
-    return NextResponse.json({ error: 'workspaceSlug e email são obrigatórios' }, { status: 400 });
+    return NextResponse.json({ error: 'workspaceSlug e email sao obrigatorios' }, { status: 400 });
   }
 
   const email = body.email.trim().toLowerCase();
 
-  // Find workspace
   const [ws] = await db
     .select({ id: workspaces.id, name: workspaces.name })
     .from(workspaces)
@@ -35,22 +29,13 @@ export async function POST(req: NextRequest) {
     .limit(1);
 
   if (!ws) {
-    return NextResponse.json({ error: 'Workspace não encontrado' }, { status: 404 });
+    return NextResponse.json({ error: 'Workspace nao encontrado' }, { status: 404 });
   }
 
-  // Check requester is ADMIN of this workspace
-  const [requesterMembership] = await db
-    .select({ role: workspaceMembers.role })
-    .from(workspaceMembers)
-    .where(and(eq(workspaceMembers.workspaceId, ws.id), eq(workspaceMembers.userId, session.user.id)))
-    .limit(1);
-
-  const isGlobalAdmin = (session.user as { role?: string }).role === 'admin';
-  if (!isGlobalAdmin && requesterMembership?.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Sem permissão para convidar neste workspace' }, { status: 403 });
+  if (ws.id !== result.context.workspaceId && result.context.globalRole !== 'admin') {
+    return NextResponse.json({ error: 'O convite deve usar o workspace ativo.' }, { status: 403 });
   }
 
-  // Find user by email
   const [invitee] = await db
     .select({ id: user.id, name: user.name, email: user.email })
     .from(user)
@@ -59,7 +44,9 @@ export async function POST(req: NextRequest) {
 
   if (!invitee) {
     return NextResponse.json(
-      { error: `Nenhum usuário encontrado com o email "${email}". O usuário precisa ter feito login pelo menos uma vez.` },
+      {
+        error: `Nenhum usuario encontrado com o email "${email}". O usuario precisa ter feito login pelo menos uma vez.`,
+      },
       { status: 404 }
     );
   }
@@ -75,16 +62,19 @@ export async function POST(req: NextRequest) {
       workspaceId: ws.id,
       userId: invitee.id,
       role,
-      grantedBy: session.user.id,
+      grantedBy: result.context.userId,
     })
     .onConflictDoUpdate({
       target: [workspaceMembers.workspaceId, workspaceMembers.userId],
-      set: { role, grantedBy: session.user.id },
+      set: { role, grantedBy: result.context.userId },
     })
     .returning();
 
-  return NextResponse.json({
-    data: created,
-    user: { name: invitee.name, email: invitee.email },
-  }, { status: 201 });
+  return NextResponse.json(
+    {
+      data: created,
+      user: { name: invitee.name, email: invitee.email },
+    },
+    { status: 201 }
+  );
 }

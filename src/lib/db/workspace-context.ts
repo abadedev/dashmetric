@@ -9,6 +9,10 @@ import { workspaces } from '@/lib/db/schemas/global';
  */
 const slugToIdCache = new Map<string, string>();
 
+export function isWorkspaceNotFoundError(error: unknown): error is Error {
+  return error instanceof Error && error.message.startsWith('[workspace-context] Workspace not found');
+}
+
 /**
  * Resolves a workspace UUID from its slug.
  * Throws if the workspace does not exist.

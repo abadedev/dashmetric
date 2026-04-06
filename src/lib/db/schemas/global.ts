@@ -15,6 +15,7 @@ import {
   pgEnum,
   index,
   uniqueIndex,
+  foreignKey,
 } from 'drizzle-orm/pg-core';
 
 // ── Enums (defined in public, referenced by workspace tables via search_path) ──
@@ -88,11 +89,13 @@ export const workspaces = pgTable(
     name: text('name').notNull(),
     slug: text('slug').notNull().unique(),
     logoUrl: text('logo_url'),
+    defaultTheme: varchar('default_theme', { length: 20 }).default('dark').notNull(),
     createdBy: text('created_by').notNull(),
     isActive: boolean('is_active').default(true).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
-  (table) => [uniqueIndex('workspace_slug_idx').on(table.slug)]
+  () => []
 );
 
 export const workspaceMembers = pgTable(
@@ -108,6 +111,7 @@ export const workspaceMembers = pgTable(
     role: workspaceMemberRoleEnum('role').default('MEMBER').notNull(),
     grantedBy: text('granted_by').notNull(),
     grantedAt: timestamp('granted_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex('workspace_member_unique_idx').on(table.workspaceId, table.userId),
@@ -118,13 +122,24 @@ export const workspaceMembers = pgTable(
 
 // ── Permission system ──
 
-export const accessGroups = pgTable('access_groups', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 120 }).notNull(),
-  description: text('description'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+export const accessGroups = pgTable(
+  'access_groups',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 120 }).notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('access_group_workspace_name_idx').on(table.workspaceId, table.name),
+    uniqueIndex('access_group_id_workspace_idx').on(table.id, table.workspaceId),
+    index('access_group_workspace_idx').on(table.workspaceId),
+  ]
+);
 
 export const permissions = pgTable(
   'permissions',
@@ -135,11 +150,9 @@ export const permissions = pgTable(
     action: varchar('action', { length: 20 }).notNull(),
     description: text('description'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
-  (table) => [
-    uniqueIndex('permission_key_idx').on(table.key),
-    index('permission_module_slug_idx').on(table.moduleSlug),
-  ]
+  (table) => [index('permission_module_slug_idx').on(table.moduleSlug)]
 );
 
 export const groupPermissions = pgTable(
@@ -160,20 +173,33 @@ export const userGroups = pgTable(
   'user_groups',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    groupId: integer('group_id')
-      .notNull()
-      .references(() => accessGroups.id, { onDelete: 'cascade' }),
+    groupId: integer('group_id').notNull(),
   },
-  (table) => [uniqueIndex('user_group_unique_idx').on(table.userId, table.groupId)]
+  (table) => [
+    foreignKey({
+      columns: [table.groupId, table.workspaceId],
+      foreignColumns: [accessGroups.id, accessGroups.workspaceId],
+      name: 'user_groups_group_workspace_fk',
+    }).onDelete('cascade'),
+    uniqueIndex('user_group_unique_idx').on(table.workspaceId, table.userId, table.groupId),
+    index('user_group_workspace_user_idx').on(table.workspaceId, table.userId),
+    index('user_group_workspace_group_idx').on(table.workspaceId, table.groupId),
+  ]
 );
 
 export const userPermissions = pgTable(
   'user_permissions',
   {
     id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
@@ -181,7 +207,11 @@ export const userPermissions = pgTable(
       .notNull()
       .references(() => permissions.id, { onDelete: 'cascade' }),
   },
-  (table) => [uniqueIndex('user_permission_unique_idx').on(table.userId, table.permissionId)]
+  (table) => [
+    uniqueIndex('user_permission_unique_idx').on(table.workspaceId, table.userId, table.permissionId),
+    index('user_permission_workspace_user_idx').on(table.workspaceId, table.userId),
+    index('user_permission_workspace_permission_idx').on(table.workspaceId, table.permissionId),
+  ]
 );
 
 // ── Types ──

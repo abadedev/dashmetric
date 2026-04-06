@@ -7,6 +7,10 @@ import { workspaceMembers, workspaces } from '@/lib/db/schemas/global';
 const PUBLIC_PATHS = ['/auth', '/waiting'];
 const BYPASS_PREFIXES = ['/api/', '/_next', '/favicon', '/public'];
 const RESERVED_SEGMENTS = new Set(['api', 'auth', 'waiting', '_next', 'favicon', 'public']);
+/**
+ * @deprecated Legacy module paths kept only for backward-compatible redirects.
+ * Do not use these Portuguese top-level routes as naming reference for new code.
+ */
 const LEGACY_MODULE_PATHS = new Set([
   '/dashboard',
   '/atendimentos',

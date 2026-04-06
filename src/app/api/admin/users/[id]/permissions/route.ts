@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/require-auth';
+import { requireWorkspacePermission } from '@/lib/require-auth';
 import {
   getUserIndividualPermissions,
   setUserIndividualPermissions,
@@ -11,12 +11,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(req);
+  const result = await requireWorkspacePermission(req, 'admin.users.manage');
   if (result.response) return result.response;
 
   try {
     const { id } = await params;
-    const data = await getUserIndividualPermissions(id);
+    const data = await getUserIndividualPermissions(id, result.context.workspaceId);
     return NextResponse.json({ data });
   } catch (error) {
     console.error('[admin:users:permissions:GET]', error);
@@ -28,7 +28,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(req);
+  const result = await requireWorkspacePermission(req, 'admin.users.manage');
   if (result.response) return result.response;
 
   try {
@@ -39,7 +39,7 @@ export async function POST(
       return NextResponse.json({ error: 'permissionIds deve ser um array' }, { status: 400 });
     }
 
-    await setUserIndividualPermissions(id, body.permissionIds);
+    await setUserIndividualPermissions(id, result.context.workspaceId, body.permissionIds);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[admin:users:permissions:POST]', error);

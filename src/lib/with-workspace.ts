@@ -1,5 +1,5 @@
-import { NextRequest } from 'next/server';
-import { resolveWorkspaceId, type WorkspaceContext } from '@/lib/db/workspace-context';
+import { NextRequest, NextResponse } from 'next/server';
+import { isWorkspaceNotFoundError, resolveWorkspaceId, type WorkspaceContext } from '@/lib/db/workspace-context';
 
 /**
  * Extracts the active workspace slug from the request cookie.
@@ -24,9 +24,23 @@ export function getWorkspaceSlug(req: NextRequest): string {
 export async function runWithWorkspace<T>(
   req: NextRequest,
   fn: (ctx: WorkspaceContext) => Promise<T>
-): Promise<T> {
+): Promise<T | NextResponse> {
   const slug = getWorkspaceSlug(req);
-  const workspaceId = await resolveWorkspaceId(slug);
-  const ctx: WorkspaceContext = { slug, workspaceId };
-  return fn(ctx);
+
+  try {
+    const workspaceId = await resolveWorkspaceId(slug);
+    const ctx: WorkspaceContext = { slug, workspaceId };
+    return fn(ctx);
+  } catch (error) {
+    if (isWorkspaceNotFoundError(error)) {
+      console.warn('[workspace-context] invalid workspace cookie', { slug });
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    }
+
+    console.error('[workspace-context] failed to resolve workspace', {
+      slug,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json({ error: 'Unable to resolve workspace context' }, { status: 500 });
+  }
 }

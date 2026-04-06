@@ -2,16 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { atendimentos } from '@/lib/db/schema';
 import { formatSecondsToHHMMSS } from '@/lib/importacao/helpers';
-import { requireAuth } from '@/lib/require-auth';
-import { runWithWorkspace } from '@/lib/with-workspace';
+import { requireWorkspacePermission } from '@/lib/require-auth';
 import { and, count, eq, isNotNull, sql, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
-  const { response } = await requireAuth(req);
-  if (response) return response;
-  return runWithWorkspace(req, async (ctx) => {
+  const result = await requireWorkspacePermission(req, 'ranking.view', {
+    moduleSlug: 'ranking',
+    action: 'view',
+    requiredRole: 'user',
+  });
+  if (result.response) return result.response;
   try {
     const { searchParams } = new URL(req.url);
     const fromStr = searchParams.get('from');
@@ -19,7 +21,7 @@ export async function GET(req: NextRequest) {
     const city    = searchParams.get('city');
 
     // Filtro de data usando COALESCE equivalente ao $or do MongoDB
-    const dateFilters: SQL[] = [eq(atendimentos.workspaceId, ctx.workspaceId)];
+    const dateFilters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
     if (fromStr || toStr) {
       const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
       if (fromStr) dateFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
@@ -99,5 +101,4 @@ export async function GET(req: NextRequest) {
     console.error('[ranking]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-  });
 }

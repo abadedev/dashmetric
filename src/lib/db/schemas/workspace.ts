@@ -51,13 +51,6 @@ export const qualityIndicatorEnum = pgEnum('quality_indicator', [
   'Retorno',
 ]);
 
-export const importStatusEnum = pgEnum('import_status', [
-  'pending',
-  'processing',
-  'completed',
-  'failed',
-]);
-
 export const salesRecordTypeEnum = pgEnum('sales_record_type', [
   'negociado',
   'fechado',
@@ -84,51 +77,6 @@ export const technicians = pgTable(
   (table) => [
     uniqueIndex('tech_name_idx').on(table.name),
     index('tech_login_idx').on(table.login),
-  ]
-);
-
-export const importBatches = pgTable('import_batches', {
-  id: serial('id').primaryKey(),
-  filename: varchar('filename', { length: 255 }).notNull(),
-  totalRows: integer('total_rows').default(0),
-  importedRows: integer('imported_rows').default(0),
-  errors: integer('errors').default(0),
-  errorDetails: text('error_details'),
-  status: importStatusEnum('status').default('pending').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
-
-export const serviceOrders = pgTable(
-  'service_orders',
-  {
-    id: serial('id').primaryKey(),
-    osNumber: varchar('os_number', { length: 20 }),
-    activityType: activityTypeEnum('activity_type').notNull(),
-    reason: text('reason'),
-    solution: text('solution'),
-    technicianId: integer('technician_id').references(() => technicians.id),
-    clientName: varchar('client_name', { length: 255 }),
-    city: varchar('city', { length: 100 }),
-    plan: varchar('plan', { length: 255 }),
-    openedAt: timestamp('opened_at'),
-    closedAt: timestamp('closed_at'),
-    slaTargetHours: integer('sla_target_hours'),
-    slaCorridoSeconds: integer('sla_corrido_seconds'),
-    slaUtilSeconds: integer('sla_util_seconds'),
-    withinSlaCorrido: boolean('within_sla_corrido'),
-    withinSlaUtil: boolean('within_sla_util'),
-    importBatchId: integer('import_batch_id').references(() => importBatches.id),
-    periodMonth: integer('period_month'),
-    periodYear: integer('period_year'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-  },
-  (table) => [
-    index('so_technician_idx').on(table.technicianId),
-    index('so_activity_type_idx').on(table.activityType),
-    index('so_period_idx').on(table.periodYear, table.periodMonth),
-    index('so_city_idx').on(table.city),
-    index('so_opened_at_idx').on(table.openedAt),
-    index('so_os_number_idx').on(table.osNumber),
   ]
 );
 
@@ -346,11 +294,19 @@ export const lotesImportacao = pgTable('lotes_importacao', {
 export const importacoesBrutas = pgTable('importacoes_brutas', {
   id: serial('id').primaryKey(),
   loteImportacaoId: integer('lote_importacao_id').references(() => lotesImportacao.id),
+  /**
+   * Current strategy: persist the full raw payload indefinitely for audit/reprocessing safety.
+   * TODO(next phase): define retention and cleanup rules before this volume grows unbounded.
+   */
   rawJson: jsonb('raw_json').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const atendimentos = pgTable(
+  /**
+   * @deprecated Legacy operational naming preserved for backward compatibility.
+   * Do not use this Portuguese table identifier as reference for new technical structures.
+   */
   'atendimentos',
   {
     id: serial('id').primaryKey(),

@@ -2,23 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { atendimentos, qualityRecords } from '@/lib/db/schema';
 import { calculateValidAverage } from '@/lib/utils/average';
-import { requireAuth } from '@/lib/require-auth';
-import { runWithWorkspace } from '@/lib/with-workspace';
+import { requireWorkspacePermission } from '@/lib/require-auth';
 import { and, count, eq, gte, lte, sql, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
-  const { response } = await requireAuth(req);
-  if (response) return response;
-  return runWithWorkspace(req, async (ctx) => {
+  const result = await requireWorkspacePermission(req, 'dashboard.view', {
+    moduleSlug: 'dashboard',
+    action: 'view',
+    requiredRole: 'user',
+  });
+  if (result.response) return result.response;
   try {
     const { searchParams } = new URL(req.url);
     const fromStr = searchParams.get('from');
     const toStr   = searchParams.get('to');
 
     // Filtro de data para atendimentos: COALESCE(aberturaAt, finalizacaoAt, createdAt)
-    const atendFilters: SQL[] = [eq(atendimentos.workspaceId, ctx.workspaceId)];
+    const atendFilters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
     if (fromStr || toStr) {
       const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
       if (fromStr) atendFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
     const atendWhere = atendFilters.length ? and(...atendFilters) : undefined;
 
     // Filtro de data para qualidade (usa openedAt)
-    const qualityFilters: SQL[] = [eq(qualityRecords.workspaceId, ctx.workspaceId)];
+    const qualityFilters: SQL[] = [eq(qualityRecords.workspaceId, result.context.workspaceId)];
     if (fromStr) qualityFilters.push(gte(qualityRecords.openedAt, new Date(fromStr)));
     if (toStr)   qualityFilters.push(lte(qualityRecords.openedAt, new Date(toStr)));
     const qualityWhere = qualityFilters.length ? and(...qualityFilters) : undefined;
@@ -99,5 +101,4 @@ export async function GET(req: NextRequest) {
     console.error('[dashboard]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-  });
 }

@@ -237,24 +237,29 @@ export function DashielWidget() {
     setMessages((prev) => [...prev, buildMessage('user', trimmed)]);
 
     try {
-      const response = await fetch('/api/dashiel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed }),
-      });
+      const response = await fetch(
+        'https://n8nabade.squareweb.app/webhook/40c22652-857b-44f9-9124-997e3d7b88d8/chat',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatInput: trimmed }),
+        },
+      );
 
       const data = (await response.json()) as {
-        success?: boolean;
+        output?: string;
         answer?: string;
         insightCards?: InsightCard[];
         error?: string;
       };
 
-      if (!response.ok || !data.answer) {
+      const rawAnswer = data.output ?? data.answer;
+
+      if (!response.ok || !rawAnswer) {
         throw new Error(data.error ?? 'Não foi possível consultar os dados no momento.');
       }
 
-      const answer = data.answer.trim();
+      const answer = rawAnswer.trim();
       setMessages((prev) => [
         ...prev,
         buildMessage('assistant', answer, classifyAssistantMessage(answer)),

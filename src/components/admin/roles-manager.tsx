@@ -57,6 +57,8 @@ type PermissionItem = {
 
 function humanizeSlug(slug: string) {
   return slug
+    .split('.')
+    .join(' / ')
     .split('-')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
@@ -70,6 +72,66 @@ function groupByModule(perms: PermissionItem[]) {
     map.set(p.moduleSlug, list);
   }
   return map;
+}
+
+const permissionActionPriority = ['view', 'read', 'create', 'edit', 'delete', 'import', 'export', 'manage', 'admin'];
+
+function normalizePermissionAction(permission: PermissionItem) {
+  const keyAction = permission.key.split('.').pop()?.toLowerCase() ?? '';
+  const rawAction = permission.action.toLowerCase();
+  return keyAction || rawAction;
+}
+
+function humanizePermissionAction(permission: PermissionItem) {
+  const action = normalizePermissionAction(permission);
+
+  if (action === 'view' || action === 'read') return 'Visualizar';
+  if (action === 'create') return 'Criar';
+  if (action === 'edit' || action === 'write') return 'Editar';
+  if (action === 'delete' || action === 'remove') return 'Excluir';
+  if (action === 'import') return 'Importar';
+  if (action === 'export') return 'Exportar';
+  if (action === 'manage') return 'Gerenciar';
+  if (action === 'admin') return 'Administrar';
+
+  if (permission.description?.trim()) {
+    return permission.description.trim();
+  }
+
+  return permission.key
+    .split('.')
+    .slice(1)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ')
+    || permission.key;
+}
+
+function sortPermissions(perms: PermissionItem[]) {
+  return [...perms].sort((left, right) => {
+    const leftAction = normalizePermissionAction(left);
+    const rightAction = normalizePermissionAction(right);
+    const leftIndex = permissionActionPriority.indexOf(leftAction);
+    const rightIndex = permissionActionPriority.indexOf(rightAction);
+
+    if (leftIndex !== rightIndex) {
+      return (leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex)
+        - (rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex);
+    }
+
+    return humanizePermissionAction(left).localeCompare(humanizePermissionAction(right), 'pt-BR');
+  });
+}
+
+function describeSelectedPermissions(perms: PermissionItem[], selectedPermIds: Set<number>) {
+  const selectedLabels = sortPermissions(perms)
+    .filter((perm) => selectedPermIds.has(perm.id))
+    .map((perm) => humanizePermissionAction(perm));
+
+  if (selectedLabels.length === 0) {
+    return 'Nenhuma ação liberada neste módulo.';
+  }
+
+  return selectedLabels.join(', ');
 }
 
 // ---------------------------------------------------------------------------
@@ -185,11 +247,14 @@ function GroupSheet({
             <div className="space-y-3">
               {Array.from(byModule.entries()).map(([slug, perms]) => (
                 <div key={slug} className="rounded-lg border border-border bg-muted/30 px-3 py-3">
-                  <p className="text-xs font-semibold text-foreground mb-2">
+                  <p className="mb-1 text-xs font-semibold text-foreground">
                     {humanizeSlug(slug)}
                   </p>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    {describeSelectedPermissions(perms, selectedPermIds)}
+                  </p>
                   <div className="space-y-1.5">
-                    {perms.map((perm) => (
+                    {sortPermissions(perms).map((perm) => (
                       <label
                         key={perm.id}
                         className="flex items-center gap-2 text-xs cursor-pointer"
@@ -199,9 +264,7 @@ function GroupSheet({
                           checked={selectedPermIds.has(perm.id)}
                           onChange={(e) => handlePermToggle(perm.id, e.target.checked)}
                         />
-                        <span>
-                          {perm.action === 'read' ? 'Pode visualizar' : 'Pode editar / importar'}
-                        </span>
+                        <span>{humanizePermissionAction(perm)}</span>
                       </label>
                     ))}
                   </div>

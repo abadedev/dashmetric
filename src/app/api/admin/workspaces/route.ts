@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/require-auth';
 import { globalDb as db } from '@/lib/db';
 import { workspaces, workspaceMembers } from '@/lib/db/schemas/global';
+import { ensureDefaultModules } from '@/lib/services/module-service';
 import { eq, count } from 'drizzle-orm';
 
 export async function GET(req: NextRequest) {
@@ -14,6 +15,7 @@ export async function GET(req: NextRequest) {
       name: workspaces.name,
       slug: workspaces.slug,
       logoUrl: workspaces.logoUrl,
+      defaultTheme: workspaces.defaultTheme,
       isActive: workspaces.isActive,
       createdAt: workspaces.createdAt,
       createdBy: workspaces.createdBy,
@@ -30,7 +32,12 @@ export async function POST(req: NextRequest) {
   const { response, session } = await requireAdmin(req);
   if (response) return response;
 
-  const body = (await req.json()) as { name?: string; slug?: string; logoUrl?: string | null };
+  const body = (await req.json()) as {
+    name?: string;
+    slug?: string;
+    logoUrl?: string | null;
+    defaultTheme?: 'dark' | 'light';
+  };
 
   if (!body.name?.trim() || !body.slug?.trim()) {
     return NextResponse.json({ error: 'name e slug são obrigatórios' }, { status: 400 });
@@ -54,7 +61,9 @@ export async function POST(req: NextRequest) {
       name: body.name.trim(),
       slug,
       logoUrl: body.logoUrl ?? null,
+      defaultTheme: body.defaultTheme === 'light' ? 'light' : 'dark',
       createdBy: session.user.id,
+      updatedAt: new Date(),
     })
     .returning();
 
@@ -65,6 +74,8 @@ export async function POST(req: NextRequest) {
     role: 'ADMIN',
     grantedBy: session.user.id,
   });
+
+  await ensureDefaultModules(created!.id);
 
   return NextResponse.json({ data: created }, { status: 201 });
 }
