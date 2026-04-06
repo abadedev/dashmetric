@@ -75,6 +75,8 @@ const ACCEPT = {
   'application/vnd.ms-excel': ['.xls'],
 };
 
+const MAX_UPLOAD_SIZE_MB = 50;
+
 export function CsvDropzone({ profiles }: CsvDropzoneProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'validating' | 'processing' | 'finished'>('idle');
@@ -172,10 +174,20 @@ export function CsvDropzone({ profiles }: CsvDropzoneProps) {
       try {
         data = await res.json();
       } catch {
+        if (res.status === 413) {
+          throw new Error(
+            `Arquivo muito grande para o servidor atual. Limite configurado: ${MAX_UPLOAD_SIZE_MB} MB.`
+          );
+        }
         throw new Error(`Servidor retornou resposta invalida (status ${res.status})`);
       }
 
       if (!res.ok) {
+        if (res.status === 413) {
+          throw new Error(
+            `Arquivo muito grande para o servidor atual. Limite configurado: ${MAX_UPLOAD_SIZE_MB} MB.`
+          );
+        }
         throw new Error((data.error as string) || `Erro ${res.status} na importacao`);
       }
 
@@ -373,7 +385,7 @@ export function CsvDropzone({ profiles }: CsvDropzoneProps) {
             </p>
             <p className="mt-1 text-sm text-muted-foreground">ou clique para selecionar do seu computador (CSV ou XLSX)</p>
           </div>
-          <p className="mt-2 text-xs font-medium text-muted-foreground/60 rounded bg-muted/50 px-2 py-1">Tamanho Máx. 50MB</p>
+          <p className="mt-2 text-xs font-medium text-muted-foreground/60 rounded bg-muted/50 px-2 py-1">Tamanho Máx. {MAX_UPLOAD_SIZE_MB}MB</p>
         </div>
       </div>
     );

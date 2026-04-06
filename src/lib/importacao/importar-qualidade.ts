@@ -133,20 +133,32 @@ function getIndicador(row: Record<string, string>): string {
 
 const tecnicoCache = new Map<string, number>();
 
-async function resolverTecnico(nome: string, executor: DbExecutor = db): Promise<number | null> {
+async function resolverTecnico(
+  nome: string,
+  workspaceId: string,
+  executor: DbExecutor = db
+): Promise<number | null> {
   if (!nome) return null;
   const normNome = normalizeTechName(nome);
-  if (tecnicoCache.has(normNome)) return tecnicoCache.get(normNome)!;
+  const cacheKey = `${workspaceId}:${normNome}`;
+  if (tecnicoCache.has(cacheKey)) return tecnicoCache.get(cacheKey)!;
 
   const existing = await executor.query.technicians.findFirst({
-    where: (t, { eq: eqFn }) => eqFn(t.name, normNome),
+    where: (t, { and: andFn, eq: eqFn, sql }) =>
+      andFn(
+        eqFn(t.workspaceId, workspaceId),
+        sql`lower(${t.name}) = lower(${normNome})`
+      ),
   });
   if (existing) {
-    tecnicoCache.set(normNome, existing.id);
+    tecnicoCache.set(cacheKey, existing.id);
     return existing.id;
   }
-  const [created] = await executor.insert(technicians).values({ name: normNome }).returning();
-  tecnicoCache.set(normNome, created.id);
+  const [created] = await executor
+    .insert(technicians)
+    .values({ workspaceId, name: normNome })
+    .returning();
+  tecnicoCache.set(cacheKey, created.id);
   return created.id;
 }
 
@@ -339,7 +351,7 @@ export async function importarQualidade(
       }
 
       const tecnicoNome = get(row, 'tecnico');
-      const tecnicoId = tecnicoNome ? await resolverTecnico(tecnicoNome, executor) : null;
+      const tecnicoId = tecnicoNome ? await resolverTecnico(tecnicoNome, workspaceId, executor) : null;
 
       const periodDate = openedAt ?? new Date();
 
