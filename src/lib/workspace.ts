@@ -8,6 +8,7 @@ export type WorkspaceWithRole = {
   name: string;
   slug: string;
   logoUrl: string | null;
+  defaultTheme: 'dark' | 'light';
   isActive: boolean;
   role: 'ADMIN' | 'MEMBER' | 'VIEWER';
 };
@@ -23,6 +24,7 @@ export const getUserWorkspaces = cache(async (userId: string): Promise<Workspace
       name: workspaces.name,
       slug: workspaces.slug,
       logoUrl: workspaces.logoUrl,
+      defaultTheme: workspaces.defaultTheme,
       isActive: workspaces.isActive,
       role: workspaceMembers.role,
     })
@@ -34,7 +36,10 @@ export const getUserWorkspaces = cache(async (userId: string): Promise<Workspace
         eq(workspaces.isActive, true)
       )
     );
-  return rows;
+  return rows.map((row) => ({
+    ...row,
+    defaultTheme: row.defaultTheme === 'light' ? 'light' : 'dark',
+  }));
 });
 
 /**

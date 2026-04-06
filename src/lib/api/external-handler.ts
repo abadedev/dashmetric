@@ -4,7 +4,7 @@ import { requireExternalApiAuth, ExternalApiAuthError } from '@/lib/auth/externa
 import { ExternalApiRequestError } from './external-query';
 import { createErrorResponse, createSuccessResponse } from './response';
 import { parseExternalApiFilters, serializeAppliedFilters } from './filters';
-import { resolveWorkspaceId } from '@/lib/db/workspace-context';
+import { isWorkspaceNotFoundError, resolveWorkspaceId } from '@/lib/db/workspace-context';
 
 export async function handleExternalApiRequest(
   req: NextRequest,
@@ -61,6 +61,19 @@ export async function handleExternalApiRequest(
       );
     }
 
+    if (isWorkspaceNotFoundError(error)) {
+      return createErrorResponse(
+        404,
+        {
+          code: 'workspace_not_found',
+          message: 'Workspace informado não foi encontrado.',
+        },
+        serializedFilters,
+        { handler: handlerName },
+        options?.buildErrorExtra?.(serializedFilters, error) ?? {}
+      );
+    }
+
     if (error instanceof ZodError) {
       return createErrorResponse(
         400,
@@ -88,7 +101,10 @@ export async function handleExternalApiRequest(
       );
     }
 
-    console.error(`[external-api:${handlerName}]`, error);
+    console.error(`[external-api:${handlerName}]`, {
+      filters: serializedFilters,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return createErrorResponse(
       500,
       {

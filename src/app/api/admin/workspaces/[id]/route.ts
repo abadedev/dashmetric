@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/require-auth';
+import { eq } from 'drizzle-orm';
 import { globalDb as db } from '@/lib/db';
 import { workspaces } from '@/lib/db/schemas/global';
-import { eq } from 'drizzle-orm';
+import { requireAdmin } from '@/lib/require-auth';
 
 interface Context {
   params: Promise<{ id: string }>;
@@ -13,13 +13,19 @@ export async function PUT(req: NextRequest, ctx: Context) {
   if (response) return response;
 
   const { id } = await ctx.params;
-  const body = (await req.json()) as { name?: string; logoUrl?: string | null };
+  const body = (await req.json()) as {
+    name?: string;
+    logoUrl?: string | null;
+    defaultTheme?: 'dark' | 'light';
+  };
 
   const [updated] = await db
     .update(workspaces)
     .set({
       ...(body.name ? { name: body.name.trim() } : {}),
       ...(body.logoUrl !== undefined ? { logoUrl: body.logoUrl } : {}),
+      ...(body.defaultTheme ? { defaultTheme: body.defaultTheme === 'light' ? 'light' : 'dark' } : {}),
+      updatedAt: new Date(),
     })
     .where(eq(workspaces.id, id))
     .returning();
@@ -29,28 +35,4 @@ export async function PUT(req: NextRequest, ctx: Context) {
   }
 
   return NextResponse.json({ data: updated });
-}
-
-export async function POST(req: NextRequest, ctx: Context) {
-  const { response } = await requireAdmin(req);
-  if (response) return response;
-
-  const { id } = await ctx.params;
-  const url = new URL(req.url);
-
-  // POST /api/admin/workspaces/[id]/deactivate
-  if (url.pathname.endsWith('/deactivate')) {
-    const [updated] = await db
-      .update(workspaces)
-      .set({ isActive: false })
-      .where(eq(workspaces.id, id))
-      .returning();
-
-    if (!updated) {
-      return NextResponse.json({ error: 'Workspace não encontrado' }, { status: 404 });
-    }
-    return NextResponse.json({ data: updated });
-  }
-
-  return NextResponse.json({ error: 'Not found' }, { status: 404 });
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/require-auth';
+import { requireWorkspacePermission } from '@/lib/require-auth';
 import {
   getUserGroups,
   addUserToGroup,
@@ -12,12 +12,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(req);
+  const result = await requireWorkspacePermission(req, 'admin.users.manage');
   if (result.response) return result.response;
 
   try {
     const { id } = await params;
-    const data = await getUserGroups(id);
+    const data = await getUserGroups(id, result.context.workspaceId);
     return NextResponse.json({ data });
   } catch (error) {
     console.error('[admin:users:groups:GET]', error);
@@ -29,7 +29,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(req);
+  const result = await requireWorkspacePermission(req, 'admin.users.manage');
   if (result.response) return result.response;
 
   try {
@@ -40,7 +40,7 @@ export async function POST(
       return NextResponse.json({ error: 'groupId é obrigatório' }, { status: 400 });
     }
 
-    await addUserToGroup(id, body.groupId);
+    await addUserToGroup(id, result.context.workspaceId, body.groupId);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[admin:users:groups:POST]', error);
@@ -52,7 +52,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(req);
+  const result = await requireWorkspacePermission(req, 'admin.users.manage');
   if (result.response) return result.response;
 
   try {
@@ -63,7 +63,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'groupId é obrigatório' }, { status: 400 });
     }
 
-    await removeUserFromGroup(id, body.groupId);
+    await removeUserFromGroup(id, result.context.workspaceId, body.groupId);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[admin:users:groups:DELETE]', error);

@@ -4,11 +4,12 @@ import { magicLink } from 'better-auth/plugins';
 import { globalDb } from '@/lib/db';
 import { user, session, account, verification } from '@/lib/db/schemas/global';
 import { sendMagicLink } from '@/lib/email';
+import { getRequiredEnv } from '@/lib/env';
 
 const appUrl =
   process.env.BETTER_AUTH_URL ??
   process.env.NEXT_PUBLIC_APP_URL ??
-  'http://localhost:3000';
+  getRequiredEnv('NEXT_PUBLIC_APP_URL');
 const appOrigin = new URL(appUrl).origin;
 const appHost = new URL(appUrl).host;
 const appProtocol = new URL(appUrl).protocol === 'https:' ? 'https' : 'http';
@@ -19,7 +20,7 @@ export const auth = betterAuth({
     fallback: appUrl,
     protocol: appProtocol,
   },
-  secret: process.env.BETTER_AUTH_SECRET!,
+  secret: getRequiredEnv('BETTER_AUTH_SECRET'),
   trustedOrigins: async (request) => {
     const forwardedHost = request?.headers.get('x-forwarded-host');
     const host = request?.headers.get('host');
@@ -50,8 +51,8 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: getRequiredEnv('GOOGLE_CLIENT_ID'),
+      clientSecret: getRequiredEnv('GOOGLE_CLIENT_SECRET'),
     },
   },
   plugins: [

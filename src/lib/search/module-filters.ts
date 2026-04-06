@@ -12,6 +12,10 @@ export const MODULE_FILTER_RESOURCE_MAP = {
   sales: 'vendas',
   cancellations: 'cancelamentos',
 } as const;
+/**
+ * Naming adapter between English external/filter resources and legacy internal module slugs.
+ * New technical contracts should prefer English names and map to legacy operational slugs here.
+ */
 
 export const MODULE_FILTER_RESOURCES = Object.keys(MODULE_FILTER_RESOURCE_MAP) as Array<keyof typeof MODULE_FILTER_RESOURCE_MAP>;
 

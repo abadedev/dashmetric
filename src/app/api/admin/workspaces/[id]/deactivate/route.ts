@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, ctx: Context) {
 
   const [updated] = await db
     .update(workspaces)
-    .set({ isActive: false })
+    .set({ isActive: false, updatedAt: new Date() })
     .where(eq(workspaces.id, id))
     .returning();
 

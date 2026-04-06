@@ -115,6 +115,8 @@ export function mapearAtendimento(
     horaAbertura:   linha.horaAbertura ?? '',
     dataFinalizacao: linha.dataFinalizacao ?? '',
     horaFinalizacao: linha.horaFinalizacao ?? '',
+    tecnico:        linha.tecnico ?? '',
+    intervalo:      linha.intervalo ?? '',
   });
 
   const tecnicoNome = trimOrNull(linha.tecnico);

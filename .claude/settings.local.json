@@ -61,7 +61,11 @@
       "Bash(find /d/Relatoria.SLA/dstech-noc -type f -name .env*)",
       "Bash(grep -n \"from ''@/lib/db''\" /d/Relatoria.SLA/dstech-noc/src/lib/services/permission-service.ts)",
       "Bash(grep -n \"from ''@/lib/db/schemas/global''\" /d/Relatoria.SLA/dstech-noc/src/lib/services/permission-service.ts)",
-      "Bash(grep -B 2 \"from ''@/lib/db/schemas/global''\" /d/Relatoria.SLA/dstech-noc/src/lib/services/permission-service.ts)"
+      "Bash(grep -B 2 \"from ''@/lib/db/schemas/global''\" /d/Relatoria.SLA/dstech-noc/src/lib/services/permission-service.ts)",
+      "Bash(npm run:*)",
+      "Bash(npx dotenv-cli -e .env -- npx tsx -e \":*)",
+      "Bash(npx dotenv-cli:*)",
+      "Bash(npx dotenv-cli -e .env -- node -e \":*)"
     ]
   }
 }

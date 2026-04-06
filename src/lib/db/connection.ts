@@ -1,9 +1,10 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as globalSchemaModels from './schemas/global';
+import { getRequiredEnv } from '@/lib/env';
 import { normalizeConnectionString } from './normalize-connection-string';
 
-const rawUrl = normalizeConnectionString(process.env.DATABASE_URL);
+const rawUrl = normalizeConnectionString(getRequiredEnv('DATABASE_URL'));
 const isDev = process.env.NODE_ENV === 'development';
 
 export const pool = new Pool({
