@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { qualityRecords } from '@/lib/db/schema';
+import { atendimentos, qualityRecords } from '@/lib/db/schema';
 import { requireWorkspacePermission } from '@/lib/require-auth';
-import { and, desc, eq, gte, ilike, lte, or, SQL } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, lte, or, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -23,15 +23,15 @@ export async function GET(req: NextRequest) {
     const search    = searchParams.get('search');
     const technicianId = searchParams.get('technicianId');
 
-    const filters: SQL[] = [eq(qualityRecords.workspaceId, result.context.workspaceId)];
-    if (fromStr) filters.push(gte(qualityRecords.openedAt, new Date(fromStr)));
-    if (toStr)   filters.push(lte(qualityRecords.openedAt, new Date(toStr)));
-    if (indicator) filters.push(eq(qualityRecords.indicator, indicator as never));
-    if (city) filters.push(ilike(qualityRecords.city, `%${city}%`));
-    if (plan) filters.push(ilike(qualityRecords.plan, `%${plan}%`));
-    if (technicianId) filters.push(eq(qualityRecords.technicianId, Number(technicianId)));
+    // Filters WITHOUT indicator (for aggregate totals per indicator)
+    const baseFilters: SQL[] = [eq(qualityRecords.workspaceId, result.context.workspaceId)];
+    if (fromStr) baseFilters.push(gte(qualityRecords.openedAt, new Date(fromStr)));
+    if (toStr)   baseFilters.push(lte(qualityRecords.openedAt, new Date(toStr)));
+    if (city) baseFilters.push(ilike(qualityRecords.city, `%${city}%`));
+    if (plan) baseFilters.push(ilike(qualityRecords.plan, `%${plan}%`));
+    if (technicianId) baseFilters.push(eq(qualityRecords.technicianId, Number(technicianId)));
     if (search) {
-      filters.push(or(
+      baseFilters.push(or(
         ilike(qualityRecords.osNumber, `%${search}%`),
         ilike(qualityRecords.clientName, `%${search}%`),
         ilike(qualityRecords.technicianName, `%${search}%`),
@@ -41,7 +41,38 @@ export async function GET(req: NextRequest) {
       )!);
     }
 
+    // Filters WITH indicator (for paginated records)
+    const filters: SQL[] = [...baseFilters];
+    if (indicator) filters.push(eq(qualityRecords.indicator, indicator as never));
+
+    const baseWhereClause = baseFilters.length ? and(...baseFilters) : undefined;
     const whereClause = filters.length ? and(...filters) : undefined;
+
+    // Aggregate totals per indicator (always without indicator filter)
+    const indicatorTotals = await db
+      .select({ indicator: qualityRecords.indicator, total: count() })
+      .from(qualityRecords)
+      .where(baseWhereClause)
+      .groupBy(qualityRecords.indicator);
+
+    const byIndicator: Record<string, number> = {};
+    for (const row of indicatorTotals) {
+      byIndicator[row.indicator] = row.total;
+    }
+
+    // Total de reparos no período (para cálculo do RTV)
+    // O TIPO_MAP grava 'Reparo' (com maiúscula) no banco
+    const reparoFilters: SQL[] = [
+      eq(atendimentos.workspaceId, result.context.workspaceId),
+      ilike(atendimentos.tipo, 'reparo'),
+    ];
+    if (fromStr) reparoFilters.push(gte(atendimentos.aberturaAt, new Date(fromStr)));
+    if (toStr)   reparoFilters.push(lte(atendimentos.aberturaAt, new Date(toStr)));
+
+    const [reparoCount] = await db
+      .select({ total: count() })
+      .from(atendimentos)
+      .where(and(...reparoFilters));
 
     const rows = await db
       .select({
@@ -84,6 +115,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       data,
+      byIndicator,
+      totalReparos: reparoCount?.total ?? 0,
       filtersApplied: {
         from: fromStr,
         to: toStr,

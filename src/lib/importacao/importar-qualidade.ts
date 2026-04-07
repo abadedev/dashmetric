@@ -7,33 +7,65 @@ import { normalizeHeader, trimOrNull, parseBRDateWithTime, normalizeTechName } f
 // ── Mapa de indicadores ───────────────────────────────────────────────────────
 
 const INDICADOR_MAP: Record<string, string> = {
-  'iqiv':                              'IQIv',
-  'instal._recente_(iqiv)':            'IQIv',
-  'instal_recente_iqiv':               'IQIv',
-  'instal_recente_(iqiv)':             'IQIv',
-  'instalacao_recente_(iqiv)':         'IQIv',
-  'iqiv (rep. apos inst)':             'IQIv',
-  'iqiv (reparo apos instalacao)':     'IQIv',
-  'reparo apos instalacao':            'IQIv',
-  'iqrv':                              'IQRv',
-  'reparo_reincidente_(iqrv)':         'IQRv',
-  'iqrv (rep. reincidente)':           'IQRv',
-  'reparo reincidente':                'IQRv',
-  'reincidente':                       'IQRv',
-  'rtv':                               'RTV',
-  'rtv (varejo/anatel)':               'RTV',
-  'varejo/anatel':                     'RTV',
-  'rst':                               'RST',
-  'rst (servico tec.)':                'RST',
-  'rst (servico tecnico)':             'RST',
-  'servico tecnico':                   'RST',
-  'ict':                               'ICT',
-  'cancelamento_tecnico_(ict)':        'ICT',
-  'cancelamento tecnico (ict)':        'ICT',
-  'ict (inviabilidade)':               'ICT',
-  'inviabilidade':                     'ICT',
-  'retorno':                           'Retorno',
-  'retorno geral':                     'Retorno',
+  // ── IQIv ──────────────────────────────────────────────────────────────────
+  'iqiv': 'IQIv',
+  'instal._recente_(iqiv)': 'IQIv',
+  'instal_recente_iqiv': 'IQIv',
+  'instal_recente_(iqiv)': 'IQIv',
+  'instalacao_recente_(iqiv)': 'IQIv',
+  'iqiv (rep. apos inst)': 'IQIv',
+  'iqiv (reparo apos instalacao)': 'IQIv',
+  'reparo apos instalacao': 'IQIv',
+  'rep. apos inst': 'IQIv',
+  'instalacao recente': 'IQIv',
+  'instal. recente': 'IQIv',
+  // ── IQRv ──────────────────────────────────────────────────────────────────
+  'iqrv': 'IQRv',
+  'reparo_reincidente_(iqrv)': 'IQRv',
+  'iqrv (rep. reincidente)': 'IQRv',
+  'reparo reincidente': 'IQRv',
+  'reincidente': 'IQRv',
+  'rep. reincidente': 'IQRv',
+  'reparo reincid': 'IQRv',
+  // ── RTV ───────────────────────────────────────────────────────────────────
+  'rtv': 'RTV',
+  'rtv (varejo/anatel)': 'RTV',
+  'varejo/anatel': 'RTV',
+  'reclamacao varejo': 'RTV',
+  'recl. varejo': 'RTV',
+  'reclamacao (varejo)': 'RTV',
+  'recl varejo': 'RTV',
+  'varejo': 'RTV',
+  // ── RST ───────────────────────────────────────────────────────────────────
+  'rst': 'RST',
+  'rst (servico tec.)': 'RST',
+  'rst (servico tecnico)': 'RST',
+  'servico tecnico': 'RST',
+  'reclamacao servico tecnico': 'RST',
+  'recl. servico tec': 'RST',
+  'recl servico tec': 'RST',
+  'reclamacao tec': 'RST',
+  'recl. tec': 'RST',
+  'servico tec': 'RST',
+  // ── ICT ───────────────────────────────────────────────────────────────────
+  'ict': 'ICT',
+  'cancelamento_tecnico_(ict)': 'ICT',
+  'cancelamento tecnico (ict)': 'ICT',
+  'ict (inviabilidade)': 'ICT',
+  'inviabilidade': 'ICT',
+  'inviabilidade tecnica': 'ICT',
+  'inviab. tecnica': 'ICT',
+  'inviab. tec': 'ICT',
+  'inviab tec': 'ICT',
+  'inviab': 'ICT',
+  'inv. tec': 'ICT',
+  'cancelamento tecnico': 'ICT',
+  'inviabilidade_tecnica_(ict)': 'ICT',
+  'nao realizado': 'ICT',
+  'nao_realizado': 'ICT',
+  // ── Retorno ───────────────────────────────────────────────────────────────
+  'retorno': 'Retorno',
+  'retorno geral': 'Retorno',
 };
 
 const VALID_INDICATORS = ['IQIv', 'IQRv', 'RTV', 'RST', 'ICT', 'Retorno'] as const;
@@ -66,18 +98,22 @@ function normalizarIndicador(raw: string): QualityIndicator | null {
 // ── Aliases de colunas ────────────────────────────────────────────────────────
 
 const ALIASES: Record<string, string[]> = {
-  numeroOs:       ['#', 'n_os', 'numero_os', 'numeroos', 'os', 'numero'],
-  indicador:      ['indicador', 'indicator', 'tipo_indicador', 'ind', 'indicador_qualidade', 'indicadores'],
-  motivo:         ['motivo', 'razao', 'motivo_reclamacao', 'descricao', 'reason', 'problema', 'descricao_chamado'],
-  solucao:        ['solucao', 'solucao_dada', 'resolucao', 'tratativa', 'procedimento'],
-  tecnico:        ['tecnico', 'instalador', 'responsavel', 'tecnico_nome', 'nome_tecnico'],
-  cliente:        ['cliente', 'nome_cliente', 'client', 'assinante', 'nome_assinante'],
-  cidade:         ['cidade', 'municipio', 'localidade', 'cidade_uf'],
-  plano:          ['plano', 'plano_contratado', 'produto', 'pacote'],
-  dataAbertura:   ['data_abertura', 'datapedido', 'data_pedido', 'abertura', 'data', 'data_chamado'],
-  horaAbertura:   ['hora_abertura', 'hora_inicio'],
-  dataFinalizacao:['data_finalizacao', 'data_final', 'fechamento', 'finalizacao', 'data_fechamento'],
-  horaFinalizacao:['hora_finalizacao', 'hora_saida', 'hora_fechamento'],
+  numeroOs: ['#', 'n_os', 'numero_os', 'numeroos', 'os', 'numero'],
+  indicador: [
+    'indicador', 'indicator', 'tipo_indicador', 'ind', 'indicador_qualidade', 'indicadores',
+    'tipo', 'categoria', 'tipo_servico', 'tipo_atendimento', 'classificacao',
+    'tipo_ocorrencia', 'ocorrencia', 'servico', 'motivo_indicador',
+  ],
+  motivo: ['motivo', 'razao', 'motivo_reclamacao', 'descricao', 'reason', 'problema', 'descricao_chamado'],
+  solucao: ['solucao', 'solucao_dada', 'resolucao', 'tratativa', 'procedimento'],
+  tecnico: ['tecnico', 'instalador', 'responsavel', 'tecnico_nome', 'nome_tecnico'],
+  cliente: ['cliente', 'nome_cliente', 'client', 'assinante', 'nome_assinante'],
+  cidade: ['cidade', 'municipio', 'localidade', 'cidade_uf'],
+  plano: ['plano', 'plano_contratado', 'produto', 'pacote'],
+  dataAbertura: ['data_abertura', 'datapedido', 'data_pedido', 'abertura', 'data', 'data_chamado'],
+  horaAbertura: ['hora_abertura', 'hora_inicio'],
+  dataFinalizacao: ['data_finalizacao', 'data_final', 'fechamento', 'finalizacao', 'data_fechamento'],
+  horaFinalizacao: ['hora_finalizacao', 'hora_saida', 'hora_fechamento'],
 };
 
 /**
@@ -124,6 +160,15 @@ function getIndicador(row: Record<string, string>): string {
       return normK.includes(normAlias) || normAlias.includes(normK);
     });
     if (partial && row[partial]?.trim()) return row[partial].trim();
+  }
+
+  // Fallback: varre todas as colunas procurando valor com correspondência exata no INDICADOR_MAP
+  // (usa apenas exact match para evitar falsos positivos de partial matching)
+  for (const k of rowKeys) {
+    const val = row[k]?.trim();
+    if (!val) continue;
+    const normalized = val.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (INDICADOR_MAP[normalized]) return val;
   }
 
   return '';
@@ -366,21 +411,21 @@ export async function importarQualidade(
 
       const record: NewQualityRecord = {
         workspaceId,
-        osNumber:       trimOrNull(get(row, 'numeroOs')),
-        indicator:      indicador,
-        reason:         trimOrNull(get(row, 'motivo')),
-        solution:       trimOrNull(get(row, 'solucao')),
-        technicianId:   tecnicoId,
+        osNumber: trimOrNull(get(row, 'numeroOs')),
+        indicator: indicador,
+        reason: trimOrNull(get(row, 'motivo')),
+        solution: trimOrNull(get(row, 'solucao')),
+        technicianId: tecnicoId,
         technicianName: tecnicoNome ? trimOrNull(tecnicoNome) : null,
-        clientName:     trimOrNull(get(row, 'cliente')),
-        city:           trimOrNull(get(row, 'cidade')),
-        plan:           trimOrNull(get(row, 'plano')),
-        openedAt:       openedAt ?? null,
-        closedAt:       closedAt ?? null,
+        clientName: trimOrNull(get(row, 'cliente')),
+        city: trimOrNull(get(row, 'cidade')),
+        plan: trimOrNull(get(row, 'plano')),
+        openedAt: openedAt ?? null,
+        closedAt: closedAt ?? null,
         durationSeconds,
-        periodMonth:    periodDate.getMonth() + 1,
-        periodYear:     periodDate.getFullYear(),
-        createdAt:      new Date(),
+        periodMonth: periodDate.getMonth() + 1,
+        periodYear: periodDate.getFullYear(),
+        createdAt: new Date(),
       };
 
       if (!validarRegistroParaInsert(resumo, numLinha, record)) {

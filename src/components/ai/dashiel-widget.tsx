@@ -78,8 +78,8 @@ function ChatHeader({ loading, onClose }: { loading: boolean; onClose: () => voi
   return (
     <div className="flex items-center justify-between border-b border-border bg-card/60 px-5 py-4">
       <div className="flex items-center gap-3">
-        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
-          <span className="text-base font-bold text-primary-foreground">AI</span>
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 shadow-lg">
+          <img src="/favicon.ico" alt="Dashiel" className="h-7 w-7 object-contain" />
           <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-background bg-emerald-400" />
         </div>
         <div>
@@ -331,14 +331,14 @@ export function DashielWidget({ workspaceSlug }: { workspaceSlug?: string }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="pointer-events-auto w-[400px] overflow-hidden rounded-[28px] border border-border bg-background/95 shadow-2xl shadow-black/50 backdrop-blur-xl"
+            className="pointer-events-auto w-[400px] max-h-[600px] flex flex-col overflow-hidden rounded-[28px] border border-border bg-background/95 shadow-2xl shadow-black/50 backdrop-blur-xl"
           >
             <ChatHeader loading={loading} onClose={() => setOpen(false)} />
 
             {/* Messages area */}
             <div
               ref={viewportRef}
-              className="flex max-h-[520px] min-h-[320px] flex-col gap-3 overflow-y-auto px-4 py-4"
+              className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 min-h-0"
               style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: 'oklch(0.28 0.01 255 / 0.35) transparent',
@@ -418,8 +418,8 @@ export function DashielWidget({ workspaceSlug }: { workspaceSlug?: string }) {
         className="pointer-events-auto flex items-center gap-3 rounded-full border border-border bg-background/90 px-4 py-3 shadow-2xl shadow-black/40 backdrop-blur-xl transition hover:bg-card"
         aria-label={open ? 'Fechar chat' : 'Abrir chat com IA'}
       >
-        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30">
-          <span className="text-lg font-semibold text-primary-foreground">AI</span>
+        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-zinc-900 shadow-lg">
+          <img src="/favicon.ico" alt="Dashiel" className="h-9 w-9 object-contain" />
           <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-background bg-emerald-400" />
         </div>
         <div className="pr-2 text-left">
