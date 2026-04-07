@@ -339,6 +339,39 @@ export const infrastructureRecords = pgTable(
   ]
 );
 
+export const omnichannelRecords = pgTable(
+  'omnichannel_records',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'),
+    agente: varchar('agente', { length: 255 }).notNull(),
+    isHuman: boolean('is_human').default(true).notNull(),
+    quantidade: integer('quantidade'),
+    te: varchar('te', { length: 20 }),
+    tme: varchar('tme', { length: 20 }),
+    ta: varchar('ta', { length: 20 }),
+    tma: varchar('tma', { length: 20 }),
+    tp: varchar('tp', { length: 20 }),
+    tmp: varchar('tmp', { length: 20 }),
+    tmic: varchar('tmic', { length: 20 }),
+    tmia: varchar('tmia', { length: 20 }),
+    at20s: integer('at20s'),
+    at60s: integer('at60s'),
+    percentual: numeric('percentual', { precision: 6, scale: 2 }),
+    periodStartDate: date('period_start_date'),
+    periodEndDate: date('period_end_date'),
+    periodMonth: integer('period_month').notNull(),
+    periodYear: integer('period_year').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('omnichannel_workspace_id_idx').on(table.workspaceId),
+    index('omnichannel_period_idx').on(table.periodYear, table.periodMonth),
+    index('omnichannel_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
+    index('omnichannel_agente_idx').on(table.agente),
+  ]
+);
+
 export const holidays = pgTable(
   'holidays',
   {
@@ -623,6 +656,8 @@ export type CancellationRecord = typeof cancellationRecords.$inferSelect;
 export type NewCancellationRecord = typeof cancellationRecords.$inferInsert;
 export type InfrastructureRecord = typeof infrastructureRecords.$inferSelect;
 export type NewInfrastructureRecord = typeof infrastructureRecords.$inferInsert;
+export type OmnichannelRecord = typeof omnichannelRecords.$inferSelect;
+export type NewOmnichannelRecord = typeof omnichannelRecords.$inferInsert;
 export type Holiday = typeof holidays.$inferSelect;
 export type ActivityType = typeof activityTypeEnum.enumValues[number];
 export type QualityIndicator = typeof qualityIndicatorEnum.enumValues[number];

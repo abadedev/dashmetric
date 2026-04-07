@@ -1,1 +1,4 @@
-export { default } from '@/app/(dashboard)/suporte/page';
+import SuportePage from '@/app/(dashboard)/suporte/page';
+export default async function WorkspaceSuportePage() {
+  return <SuportePage />;
+}

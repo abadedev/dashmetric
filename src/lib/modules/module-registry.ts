@@ -11,6 +11,7 @@ import { importarSuporte } from '@/lib/importacao/importar-suporte';
 import { importarVendas } from '@/lib/importacao/importar-vendas';
 import { processarCanceladasMudancaPlano } from '@/lib/importacao/processar-canceladas-mudanca-plano';
 import { processarInviabilidadeICT } from '@/lib/importacao/processar-inviabilidade-ict';
+import { importarOmnichannel } from '@/lib/importacao/importar-omnichannel';
 
 export type SystemModuleKey =
   | 'atendimentos'
@@ -20,7 +21,8 @@ export type SystemModuleKey =
   | 'cancelamentos'
   | 'infraestrutura'
   | 'canceladas_mudanca_plano'
-  | 'inviabilidade_ict';
+  | 'inviabilidade_ict'
+  | 'omnichannel_matrix_go';
 
 export type ModuleFilterField = {
   key: string;
@@ -233,6 +235,17 @@ async function importCanceladasMudancaPlanoModule(context: ModuleImportContext):
   };
 }
 
+async function importOmnichannelModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
+  const resumo = await importarOmnichannel(context.rows, context.workspaceId, context.fileName);
+
+  return {
+    success: true,
+    tipoPlanilha: 'omnichannel_matrix_go',
+    message: `Matrix Go importado: ${resumo.totalInseridas} registro(s) de Omnichannel.`,
+    resumo,
+  };
+}
+
 export const MODULE_REGISTRY: Record<SystemModuleKey, ModuleRegistryEntry> = {
   atendimentos: {
     key: 'atendimentos',
@@ -325,6 +338,12 @@ export const MODULE_REGISTRY: Record<SystemModuleKey, ModuleRegistryEntry> = {
     title: 'Inviabilidade Técnica (ICT)',
     importMessage: 'ICT importado com sucesso.',
     importHandler: importInviabilidadeICTModule,
+  },
+  omnichannel_matrix_go: {
+    key: 'omnichannel_matrix_go',
+    title: 'Matrix Go (Omnichannel)',
+    importMessage: 'Importação Matrix Go concluída.',
+    importHandler: importOmnichannelModule,
   },
 };
 

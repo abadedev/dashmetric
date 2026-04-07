@@ -213,6 +213,31 @@ const DEFAULT_MODULES: Array<{
   },
   {
     module: {
+      name: 'Omnichannel',
+      slug: 'omnichannel',
+      description: 'Metricas de atendimento Matrix Go por agente — quantidade, TMA, TME e tempos operacionais.',
+      icon: 'Headphones',
+      href: '/omnichannel',
+      sortOrder: 75,
+      isActive: true,
+      showInSidebar: true,
+      allowImport: true,
+      requiredRole: 'user',
+      templateSource: 'omnichannel',
+      isEditable: false,
+    },
+    importProfiles: [
+      {
+        moduleId: 0,
+        profileKey: 'omnichannel_matrix_go',
+        label: 'Matrix Go (Omnichannel)',
+        detectorType: 'omnichannel_matrix_go',
+        isActive: true,
+      },
+    ],
+  },
+  {
+    module: {
       name: 'Infraestrutura',
       slug: 'infraestrutura',
       description: 'Modulo em branco para evolucao futura dos indicadores de infraestrutura.',
@@ -385,6 +410,22 @@ export async function ensureDefaultModules(workspaceId: string) {
         await db
           .delete(moduleImportProfiles)
           .where(eq(moduleImportProfiles.id, obsoleteInfraProfile.id));
+      }
+    }
+
+    // Clean up omnichannel_matrix_go profile mistakenly registered under the upload module.
+    // This profile belongs only to the omnichannel module; the duplicate caused it to appear
+    // twice in the upload type selector.
+    if (found.slug === 'upload') {
+      const uploadProfiles = existingProfiles.filter((profile) => profile.moduleId === found.id);
+      const duplicateOmnichannelProfile = uploadProfiles.find(
+        (profile) => profile.profileKey === 'omnichannel_matrix_go'
+      );
+
+      if (duplicateOmnichannelProfile) {
+        await db
+          .delete(moduleImportProfiles)
+          .where(eq(moduleImportProfiles.id, duplicateOmnichannelProfile.id));
       }
     }
 
