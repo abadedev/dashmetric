@@ -147,6 +147,13 @@ export function CsvDropzone({ profiles }: CsvDropzoneProps) {
     setUploadStatus('processing');
     setProgress(35);
 
+    if (file.size > MAX_UPLOAD_SIZE_MB * 1024 * 1024) {
+      setErrorMsg(`Arquivo muito grande. O limite é ${MAX_UPLOAD_SIZE_MB} MB.`);
+      setUploadStatus('idle');
+      setProgress(0);
+      return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
 
