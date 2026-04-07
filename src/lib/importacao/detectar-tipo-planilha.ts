@@ -6,7 +6,9 @@ export type TipoPlanilha =
   | 'suporte'
   | 'vendas'
   | 'cancelamentos'
-  | 'infraestrutura';
+  | 'infraestrutura'
+  | 'canceladas_mudanca_plano'
+  | 'inviabilidade_ict';
 
 /**
  * Detecta automaticamente o tipo de planilha analisando os headers normalizados.
@@ -17,8 +19,9 @@ export type TipoPlanilha =
  * - vendas      → cabeçalhos comerciais (cliente/cidade/indicacao, datapedido/datainstalacao etc.)
  * - atendimentos → caso padrão
  */
-export function detectarTipoPlanilha(headers: string[]): TipoPlanilha {
+export function detectarTipoPlanilha(headers: string[], nomeArquivo?: string): TipoPlanilha {
   const normalizedHeaders = headers.map(normalizeHeader);
+  const nomeArquivoNorm = (nomeArquivo ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   const has = (keyword: string) =>
     normalizedHeaders.some((header) => header.includes(normalizeHeader(keyword)));
@@ -55,6 +58,12 @@ export function detectarTipoPlanilha(headers: string[]): TipoPlanilha {
     return 'cancelamentos';
   }
 
+  // Planilha de inviabilidade técnica ICT da DSTech
+  // Identificada por ter "inviabilidade" + "instalador" + "datapedido"
+  if (has('inviabilidade') && has('instalador') && has('datapedido')) {
+    return 'inviabilidade_ict';
+  }
+
   if (
     !has('tipo') &&
     !has('instalador') &&
@@ -65,6 +74,17 @@ export function detectarTipoPlanilha(headers: string[]): TipoPlanilha {
     )
   ) {
     return 'vendas';
+  }
+
+  // Planilha de manutenções canceladas da DSTech — identificada pelo nome do arquivo
+  if (
+    nomeArquivoNorm.includes('cancelad') &&
+    has('os') &&
+    has('motivo') &&
+    has('causa') &&
+    has('solucao')
+  ) {
+    return 'canceladas_mudanca_plano';
   }
 
   return 'atendimentos';

@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       const headers = Object.keys(linhasBrutas[0]);
       const tipoPlanilha = isSystemModuleKey(tipoPlanilhaManual)
         ? tipoPlanilhaManual
-        : detectarTipoPlanilha(headers);
+        : detectarTipoPlanilha(headers, file.name);
 
       const moduleEntry = getModuleRegistryEntry(tipoPlanilha);
       const result = await moduleEntry.importHandler({

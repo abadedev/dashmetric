@@ -63,7 +63,7 @@ interface ImportResult {
   tipoPlanilha: string;
   message: string;
   loteId?: number;
-  resumo: ResumoGenerico;
+  resumo?: ResumoGenerico;
   reimportacao?: {
     periodos: string[];
     registrosRemovidos: number;
@@ -274,18 +274,20 @@ export function CsvDropzone({ profiles }: CsvDropzoneProps) {
     const prof = profiles.find(p => p.detectorType === tipoDetectado);
     const tipoLabel = prof ? prof.label : tipoDetectado;
 
+    const r = resumo ?? { totalLidas: 0, totalInseridas: 0, totalInvalidas: 0 };
+
     const stats: { label: string; val: number; color: string }[] = [
-      { label: 'Lidas', val: resumo.totalLidas, color: 'text-foreground' },
-      { label: 'Inseridas', val: resumo.totalInseridas, color: 'text-green-500' },
+      { label: 'Lidas', val: r.totalLidas, color: 'text-foreground' },
+      { label: 'Inseridas', val: r.totalInseridas, color: 'text-green-500' },
       {
         label: 'Inválidas',
-        val: resumo.totalInvalidas,
-        color: resumo.totalInvalidas > 0 ? 'text-red-500' : 'text-foreground',
+        val: r.totalInvalidas,
+        color: r.totalInvalidas > 0 ? 'text-red-500' : 'text-foreground',
       },
       ...(tipoDetectado === 'atendimentos'
         ? [
-            { label: 'Válidas', val: resumo.totalValidas ?? 0, color: 'text-blue-500' },
-            { label: 'Duplicadas', val: resumo.totalDuplicadas ?? 0, color: 'text-yellow-500' },
+            { label: 'Válidas', val: r.totalValidas ?? 0, color: 'text-blue-500' },
+            { label: 'Duplicadas', val: r.totalDuplicadas ?? 0, color: 'text-yellow-500' },
           ]
         : []),
     ];
@@ -323,46 +325,46 @@ export function CsvDropzone({ profiles }: CsvDropzoneProps) {
           ))}
         </div>
 
-        {(resumo.warnings?.length ?? 0) > 0 && (
+        {(r.warnings?.length ?? 0) > 0 && (
           <div className="w-full rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-left">
             <p className="mb-2 flex items-center gap-2 text-sm font-medium text-yellow-600">
-              <AlertTriangle className="h-4 w-4" /> {resumo.warnings!.length} avisos
+              <AlertTriangle className="h-4 w-4" /> {r.warnings!.length} avisos
             </p>
             <ul className="space-y-1 pl-6 text-sm text-yellow-600/90 list-disc">
-              {resumo.warnings!.slice(0, 5).map((w, i) => (
+              {r.warnings!.slice(0, 5).map((w, i) => (
                 <li key={i}>Linha {w.linha}: {w.aviso}</li>
               ))}
-              {resumo.warnings!.length > 5 && (
-                <li className="font-medium">... e mais {resumo.warnings!.length - 5} avisos omitidos</li>
+              {r.warnings!.length > 5 && (
+                <li className="font-medium">... e mais {r.warnings!.length - 5} avisos omitidos</li>
               )}
             </ul>
           </div>
         )}
 
-        {resumo.debug && (
+        {r.debug && (
           <div className="w-full rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-left">
             <p className="mb-1 text-sm font-medium text-blue-500">Debug — Coluna de indicador detectada</p>
             <p className="text-xs text-blue-400">
-              Coluna: <span className="font-mono font-bold">{resumo.debug.indicadorColuna}</span>
+              Coluna: <span className="font-mono font-bold">{r.debug.indicadorColuna}</span>
             </p>
             <p className="mt-1 text-xs text-blue-400">
               Valores das primeiras linhas:{' '}
-              <span className="font-mono">{resumo.debug.sampleIndicadores.map(v => `"${v}"`).join(', ')}</span>
+              <span className="font-mono">{r.debug.sampleIndicadores.map(v => `"${v}"`).join(', ')}</span>
             </p>
           </div>
         )}
 
-        {(resumo.erros?.length ?? 0) > 0 && (
+        {(r.erros?.length ?? 0) > 0 && (
           <div className="w-full rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-left">
             <p className="mb-2 flex items-center gap-2 text-sm font-medium text-red-500">
-              <FileWarning className="h-4 w-4" /> {resumo.erros!.length} erros críticos
+              <FileWarning className="h-4 w-4" /> {r.erros!.length} erros críticos
             </p>
             <ul className="space-y-1 pl-6 text-sm text-red-500/90 list-disc">
-              {resumo.erros!.slice(0, 8).map((e, i) => (
+              {r.erros!.slice(0, 8).map((e, i) => (
                 <li key={i}>Linha {e.linha}: {e.erro}</li>
               ))}
-              {resumo.erros!.length > 8 && (
-                <li className="font-medium">... e mais {resumo.erros!.length - 8} erros omitidos</li>
+              {r.erros!.length > 8 && (
+                <li className="font-medium">... e mais {r.erros!.length - 8} erros omitidos</li>
               )}
             </ul>
           </div>
