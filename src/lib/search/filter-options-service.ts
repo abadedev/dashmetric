@@ -20,8 +20,8 @@ function normalizeOptions(values: Array<string | null | undefined>) {
 
 async function getDistinctValues(table: any, column: any, workspaceId: string | null, limit = 100) {
   const whereClause = workspaceId
-    ? and(eq(table.workspaceId, workspaceId), sql`${column} is not null and btrim(${column}) <> ''`)
-    : sql`${column} is not null and btrim(${column}) <> ''`;
+    ? and(eq(table.workspaceId, workspaceId), sql`${column} is not null and btrim(${column}::text) <> ''`)
+    : sql`${column} is not null and btrim(${column}::text) <> ''`;
 
   const rows = await db
     .select({ value: column })

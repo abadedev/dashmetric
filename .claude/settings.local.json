@@ -65,7 +65,19 @@
       "Bash(npm run:*)",
       "Bash(npx dotenv-cli -e .env -- npx tsx -e \":*)",
       "Bash(npx dotenv-cli:*)",
-      "Bash(npx dotenv-cli -e .env -- node -e \":*)"
+      "Bash(npx dotenv-cli -e .env -- node -e \":*)",
+      "Bash(find /d/Relatoria.SLA/dstech-noc/src/lib/server -type f -name *.ts -o -name *.tsx)",
+      "Bash(find src:*)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(grep -r \"workspace.*logo\\\\|logoUrl\\\\|imgur\" src/ --include=*.ts --include=*.tsx)",
+      "Bash(find src/app/api -name *workspace* -type f)",
+      "Bash(grep -r \"logoUrl\\\\|logo_url\" src/lib/db --include=*.ts)",
+      "Bash(find . -path ./node_modules -prune -o -type f -name *migration* -o -name *.sql)",
+      "Bash(xargs wc:*)",
+      "Bash(ls d:/Relatoria.SLA/dstech-noc/public/logo*.*)",
+      "Bash(ls -la /d/Relatoria.SLA/dstech-noc/src/app/api/admin/workspaces/*/)",
+      "Bash(find d:/Relatoria.SLA/dstech-noc/src/app/api/admin -name *.ts)",
+      "Bash(\"d:/Relatoria.SLA/dstech-noc/.env\")"
     ]
   }
 }

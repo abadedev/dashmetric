@@ -8,7 +8,7 @@ type ErrorPayload = {
 
 type ResponseMeta = {
   generatedAt: string;
-  source: 'database';
+  source: 'database' | 'cache';
 } & Record<string, unknown>;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -42,7 +42,8 @@ export function createSuccessResponse(
   filters: Record<string, unknown>,
   meta: Record<string, unknown> = {},
   status = 200,
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
+  source: 'database' | 'cache' = 'database',
 ) {
   const payload = {
     success: true,
@@ -50,7 +51,7 @@ export function createSuccessResponse(
     data: data == null ? {} : normalizeJsonValue(data),
     meta: {
       generatedAt: new Date().toISOString(),
-      source: 'database',
+      source,
       ...meta,
     } satisfies ResponseMeta,
     filters: normalizeJsonRecord(filters),

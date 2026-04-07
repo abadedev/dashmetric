@@ -15,6 +15,8 @@ export async function GET(req: NextRequest) {
       name: workspaces.name,
       slug: workspaces.slug,
       logoUrl: workspaces.logoUrl,
+      logoDarkUrl: workspaces.logoDarkUrl,
+      logoLightUrl: workspaces.logoLightUrl,
       defaultTheme: workspaces.defaultTheme,
       isActive: workspaces.isActive,
       createdAt: workspaces.createdAt,

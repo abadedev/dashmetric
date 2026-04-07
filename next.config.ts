@@ -14,15 +14,21 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self'",
-      "connect-src 'self' https://accounts.google.com",
+      "connect-src 'self' https://accounts.google.com https://n8nabade.squareweb.app",
       "frame-ancestors 'none'",
     ].join('; '),
   },
 ];
 
 const nextConfig: NextConfig = {
+  images: {
+    unoptimized: true,
+  },
   turbopack: {
     root: __dirname,
+  },
+  experimental: {
+    proxyClientMaxBodySize: '50mb',
   },
   async headers() {
     return [
