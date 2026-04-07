@@ -279,11 +279,23 @@ export function DashielWidget({ workspaceSlug }: { workspaceSlug?: string }) {
       let answer: string;
       if (typeof rawAnswer === 'string') {
         answer = rawAnswer.trim();
-      } else if (rawAnswer && typeof rawAnswer === 'object' && 'output' in rawAnswer && typeof (rawAnswer as Record<string, unknown>).output === 'string') {
+      } else if (
+        rawAnswer &&
+        typeof rawAnswer === 'object' &&
+        'output' in rawAnswer &&
+        typeof (rawAnswer as Record<string, unknown>).output === 'string'
+      ) {
         answer = ((rawAnswer as Record<string, unknown>).output as string).trim();
       } else {
         answer = JSON.stringify(rawAnswer);
       }
+
+      // Remove prefixo técnico do n8n se vier na resposta
+      answer = answer
+        .replace(/^\[Used tools:[\s\S]*?\]\s*/i, '')
+        .replace(/^Tool:[\s\S]*?Result:[\s\S]*?\]\s*/i, '')
+        .trim();
+
       setMessages((prev) => [
         ...prev,
         buildMessage('assistant', answer, classifyAssistantMessage(answer)),
