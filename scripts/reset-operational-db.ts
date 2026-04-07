@@ -71,26 +71,7 @@ async function truncateImportTables(schema: string) {
   console.log(`- ${schema}: ${tablesToTruncate.length} tabelas limpas`);
 }
 
-async function deleteExtraWorkspaces(mainWorkspaceSlug: string) {
-  const result = await pool.query<{ id: string; slug: string }>(
-    `
-      select id, slug
-      from public.workspaces
-      where slug <> $1
-    `,
-    [mainWorkspaceSlug]
-  );
 
-  if (result.rowCount === 0) {
-    console.log('- workspaces extras: nenhum encontrado');
-    return;
-  }
-
-  for (const workspace of result.rows) {
-    await pool.query(`DELETE FROM public.workspaces WHERE id = $1`, [workspace.id]);
-    console.log(`- workspace removido do registro global: ${workspace.slug}`);
-  }
-}
 
 async function main() {
   const mainWorkspaceSlug =
@@ -98,33 +79,18 @@ async function main() {
     process.env.MAIN_WORKSPACE_SLUG ??
     'dstech';
 
-  console.log(`Iniciando limpeza operacional. Workspace principal preservado: ${mainWorkspaceSlug}`);
-
-  const mainWorkspace = await pool.query<{ id: string; slug: string }>(
-    `
-      select id, slug
-      from public.workspaces
-      where slug = $1
-      limit 1
-    `,
-    [mainWorkspaceSlug]
-  );
-
-  if (mainWorkspace.rowCount === 0) {
-    throw new Error(`Workspace principal "${mainWorkspaceSlug}" não encontrado em public.workspaces.`);
-  }
+  console.log(`Iniciando limpeza operacional. Configurações de workspace serão preservadas.`);
 
   await pool.query('BEGIN');
 
   try {
     await truncateImportTables('public');
-    await deleteExtraWorkspaces(mainWorkspaceSlug);
 
     await pool.query('COMMIT');
     console.log('');
     console.log('Banco limpo com sucesso.');
-    console.log('Preservado: auth, permissões, grupos/perfis, módulos, import profiles e workspace principal.');
-    console.log('Removido: dados importados e workspaces extras.');
+    console.log('Preservado: workspaces, usuários (auth, members), permissões, grupos/perfis, módulos, profiles de importação.');
+    console.log('Removido: dados importados, operacionais e atendimentos.');
   } catch (error) {
     await pool.query('ROLLBACK');
     throw error;

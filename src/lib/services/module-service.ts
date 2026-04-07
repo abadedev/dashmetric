@@ -65,6 +65,13 @@ const DEFAULT_MODULES: Array<{
         detectorType: 'atendimentos',
         isActive: true,
       },
+      {
+        moduleId: 0,
+        profileKey: 'atendimentos_canceladas_mudanca_plano',
+        label: 'Canceladas - Mudanca de Plano (DSTech)',
+        detectorType: 'canceladas_mudanca_plano',
+        isActive: true,
+      },
     ],
   },
   {
@@ -104,6 +111,13 @@ const DEFAULT_MODULES: Array<{
         profileKey: 'qualidade_indicadores',
         label: 'Planilha de Qualidade e Reclamacoes',
         detectorType: 'qualidade',
+        isActive: true,
+      },
+      {
+        moduleId: 0,
+        profileKey: 'qualidade_inviabilidade_ict',
+        label: 'Inviabilidade Tecnica (ICT)',
+        detectorType: 'inviabilidade_ict',
         isActive: true,
       },
     ],

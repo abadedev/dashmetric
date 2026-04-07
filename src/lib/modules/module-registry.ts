@@ -9,6 +9,8 @@ import {
 } from '@/lib/importacao/importar-qualidade';
 import { importarSuporte } from '@/lib/importacao/importar-suporte';
 import { importarVendas } from '@/lib/importacao/importar-vendas';
+import { processarCanceladasMudancaPlano } from '@/lib/importacao/processar-canceladas-mudanca-plano';
+import { processarInviabilidadeICT } from '@/lib/importacao/processar-inviabilidade-ict';
 
 export type SystemModuleKey =
   | 'atendimentos'
@@ -16,7 +18,9 @@ export type SystemModuleKey =
   | 'suporte'
   | 'vendas'
   | 'cancelamentos'
-  | 'infraestrutura';
+  | 'infraestrutura'
+  | 'canceladas_mudanca_plano'
+  | 'inviabilidade_ict';
 
 export type ModuleFilterField = {
   key: string;
@@ -149,6 +153,86 @@ async function importAttendancesModule(context: ModuleImportContext): Promise<Mo
   };
 }
 
+function gerarCsvDasLinhas(linhas: Record<string, string>[]): string {
+  if (linhas.length === 0) return '';
+  const headers = Object.keys(linhas[0]);
+  const escapar = (val: string) => {
+    if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+      return '"' + val.replace(/"/g, '""') + '"';
+    }
+    return val;
+  };
+  const linhasStr = linhas.map((row) => headers.map((h) => escapar(row[h] ?? '')).join(','));
+  return '\uFEFF' + headers.join(',') + '\n' + linhasStr.join('\n');
+}
+
+async function importInviabilidadeICTModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
+  const { linhasParaImportar, totalLidas, totalICT, totalIgnoradas } =
+    processarInviabilidadeICT(context.rows);
+
+  if (linhasParaImportar.length === 0) {
+    return {
+      success: true,
+      tipoPlanilha: 'inviabilidade_ict',
+      message: 'Nenhuma linha de ICT identificada (coluna "inviabilidade técnica" sem "x").',
+      resumo: { totalLidas, totalInseridas: 0, totalInvalidas: 0 },
+      preProcessamento: { totalLidas, totalICT: 0, totalIgnoradas },
+    };
+  }
+
+  const resumo = await importarQualidade(linhasParaImportar, context.workspaceId);
+
+  return {
+    success: true,
+    tipoPlanilha: 'inviabilidade_ict',
+    message: `ICT importado: ${totalICT} registro(s) de inviabilidade técnica.`,
+    resumo,
+    preProcessamento: { totalLidas, totalICT, totalIgnoradas },
+  };
+}
+
+async function importCanceladasMudancaPlanoModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
+  const { linhasParaImportar, totalCanceladasMudancaPlano, totalCruzadas, semCruzamento } =
+    await processarCanceladasMudancaPlano(context.rows);
+
+  if (linhasParaImportar.length === 0) {
+    return {
+      success: true,
+      tipoPlanilha: 'canceladas_mudanca_plano',
+      message: 'Nenhuma mudança de plano identificada nas canceladas.',
+      resumo: { totalLidas: context.rows.length, totalInseridas: 0, totalInvalidas: 0 },
+      preProcessamento: {
+        totalCanceladasMudancaPlano: 0,
+        totalCruzadas: 0,
+        semCruzamento: [],
+      },
+    };
+  }
+
+  const csvGerado = gerarCsvDasLinhas(linhasParaImportar);
+  const bufferGerado = Buffer.from(csvGerado, 'utf-8');
+  const { loteId, resumo: resumoAtend } = await importarAtendimentos(bufferGerado, 'mudancas_plano_gerado.csv', context.workspaceId);
+
+  return {
+    success: true,
+    tipoPlanilha: 'canceladas_mudanca_plano',
+    message: 'Mudanças de plano extraídas e importadas com sucesso.',
+    loteId,
+    resumo: {
+      totalLidas: resumoAtend.totalLidas,
+      totalInseridas: resumoAtend.totalInseridas,
+      totalInvalidas: resumoAtend.totalLidas - (resumoAtend.totalValidas ?? resumoAtend.totalInseridas),
+      totalValidas: resumoAtend.totalValidas,
+      totalDuplicadas: resumoAtend.totalDuplicadas,
+    },
+    preProcessamento: {
+      totalCanceladasMudancaPlano,
+      totalCruzadas,
+      semCruzamento,
+    },
+  };
+}
+
 export const MODULE_REGISTRY: Record<SystemModuleKey, ModuleRegistryEntry> = {
   atendimentos: {
     key: 'atendimentos',
@@ -229,6 +313,18 @@ export const MODULE_REGISTRY: Record<SystemModuleKey, ModuleRegistryEntry> = {
     title: 'Infraestrutura',
     importMessage: 'Importacao de Infraestrutura concluida',
     importHandler: importInfrastructureModule,
+  },
+  canceladas_mudanca_plano: {
+    key: 'canceladas_mudanca_plano',
+    title: 'Canceladas (Mudança de Plano)',
+    importMessage: 'Mudanças de plano extraídas e importadas com sucesso.',
+    importHandler: importCanceladasMudancaPlanoModule,
+  },
+  inviabilidade_ict: {
+    key: 'inviabilidade_ict',
+    title: 'Inviabilidade Técnica (ICT)',
+    importMessage: 'ICT importado com sucesso.',
+    importHandler: importInviabilidadeICTModule,
   },
 };
 
