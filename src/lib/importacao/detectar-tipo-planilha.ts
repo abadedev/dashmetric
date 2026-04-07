@@ -8,7 +8,8 @@ export type TipoPlanilha =
   | 'cancelamentos'
   | 'infraestrutura'
   | 'canceladas_mudanca_plano'
-  | 'inviabilidade_ict';
+  | 'inviabilidade_ict'
+  | 'omnichannel_matrix_go';
 
 /**
  * Detecta automaticamente o tipo de planilha analisando os headers normalizados.
@@ -85,6 +86,11 @@ export function detectarTipoPlanilha(headers: string[], nomeArquivo?: string): T
     has('solucao')
   ) {
     return 'canceladas_mudanca_plano';
+  }
+
+  // Matrix Go (Omnichannel) — identificada por agente + tme + tma (sem campos de atendimento normais)
+  if (has('agente') && has('tme') && has('tma') && !has('datapedido') && !has('os')) {
+    return 'omnichannel_matrix_go';
   }
 
   return 'atendimentos';

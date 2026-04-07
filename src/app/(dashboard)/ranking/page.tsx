@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Top5Cards } from '@/components/ranking/top5-cards';
 import { RankingTable } from '@/components/ranking/ranking-table';
@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PageSkeleton } from '@/components/ui/state-display';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { useQueryState } from 'nuqs';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { PageLayout } from '@/components/layout/page-layout';
@@ -16,6 +17,10 @@ function RankingPageContent() {
   const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
   const [to] = useQueryState("to", parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
   const [city, setCity] = useQueryState('city');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
 
   const queryParams = new URLSearchParams();
   if (from) queryParams.set('from', from.toISOString());
@@ -32,12 +37,23 @@ function RankingPageContent() {
     },
   });
 
+  const filteredRanking = searchTerm
+    ? (data?.ranking || []).filter((t: { technicianName: string }) =>
+        normalize(t.technicianName ?? '').includes(normalize(searchTerm)))
+    : (data?.ranking || []);
+
   return (
     <PageLayout
       title="Ranking de Técnicos"
       description="Desempenho dos técnicos baseado no volume de OS e SLA atingido, com visão geral e segmentação por cidade."
       actions={
         <>
+          <Input
+            placeholder="Buscar por nome..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-[180px]"
+          />
           <Select value={city || 'all'} onValueChange={(value) => setCity(value === 'all' ? null : value)}>
             <SelectTrigger className="w-[220px]">
               <SelectValue placeholder="Filtrar cidade" />
@@ -59,8 +75,8 @@ function RankingPageContent() {
         <PageSkeleton />
       ) : (
         <>
-          <Top5Cards ranking={data?.ranking || []} />
-          <RankingTable ranking={data?.ranking || []} />
+          <Top5Cards ranking={filteredRanking} />
+          <RankingTable ranking={filteredRanking} />
         </>
       )}
     </PageLayout>
