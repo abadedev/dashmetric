@@ -15,7 +15,7 @@
  *   3. Retorna linhas normalizadas prontas para importarQualidade, com indicador = 'ICT'
  */
 
-import { splitBRDateTime } from './helpers';
+import { splitBRDateTime, normalizeHeader } from './helpers';
 
 export interface ResultadoICT {
   linhasParaImportar: Record<string, string>[];
@@ -24,11 +24,24 @@ export interface ResultadoICT {
   totalIgnoradas: number;
 }
 
-function normalizar(str: string): string {
-  return (str ?? '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+// Todas as variações possíveis do nome da coluna de inviabilidade técnica
+const ALIASES_INVIABILIDADE = [
+  'inviabilidade tecnica',
+  'inviabilidade_tecnica',
+  'inviabilidade técnica',
+  'inviabilidade',
+  'ict',
+];
+
+function encontrarColunaICT(row: Record<string, string>): string | undefined {
+  const rowKeys = Object.keys(row);
+  for (const k of rowKeys) {
+    const nk = normalizeHeader(k);
+    if (nk.includes('inviabilidade') || nk.includes('ict')) {
+      return k;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -36,24 +49,23 @@ function normalizar(str: string): string {
  * Tolerante a variações de maiúsculas, acentos e espaços.
  */
 function getCol(row: Record<string, string>, nome: string): string {
-  const nomeNorm = normalizar(nome).replace(/\s+/g, '_');
+  const nomeNorm = normalizeHeader(nome);
   const rowKeys = Object.keys(row);
 
-  // Correspondência exata normalizada
-  const exact = rowKeys.find((k) => normalizar(k).replace(/\s+/g, '_') === nomeNorm);
+  // Correspondência exata normalizada (normalizeHeader é idempotente nas chaves já normalizadas)
+  const exact = rowKeys.find((k) => normalizeHeader(k) === nomeNorm);
   if (exact) return row[exact]?.trim() ?? '';
 
-  // Substring
+  // Substring — garante que 'datapedido' bate em 'data_pedido' e vice-versa
   const partial = rowKeys.find((k) => {
-    const kNorm = normalizar(k).replace(/\s+/g, '_');
+    const kNorm = normalizeHeader(k);
     return kNorm.includes(nomeNorm) || nomeNorm.includes(kNorm);
   });
   return partial ? (row[partial]?.trim() ?? '') : '';
 }
 
 function isX(val: string): boolean {
-  const v = val.trim().toLowerCase();
-  return v === 'x' || v === 'x ' || v === ' x';
+  return val.trim().toLowerCase() === 'x';
 }
 
 export function processarInviabilidadeICT(
@@ -62,8 +74,12 @@ export function processarInviabilidadeICT(
   const linhasParaImportar: Record<string, string>[] = [];
   let totalIgnoradas = 0;
 
+  // Detecta a chave da coluna uma única vez a partir da primeira linha
+  const colunaICT = linhasBrutas.length > 0 ? encontrarColunaICT(linhasBrutas[0]) : undefined;
+
   for (const row of linhasBrutas) {
-    const flagICT = getCol(row, 'inviabilidade tecnica');
+    // Usa a chave encontrada diretamente — evita re-normalizar em cada iteração
+    const flagICT = colunaICT ? (row[colunaICT]?.trim() ?? '') : '';
 
     if (!isX(flagICT)) {
       totalIgnoradas++;
