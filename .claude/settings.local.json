@@ -94,7 +94,12 @@
       "Bash(xargs -I{} taskkill /PID {} /F)",
       "Bash(taskkill /PID 17716 /F)",
       "Bash(taskkill /PID 5496 /F)",
-      "Bash(cmd //c \"taskkill /PID 17716 /F & taskkill /PID 5496 /F\")"
+      "Bash(cmd //c \"taskkill /PID 17716 /F & taskkill /PID 5496 /F\")",
+      "Bash(find d:/Relatoria.SLA/dstech-noc/node_modules/next/dist/server -name app-route-route-handler* -o -name route-module*)",
+      "Bash(find d:/Relatoria.SLA/dstech-noc/node_modules/next/dist/server/route-modules -name *.js)",
+      "Bash(find d:/Relatoria.SLA/dstech-noc/node_modules/next/dist -name *dev*.js)",
+      "Bash(find d:/Relatoria.SLA/dstech-noc/node_modules/next/dist/server -maxdepth 1 -name *.js)",
+      "Bash(find d:/Relatoria.SLA/dstech-noc/node_modules/next/dist/server/web/spec-extension -name *.js)"
     ]
   }
 }
