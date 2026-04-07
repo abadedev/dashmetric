@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 import { auth } from '@/lib/auth';
-import { getUserWorkspaces } from '@/lib/workspace';
+import { getUserWorkspaces, resolveActiveWorkspace } from '@/lib/workspace';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { DashielWidget } from '@/components/ai/dashiel-widget';
@@ -22,6 +22,10 @@ export default async function DashboardLayout({
     redirect('/waiting');
   }
 
+  const cookieStore = await cookies();
+  const preferredSlug = cookieStore.get('dwm_active_workspace')?.value ?? null;
+  const activeWorkspace = await resolveActiveWorkspace(session.user.id, preferredSlug);
+
   return (
     <div className="flex min-h-screen w-full bg-background">
       <div className="hidden md:flex">
@@ -34,7 +38,7 @@ export default async function DashboardLayout({
             {children}
           </div>
         </main>
-        <DashielWidget />
+        <DashielWidget workspaceSlug={activeWorkspace?.slug} />
       </div>
     </div>
   );

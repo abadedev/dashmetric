@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, Layers3, Shield, ShieldAlert, Users } from 'lucide-react';
+import { Building2, Clock, Layers3, Shield, ShieldAlert, Users } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { ModuleManager } from '@/components/admin/module-manager';
 import { UsersManager } from '@/components/admin/users-manager';
 import { RolesManager } from '@/components/admin/roles-manager';
 import { WorkspaceManager } from '@/components/admin/workspace-manager';
+import { PendingUsersManager, usePendingUsersCount } from '@/components/admin/pending-users-manager';
 
 function readActiveWorkspaceCookie() {
   if (typeof document === 'undefined') return null;
@@ -56,6 +57,7 @@ export default function AdminPage() {
   }, [activeWorkspaceSlug, workspaceData?.data]);
 
   const canManageCurrentWorkspace = Boolean(isPlatformAdmin || activeWorkspace?.role === 'ADMIN');
+  const pendingCount = usePendingUsersCount();
 
   useEffect(() => {
     if (!isPending && !data?.user) {
@@ -98,8 +100,17 @@ export default function AdminPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="usuarios">
+      <Tabs defaultValue={pendingCount > 0 ? 'pendentes' : 'usuarios'}>
         <TabsList>
+          <TabsTrigger value="pendentes" className="relative">
+            <Clock className="h-4 w-4" />
+            Pendentes
+            {pendingCount > 0 && (
+              <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                {pendingCount}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="usuarios">
             <Users className="h-4 w-4" />
             Usuarios
@@ -119,6 +130,10 @@ export default function AdminPage() {
             </TabsTrigger>
           ) : null}
         </TabsList>
+
+        <TabsContent value="pendentes" className="mt-4">
+          <PendingUsersManager />
+        </TabsContent>
 
         <TabsContent value="usuarios" className="mt-4">
           <UsersManager />

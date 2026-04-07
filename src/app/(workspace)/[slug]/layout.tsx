@@ -34,7 +34,7 @@ export default async function WorkspaceLayout({
             {children}
           </div>
         </main>
-        <DashielWidget />
+        <DashielWidget workspaceSlug={workspaceSlug} />
       </div>
     </div>
   );

@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { getWorkspaceSlugFromPathname, resolveWorkspaceHref } from '@/lib/workspace-navigation';
-import { DstechLogo } from '@/components/brand/dstech-logo';
+import { WorkspaceBrand } from '@/components/brand/workspace-brand';
 import {
   BarChart3,
   Network,
@@ -47,9 +48,43 @@ const iconMap = {
   Network,
 } as const;
 
+type WorkspaceEntry = {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  logoDarkUrl: string | null;
+  logoLightUrl: string | null;
+};
+
 export function Sidebar() {
   const pathname = usePathname();
   const workspaceSlug = getWorkspaceSlugFromPathname(pathname);
+
+  // On reserved pages (e.g. /admin) the slug from URL is null.
+  // Fall back to the cookie so the branding stays consistent with the last active workspace.
+  const [cookieSlug, setCookieSlug] = useState<string | null>(null);
+  useEffect(() => {
+    const match = document.cookie.split('; ').find((c) => c.startsWith('dwm_active_workspace='));
+    setCookieSlug(match ? decodeURIComponent(match.split('=')[1] ?? '') : null);
+  }, [pathname]);
+
+  const effectiveSlug = workspaceSlug ?? cookieSlug;
+
+  const { data: wsData } = useQuery({
+    queryKey: ['my-workspaces'],
+    queryFn: async () => {
+      const res = await fetch('/api/workspaces/my');
+      if (!res.ok) return { data: [] as WorkspaceEntry[] };
+      return res.json() as Promise<{ data: WorkspaceEntry[] }>;
+    },
+    staleTime: 30_000,
+  });
+  const workspaces = wsData?.data ?? [];
+
+  const activeWorkspace = effectiveSlug
+    ? workspaces.find((w) => w.slug === effectiveSlug)
+    : workspaces[0];
 
   const { data } = useQuery({
     queryKey: ['sidebar-modules', workspaceSlug],
@@ -84,7 +119,17 @@ export function Sidebar() {
           href={resolveWorkspaceHref('/', workspaceSlug)}
           className="flex items-center opacity-85 transition-opacity hover:opacity-100"
         >
-          <DstechLogo className="h-10 w-auto text-sidebar-foreground" />
+          {activeWorkspace ? (
+            <WorkspaceBrand
+              name={activeWorkspace.name}
+              logoUrl={activeWorkspace.logoUrl}
+              logoDarkUrl={activeWorkspace.logoDarkUrl}
+              logoLightUrl={activeWorkspace.logoLightUrl}
+              size="sidebar"
+            />
+          ) : (
+            <WorkspaceBrand name="Dashmetric" size="sidebar" />
+          )}
         </Link>
       </div>
 

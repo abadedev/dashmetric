@@ -92,6 +92,13 @@
       "when": 1775451600000,
       "tag": "0012_workspace_branding_and_theme",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1744070400000,
+      "tag": "0013_workspace_dual_logo",
+      "breakpoints": true
     }
   ]
 }

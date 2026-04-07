@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { signOut, useSession } from '@/lib/auth-client';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
+import { THEME_PREF_KEY } from '@/components/providers';
 
 const ROLE_LABELS = {
   admin: 'Administrador',
@@ -195,7 +196,15 @@ export function Header() {
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Theme Toggle */}
           <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={() => {
+              const newTheme = theme === 'dark' ? 'light' : 'dark';
+              setTheme(newTheme);
+              // Persist the user's manual choice per workspace so WorkspaceThemeSync respects it.
+              const activeSlug = workspaceSlugFromUrl ?? activeWorkspace?.slug;
+              if (activeSlug) {
+                localStorage.setItem(THEME_PREF_KEY(activeSlug), newTheme);
+              }
+            }}
             aria-label="Alternar tema"
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-all hover:border-border/80 hover:bg-card/80 hover:text-foreground"
           >

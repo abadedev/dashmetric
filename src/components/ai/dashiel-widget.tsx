@@ -22,6 +22,17 @@ type Message = {
   kind?: MessageKind;
 };
 
+// ─── Session ──────────────────────────────────────────────────────────────────
+
+function getSessionId(): string {
+  let id = localStorage.getItem('dashiel_session_id');
+  if (!id) {
+    id = `chat_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem('dashiel_session_id', id);
+  }
+  return id;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STARTER_MESSAGE =
@@ -198,7 +209,7 @@ function InsightStrip({ cards }: { cards: InsightCard[] }) {
 
 // ─── Main widget ──────────────────────────────────────────────────────────────
 
-export function DashielWidget() {
+export function DashielWidget({ workspaceSlug }: { workspaceSlug?: string }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -237,18 +248,24 @@ export function DashielWidget() {
     setMessages((prev) => [...prev, buildMessage('user', trimmed)]);
 
     try {
-      const response = await fetch(
-        'https://n8nabade.squareweb.app/webhook/40c22652-857b-44f9-9124-997e3d7b88d8/chat',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chatInput: trimmed }),
-        },
-      );
+      console.log('[dashiel-widget] workspaceSlug prop:', workspaceSlug);
+
+      if (!workspaceSlug) {
+        throw new Error('workspaceSlug ausente — não foi possível identificar o workspace.');
+      }
+
+      const payload = { chatInput: trimmed, sessionId: getSessionId(), workspaceSlug };
+      console.log('[dashiel-widget] enviando:', payload);
+
+      const response = await fetch('/api/dashiel/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
       const data = (await response.json()) as {
-        output?: string;
-        answer?: string;
+        output?: unknown;
+        answer?: unknown;
         insightCards?: InsightCard[];
         error?: string;
       };
@@ -259,7 +276,14 @@ export function DashielWidget() {
         throw new Error(data.error ?? 'Não foi possível consultar os dados no momento.');
       }
 
-      const answer = rawAnswer.trim();
+      let answer: string;
+      if (typeof rawAnswer === 'string') {
+        answer = rawAnswer.trim();
+      } else if (rawAnswer && typeof rawAnswer === 'object' && 'output' in rawAnswer && typeof (rawAnswer as Record<string, unknown>).output === 'string') {
+        answer = ((rawAnswer as Record<string, unknown>).output as string).trim();
+      } else {
+        answer = JSON.stringify(rawAnswer);
+      }
       setMessages((prev) => [
         ...prev,
         buildMessage('assistant', answer, classifyAssistantMessage(answer)),

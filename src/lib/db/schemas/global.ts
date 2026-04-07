@@ -89,6 +89,8 @@ export const workspaces = pgTable(
     name: text('name').notNull(),
     slug: text('slug').notNull().unique(),
     logoUrl: text('logo_url'),
+    logoDarkUrl: text('logo_dark_url'),
+    logoLightUrl: text('logo_light_url'),
     defaultTheme: varchar('default_theme', { length: 20 }).default('dark').notNull(),
     createdBy: text('created_by').notNull(),
     isActive: boolean('is_active').default(true).notNull(),
