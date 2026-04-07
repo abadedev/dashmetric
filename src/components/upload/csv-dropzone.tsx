@@ -56,6 +56,7 @@ interface ResumoGenerico {
   totalDuplicadas?: number;
   erros?: ErroLinha[];
   warnings?: WarningLinha[];
+  debug?: { indicadorColuna: string; sampleIndicadores: string[] };
 }
 
 interface ImportResult {
@@ -335,6 +336,19 @@ export function CsvDropzone({ profiles }: CsvDropzoneProps) {
                 <li className="font-medium">... e mais {resumo.warnings!.length - 5} avisos omitidos</li>
               )}
             </ul>
+          </div>
+        )}
+
+        {resumo.debug && (
+          <div className="w-full rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-left">
+            <p className="mb-1 text-sm font-medium text-blue-500">Debug — Coluna de indicador detectada</p>
+            <p className="text-xs text-blue-400">
+              Coluna: <span className="font-mono font-bold">{resumo.debug.indicadorColuna}</span>
+            </p>
+            <p className="mt-1 text-xs text-blue-400">
+              Valores das primeiras linhas:{' '}
+              <span className="font-mono">{resumo.debug.sampleIndicadores.map(v => `"${v}"`).join(', ')}</span>
+            </p>
           </div>
         )}
 
