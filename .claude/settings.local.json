@@ -83,7 +83,18 @@
       "Bash(find /d/Relatoria.SLA/dstech-noc/src -type f -name *import* -o -name *parser* -o -name *detector*)",
       "Bash(grep -r \"IQIv\\\\|IQRv\\\\|RTV\\\\|RST\\\\|ICT\" /d/Relatoria.SLA/dstech-noc/src --include=*.ts --include=*.tsx -l)",
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_HZhG05PxdwOb@ep-soft-salad-acvptwvf-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx tsx --tsconfig tsconfig.json -e \":*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(node --env-file=d:/Relatoria.SLA/dstech-noc/.env -e \":*)",
+      "Bash(grep -v \"Use \\\\`node\")",
+      "Bash(grep -v \"Warning\\\\|next major\\\\|alias\\\\|uselibpq\\\\|https\\\\|Use \\\\`node\\\\|To prepare\\\\|sslmode=verify\")",
+      "Bash(pkill -f \"next start\")",
+      "Bash(grep -v \"Warning\\\\|next major\\\\|alias\\\\|uselibpq\\\\|https\\\\|Use \\\\`node\\\\|To prepare\\\\|sslmode=verify\\\\|spinner\")",
+      "Bash(netstat -ano)",
+      "Read(//d/Relatoria.SLA/dstech-noc/**)",
+      "Bash(xargs -I{} taskkill /PID {} /F)",
+      "Bash(taskkill /PID 17716 /F)",
+      "Bash(taskkill /PID 5496 /F)",
+      "Bash(cmd //c \"taskkill /PID 17716 /F & taskkill /PID 5496 /F\")"
     ]
   }
 }
