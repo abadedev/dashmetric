@@ -1,6 +1,6 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Project Notes
+## Project Notes.
 
 - Naming standard for new code and refactors: [docs/naming-conventions.md](docs/naming-conventions.md)
 - Current raw-import retention note: [docs/data-retention.md](docs/data-retention.md)
