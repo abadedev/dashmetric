@@ -216,7 +216,7 @@ const DEFAULT_MODULES: Array<{
       name: 'Omnichannel',
       slug: 'omnichannel',
       description: 'Metricas de atendimento Matrix Go por agente — quantidade, TMA, TME e tempos operacionais.',
-      icon: 'Headphones',
+      icon: 'WhatsAppIcon',
       href: '/omnichannel',
       sortOrder: 75,
       isActive: true,
@@ -411,6 +411,14 @@ export async function ensureDefaultModules(workspaceId: string) {
           .delete(moduleImportProfiles)
           .where(eq(moduleImportProfiles.id, obsoleteInfraProfile.id));
       }
+    }
+
+    // Migrate omnichannel icon from legacy 'Headphones' to 'WhatsAppIcon'.
+    if (found.slug === 'omnichannel' && found.icon !== 'WhatsAppIcon') {
+      await db
+        .update(systemModules)
+        .set({ icon: 'WhatsAppIcon', updatedAt: new Date() })
+        .where(eq(systemModules.id, found.id));
     }
 
     // Clean up omnichannel_matrix_go profile mistakenly registered under the upload module.
