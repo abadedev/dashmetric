@@ -77,7 +77,12 @@
       "Bash(ls d:/Relatoria.SLA/dstech-noc/public/logo*.*)",
       "Bash(ls -la /d/Relatoria.SLA/dstech-noc/src/app/api/admin/workspaces/*/)",
       "Bash(find d:/Relatoria.SLA/dstech-noc/src/app/api/admin -name *.ts)",
-      "Bash(\"d:/Relatoria.SLA/dstech-noc/.env\")"
+      "Bash(\"d:/Relatoria.SLA/dstech-noc/.env\")",
+      "Bash(find /d/Relatoria.SLA/dstech-noc/src -type f \\\\\\(-name *.ts -o -name *.tsx -o -name *.py \\\\\\))",
+      "Bash(find /d/Relatoria.SLA/dstech-noc/drizzle -type f -name *.sql)",
+      "Bash(find /d/Relatoria.SLA/dstech-noc/src -type f -name *import* -o -name *parser* -o -name *detector*)",
+      "Bash(grep -r \"IQIv\\\\|IQRv\\\\|RTV\\\\|RST\\\\|ICT\" /d/Relatoria.SLA/dstech-noc/src --include=*.ts --include=*.tsx -l)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_HZhG05PxdwOb@ep-soft-salad-acvptwvf-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx tsx --tsconfig tsconfig.json -e \":*)"
     ]
   }
 }

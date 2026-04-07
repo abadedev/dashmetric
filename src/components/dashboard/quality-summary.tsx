@@ -7,7 +7,7 @@ import { formatNumber } from '@/lib/utils/format';
 const INDICATOR_DESCRIPTIONS: Record<string, string> = {
   IQIv: 'Instalação com Reparo < 30 dias',
   IQRv: 'Reparo Reincidente < 30 dias',
-  RTV: 'Reclamação Varejo (Procon/Anatel)',
+  RTV: 'Reclamação Varejo',
   RST: 'Reclamação Serviço Técnico',
   ICT: 'Inviabilidade Técnica',
   Retorno: 'Retorno Geral',

@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { atendimentos, qualityRecords } from '@/lib/db/schema';
 import { calculateValidAverage } from '@/lib/utils/average';
 import { requireWorkspacePermission } from '@/lib/require-auth';
-import { and, count, eq, gte, lte, sql, SQL } from 'drizzle-orm';
+import { and, count, eq, gte, ilike, lte, sql, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -34,10 +34,20 @@ export async function GET(req: NextRequest) {
     if (toStr)   qualityFilters.push(lte(qualityRecords.openedAt, new Date(toStr)));
     const qualityWhere = qualityFilters.length ? and(...qualityFilters) : undefined;
 
+    // Filtro de reparos para RTV
+    const reparoFilters: SQL[] = [
+      eq(atendimentos.workspaceId, result.context.workspaceId),
+      ilike(atendimentos.tipo, 'reparo'),
+    ];
+    if (fromStr) reparoFilters.push(gte(atendimentos.aberturaAt, new Date(fromStr)));
+    if (toStr)   reparoFilters.push(lte(atendimentos.aberturaAt, new Date(toStr)));
+    const reparoWhere = and(...reparoFilters);
+
     const [
       [totalRow],
       slaByTypeRaw,
       qualityIndicatorsRaw,
+      [reparoRow],
     ] = await Promise.all([
       db.select({ total: count() }).from(atendimentos).where(atendWhere),
 
@@ -64,6 +74,8 @@ export async function GET(req: NextRequest) {
         .from(qualityRecords)
         .where(qualityWhere)
         .groupBy(qualityRecords.indicator),
+
+      db.select({ total: count() }).from(atendimentos).where(reparoWhere),
     ]);
 
     const slaByType = slaByTypeRaw.map((t) => {
@@ -84,10 +96,20 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const qualityIndicators = qualityIndicatorsRaw.map((q) => ({
-      indicator: q.indicator,
-      total:     q.total,
-    }));
+    const byIndicator: Record<string, number> = {};
+    for (const q of qualityIndicatorsRaw) {
+      byIndicator[q.indicator] = q.total;
+    }
+
+    const totalReparos = reparoRow?.total ?? 0;
+
+    const qualityIndicators = [
+      { indicator: 'IQIv', total: byIndicator['IQIv'] ?? 0 },
+      { indicator: 'IQRv', total: byIndicator['IQRv'] ?? 0 },
+      { indicator: 'RTV',  total: totalReparos },
+      { indicator: 'RST',  total: (byIndicator['IQIv'] ?? 0) + (byIndicator['IQRv'] ?? 0) },
+      { indicator: 'ICT',  total: byIndicator['ICT'] ?? 0 },
+    ].filter((q) => q.total > 0);
 
     return NextResponse.json({
       totalAtendimentos: totalRow?.total ?? 0,

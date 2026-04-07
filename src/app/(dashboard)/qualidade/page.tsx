@@ -104,7 +104,7 @@ function QualidadePageContent() {
         </div>
       }
     >
-      <IndicatorCards data={data?.data || []} />
+      <IndicatorCards byIndicator={data?.byIndicator ?? {}} totalReparos={data?.totalReparos ?? 0} />
       {isLoading ? (
         <TableSkeleton />
       ) : (
