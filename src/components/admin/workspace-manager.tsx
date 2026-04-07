@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { WorkspaceLogoUploader } from '@/components/workspace/workspace-logo-uploader';
 import {
   Table,
   TableBody,
@@ -49,6 +50,8 @@ type WorkspaceRow = {
   name: string;
   slug: string;
   logoUrl: string | null;
+  logoDarkUrl: string | null;
+  logoLightUrl: string | null;
   defaultTheme: WorkspaceTheme;
   isActive: boolean;
   createdAt: string;
@@ -113,7 +116,8 @@ function WorkspaceSettings({
 }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(workspace.name);
-  const [logoUrl, setLogoUrl] = useState(workspace.logoUrl ?? '');
+  const [logoDarkUrl, setLogoDarkUrl] = useState<string | null>(workspace.logoDarkUrl ?? null);
+  const [logoLightUrl, setLogoLightUrl] = useState<string | null>(workspace.logoLightUrl ?? null);
   const [defaultTheme, setDefaultTheme] = useState<WorkspaceTheme>(workspace.defaultTheme ?? 'dark');
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -122,11 +126,7 @@ function WorkspaceSettings({
       const response = await fetch(`/api/admin/workspaces/${workspace.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          logoUrl: logoUrl.trim() || null,
-          defaultTheme,
-        }),
+        body: JSON.stringify({ name: name.trim(), defaultTheme }),
       });
 
       const payload = await response.json() as { error?: string };
@@ -137,7 +137,6 @@ function WorkspaceSettings({
       setFeedback('Configurações salvas com sucesso.');
       await queryClient.invalidateQueries({ queryKey: ['admin-workspaces'] });
       await queryClient.invalidateQueries({ queryKey: ['my-workspaces'] });
-      await queryClient.invalidateQueries({ queryKey: ['my-workspaces', 'admin-page'] });
     },
     onError: (error) => {
       setFeedback(error instanceof Error ? error.message : 'Falha ao salvar workspace');
@@ -145,12 +144,16 @@ function WorkspaceSettings({
   });
 
   const isDirty = useMemo(
-    () =>
-      name.trim() !== workspace.name
-      || (logoUrl.trim() || null) !== (workspace.logoUrl ?? null)
-      || defaultTheme !== workspace.defaultTheme,
-    [defaultTheme, logoUrl, name, workspace.defaultTheme, workspace.logoUrl, workspace.name],
+    () => name.trim() !== workspace.name || defaultTheme !== workspace.defaultTheme,
+    [defaultTheme, name, workspace.defaultTheme, workspace.name],
   );
+
+  async function invalidateLogoQueries() {
+    await queryClient.invalidateQueries({ queryKey: ['admin-workspaces'] });
+    await queryClient.invalidateQueries({ queryKey: ['my-workspaces'] });
+  }
+
+  const previewLogoUrl = logoDarkUrl ?? workspace.logoUrl ?? logoLightUrl ?? null;
 
   return (
     <div className="rounded-xl border border-border/60 bg-background/40 p-4">
@@ -167,7 +170,7 @@ function WorkspaceSettings({
               id={`workspace-name-${workspace.id}`}
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Ex.: DSTECH"
+              placeholder="Nome do workspace"
             />
           </div>
 
@@ -183,17 +186,37 @@ function WorkspaceSettings({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Aplicado quando o usuário acessa este workspace.
+              Tema inicial sugerido ao entrar neste workspace. O usuário pode alterar manualmente a qualquer momento.
             </p>
           </div>
 
+          {/* Logo para tema escuro */}
           <div className="space-y-1.5">
-            <Label htmlFor={`workspace-logo-${workspace.id}`}>Logo do workspace</Label>
-            <Input
-              id={`workspace-logo-${workspace.id}`}
-              value={logoUrl}
-              onChange={(event) => setLogoUrl(event.target.value)}
-              placeholder="https://... ou deixe vazio para usar iniciais"
+            <Label>Logo para tema escuro</Label>
+            <p className="text-xs text-muted-foreground">Exibida quando o sistema estiver no modo escuro.</p>
+            <WorkspaceLogoUploader
+              workspaceId={workspace.id}
+              variant="dark"
+              currentLogoUrl={logoDarkUrl}
+              onSuccess={async (url) => {
+                setLogoDarkUrl(url);
+                await invalidateLogoQueries();
+              }}
+            />
+          </div>
+
+          {/* Logo para tema claro */}
+          <div className="space-y-1.5">
+            <Label>Logo para tema claro</Label>
+            <p className="text-xs text-muted-foreground">Exibida quando o sistema estiver no modo claro.</p>
+            <WorkspaceLogoUploader
+              workspaceId={workspace.id}
+              variant="light"
+              currentLogoUrl={logoLightUrl}
+              onSuccess={async (url) => {
+                setLogoLightUrl(url);
+                await invalidateLogoQueries();
+              }}
             />
           </div>
 
@@ -212,27 +235,46 @@ function WorkspaceSettings({
           </div>
         </div>
 
-        <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Pré-visualização
-          </p>
-          <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/80 p-3">
-            <WorkspaceAvatar name={name.trim() || workspace.name} logoUrl={logoUrl.trim() || null} />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{name.trim() || workspace.name}</p>
-              <p className="text-xs text-muted-foreground">/{workspace.slug}</p>
+        {/* Preview */}
+        <div className="space-y-3">
+          {/* Dark preview */}
+          <div className="rounded-xl border border-dashed border-border/70 bg-zinc-900 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Preview — escuro
+            </p>
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-800/80 p-3">
+              <WorkspaceAvatar name={name.trim() || workspace.name} logoUrl={logoDarkUrl ?? workspace.logoUrl ?? null} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">{name.trim() || workspace.name}</p>
+                <p className="text-xs text-zinc-400">/{workspace.slug}</p>
+              </div>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+
+          {/* Light preview */}
+          <div className="rounded-xl border border-dashed border-border/70 bg-white p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Preview — claro
+            </p>
+            <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+              <WorkspaceAvatar name={name.trim() || workspace.name} logoUrl={logoLightUrl ?? workspace.logoUrl ?? null} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-zinc-900">{name.trim() || workspace.name}</p>
+                <p className="text-xs text-zinc-500">/{workspace.slug}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">
-              Tema: {defaultTheme === 'dark' ? 'Escuro' : 'Claro'}
+              Tema padrão: {defaultTheme === 'dark' ? 'Escuro' : 'Claro'}
             </Badge>
             <Badge variant={workspace.isActive ? 'outline' : 'secondary'}>
               {workspace.isActive ? 'Ativo' : 'Inativo'}
             </Badge>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Se não houver logo, o sistema usa as iniciais do workspace.
+          <p className="text-xs text-muted-foreground">
+            Se não houver logo para o tema ativo, o sistema usa a logo disponível ou as iniciais do workspace.
           </p>
         </div>
       </div>
@@ -434,7 +476,6 @@ export function WorkspaceManager() {
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
   const [defaultTheme, setDefaultTheme] = useState<WorkspaceTheme>('dark');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
@@ -486,7 +527,6 @@ export function WorkspaceManager() {
         body: JSON.stringify({
           name: name.trim(),
           slug: slug.trim(),
-          logoUrl: logoUrl.trim() || null,
           defaultTheme,
         }),
       });
@@ -503,7 +543,6 @@ export function WorkspaceManager() {
       setCreateOpen(false);
       setName('');
       setSlug('');
-      setLogoUrl('');
       setDefaultTheme('dark');
     } catch {
       setError('Erro ao criar workspace');
@@ -623,14 +662,6 @@ export function WorkspaceManager() {
                 placeholder="acme-corp"
                 value={slug}
                 onChange={(event) => setSlug(slugify(event.target.value))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Logo do workspace</Label>
-              <Input
-                placeholder="https://..."
-                value={logoUrl}
-                onChange={(event) => setLogoUrl(event.target.value)}
               />
             </div>
             <div className="space-y-1.5">

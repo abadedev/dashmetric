@@ -6,6 +6,18 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 
+/**
+ * Precedência de tema:
+ * 1. Preferência manual do usuário por workspace (localStorage `dwm_theme_{slug}`)
+ * 2. defaultTheme do workspace (aplicado apenas na primeira visita ou se preferência limpa)
+ * 3. Tema padrão do sistema ('dark')
+ *
+ * O WorkspaceThemeSync só sobrescreve o tema se o usuário NÃO tiver uma preferência
+ * manual salva para o workspace ativo. Isso garante que o toggle do usuário seja sempre
+ * respeitado sem ser revertido ao navegar entre páginas.
+ */
+export const THEME_PREF_KEY = (slug: string) => `dwm_theme_${slug}`;
+
 function WorkspaceThemeSync() {
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
@@ -25,6 +37,16 @@ function WorkspaceThemeSync() {
 
       if (!workspaceSlug) return;
 
+      // If the user has already manually set a theme for this workspace, respect it.
+      const userPref = localStorage.getItem(THEME_PREF_KEY(workspaceSlug)) as 'dark' | 'light' | null;
+      if (userPref === 'dark' || userPref === 'light') {
+        if (!cancelled && userPref !== resolvedTheme) {
+          setTheme(userPref);
+        }
+        return;
+      }
+
+      // No user preference: apply the workspace's defaultTheme.
       try {
         const response = await fetch('/api/workspaces/my', { credentials: 'same-origin' });
         if (!response.ok) return;
@@ -47,7 +69,8 @@ function WorkspaceThemeSync() {
     return () => {
       cancelled = true;
     };
-  }, [pathname, resolvedTheme, setTheme]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   return null;
 }

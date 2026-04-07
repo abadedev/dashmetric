@@ -8,6 +8,8 @@ export type WorkspaceWithRole = {
   name: string;
   slug: string;
   logoUrl: string | null;
+  logoDarkUrl: string | null;
+  logoLightUrl: string | null;
   defaultTheme: 'dark' | 'light';
   isActive: boolean;
   role: 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -24,6 +26,8 @@ export const getUserWorkspaces = cache(async (userId: string): Promise<Workspace
       name: workspaces.name,
       slug: workspaces.slug,
       logoUrl: workspaces.logoUrl,
+      logoDarkUrl: workspaces.logoDarkUrl,
+      logoLightUrl: workspaces.logoLightUrl,
       defaultTheme: workspaces.defaultTheme,
       isActive: workspaces.isActive,
       role: workspaceMembers.role,

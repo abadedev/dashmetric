@@ -5,6 +5,7 @@ import { ExternalApiRequestError } from './external-query';
 import { createErrorResponse, createSuccessResponse } from './response';
 import { parseExternalApiFilters, serializeAppliedFilters } from './filters';
 import { isWorkspaceNotFoundError, resolveWorkspaceId } from '@/lib/db/workspace-context';
+import { buildCacheKey, withCache } from '@/lib/cache';
 
 export async function handleExternalApiRequest(
   req: NextRequest,
@@ -32,13 +33,16 @@ export async function handleExternalApiRequest(
     filters.workspaceId = await resolveWorkspaceId(filters.workspaceSlug);
     serializedFilters = serializeAppliedFilters(filters);
 
-    const data = await resolver(filters);
+    const cacheKey = buildCacheKey(handlerName, serializedFilters as Record<string, string>);
+    const { data, source } = await withCache(cacheKey, () => resolver(filters));
+
     return createSuccessResponse(
       data,
       serializedFilters,
       { handler: handlerName },
       200,
-      options?.buildSuccessExtra?.(filters, data) ?? {}
+      options?.buildSuccessExtra?.(filters, data) ?? {},
+      source,
     );
   } catch (error) {
     if (error instanceof ExternalApiAuthError) {

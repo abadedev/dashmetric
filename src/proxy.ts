@@ -5,7 +5,8 @@ import { globalDb } from '@/lib/db';
 import { workspaceMembers, workspaces } from '@/lib/db/schemas/global';
 
 const PUBLIC_PATHS = ['/auth', '/waiting'];
-const BYPASS_PREFIXES = ['/api/', '/_next', '/favicon', '/public'];
+const BYPASS_PREFIXES = ['/api/', '/_next', '/favicon', '/public', '/uploads/'];
+const STATIC_EXT = /\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff2?|ttf|otf|map)$/i;
 const RESERVED_SEGMENTS = new Set(['api', 'auth', 'waiting', '_next', 'favicon', 'public']);
 /**
  * @deprecated Legacy module paths kept only for backward-compatible redirects.
@@ -35,7 +36,7 @@ function extractWorkspaceSlug(pathname: string): string | null {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (BYPASS_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+  if (BYPASS_PREFIXES.some((prefix) => pathname.startsWith(prefix)) || STATIC_EXT.test(pathname)) {
     return NextResponse.next();
   }
 

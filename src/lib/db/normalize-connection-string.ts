@@ -1,4 +1,4 @@
-const SSL_MODE_ALIAS_PATTERN = /([?&])sslmode=(prefer|require|verify-ca)(?=(&|$))/gi;
+const SSL_MODE_ALIAS_PATTERN = /([?&])sslmode=(prefer|verify-ca)(?=(&|$))/gi;
 const CHANNEL_BINDING_PATTERN = /([?&])channel_binding=[^&]*/gi;
 
 function cleanupQueryDelimiters(value: string) {
