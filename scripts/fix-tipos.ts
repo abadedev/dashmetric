@@ -24,8 +24,11 @@ const CORRECOES: Record<string, string> = {
   'Reativacao de Login':       'Instalação (Reativação)',
   'Reativação de Login':       'Instalação (Reativação)',
   'Nova':                      'Instalação (Nova)',
+  'Nova Fibra':                'Instalação (Nova)',
   'Reativacao':                'Instalação (Reativação)',
   'Reativação':                'Instalação (Reativação)',
+  'Reativacao Fibra':          'Instalação (Reativação)',
+  'Reativação Fibra':          'Instalação (Reativação)',
 };
 
 async function main() {

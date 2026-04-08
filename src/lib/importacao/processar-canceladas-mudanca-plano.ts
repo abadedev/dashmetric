@@ -106,38 +106,45 @@ export async function processarCanceladasMudancaPlano(
       cidade: string | null;
       intervalo: string | null;
       login: string | null;
+      cliente: string | null;
     } | null = null;
 
     try {
-      const whereConditions = dataRef
-        ? and(
-            gte(atendimentos.aberturaAt, new Date(dataRef.getTime() - 60 * 24 * 3600 * 1000)),
-            lte(atendimentos.aberturaAt, new Date(dataRef.getTime() + 60 * 24 * 3600 * 1000))
+      // Só cruza se houver uma data válida de referência; sem data, não
+      // é possível achar o atendimento certo e qualquer resultado seria falso.
+      if (dataRef) {
+        const registros = await db
+          .select({
+            tecnico: atendimentos.tecnico,
+            dataAbertura: atendimentos.dataAbertura,
+            horaAbertura: atendimentos.horaAbertura,
+            dataFinalizacao: atendimentos.dataFinalizacao,
+            horaFinalizacao: atendimentos.horaFinalizacao,
+            numeroOs: atendimentos.numeroOs,
+            plano: atendimentos.plano,
+            cidade: atendimentos.cidade,
+            login: atendimentos.login,
+            intervalo: atendimentos.intervalo,
+            cliente: atendimentos.cliente,
+          })
+          .from(atendimentos)
+          .where(
+            and(
+              gte(atendimentos.aberturaAt, new Date(dataRef.getTime() - 60 * 24 * 3600 * 1000)),
+              lte(atendimentos.aberturaAt, new Date(dataRef.getTime() + 60 * 24 * 3600 * 1000))
+            )
           )
-        : undefined;
+          .limit(500);
 
-      const registros = await db
-        .select({
-          tecnico: atendimentos.tecnico,
-          dataAbertura: atendimentos.dataAbertura,
-          horaAbertura: atendimentos.horaAbertura,
-          dataFinalizacao: atendimentos.dataFinalizacao,
-          horaFinalizacao: atendimentos.horaFinalizacao,
-          numeroOs: atendimentos.numeroOs,
-          plano: atendimentos.plano,
-          cidade: atendimentos.cidade,
-          login: atendimentos.login,
-          intervalo: atendimentos.intervalo,
-        })
-        .from(atendimentos)
-        .where(whereConditions)
-        .limit(50);
+        const nomeNorm = normalizarNomeCliente(nomeCliente);
+        const correspondente =
+          registros.find((r) => normalizarNomeCliente(r.cliente ?? '') === nomeNorm) ??
+          null;
 
-      const correspondente = registros[0] ?? null;
-
-      if (correspondente) {
-        atendimentoCruzado = correspondente;
-        totalCruzadas++;
+        if (correspondente) {
+          atendimentoCruzado = correspondente;
+          totalCruzadas++;
+        }
       }
     } catch {
       // Falha silenciosa — importa com dados da cancelada mesmo assim

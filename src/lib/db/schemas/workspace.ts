@@ -112,15 +112,23 @@ export const supportRecords = pgTable(
   {
     id: serial('id').primaryKey(),
     attendantName: varchar('attendant_name', { length: 255 }).notNull(),
+    supportCategory: varchar('support_category', { length: 200 }),
     openedManutExt: integer('opened_manut_ext').default(0),
     percentage: numeric('percentage', { precision: 5, scale: 2 }),
     withoutManut: integer('without_manut').default(0),
     total: integer('total').default(0),
+    openedAt: timestamp('opened_at'),
+    closedAt: timestamp('closed_at'),
     periodMonth: integer('period_month').notNull(),
     periodYear: integer('period_year').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
-  (table) => [index('sr_period_idx').on(table.periodYear, table.periodMonth)]
+  (table) => [
+    index('sr_category_idx').on(table.supportCategory),
+    index('sr_period_idx').on(table.periodYear, table.periodMonth),
+    index('sr_opened_at_idx').on(table.openedAt),
+    index('sr_closed_at_idx').on(table.closedAt),
+  ]
 );
 
 export const supportCallCategories = pgTable(

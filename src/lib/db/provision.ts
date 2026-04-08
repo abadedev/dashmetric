@@ -63,16 +63,22 @@ export async function provisionWorkspaceSchema(workspaceSlug: string): Promise<v
       CREATE TABLE IF NOT EXISTS support_records (
         id               serial PRIMARY KEY,
         attendant_name   varchar(255) NOT NULL,
+        support_category varchar(200),
         opened_manut_ext integer DEFAULT 0,
         percentage       numeric(5,2),
         without_manut    integer DEFAULT 0,
         total            integer DEFAULT 0,
+        opened_at        timestamp,
+        closed_at        timestamp,
         period_month     integer NOT NULL,
         period_year      integer NOT NULL,
         created_at       timestamp DEFAULT now() NOT NULL
       )
     `);
+    await client.query(`CREATE INDEX IF NOT EXISTS sr_category_idx ON support_records(support_category)`);
     await client.query(`CREATE INDEX IF NOT EXISTS sr_period_idx ON support_records(period_year, period_month)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS sr_opened_at_idx ON support_records(opened_at)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS sr_closed_at_idx ON support_records(closed_at)`);
 
     // ── support_call_categories ──────────────────────────────────────────────
     await client.query(`

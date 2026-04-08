@@ -1,4 +1,4 @@
-import { count, desc, eq, isNotNull, sql, SQL } from 'drizzle-orm';
+import { and, count, desc, eq, gte, isNotNull, lte, sql, SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { atendimentos, supportRecords } from '@/lib/db/schema';
 import { formatSecondsToHHMMSS } from '@/lib/importacao/helpers';
@@ -6,11 +6,14 @@ import type { ExternalApiFilters } from '@/lib/api/filters';
 import {
   buildAttendanceBaseFilters,
   buildAttendanceDateReference,
-  buildMonthlyPeriodFilter,
   combineFilters,
 } from './common';
 
 const EXCLUDED_FIRST_NAMES = ['Fernanda', 'Vitor', 'Ramon', 'Thiago'];
+
+function buildSupportDateReference() {
+  return sql`COALESCE(${supportRecords.openedAt}, ${supportRecords.closedAt})`;
+}
 
 export async function getRankingAnalytics(filters: ExternalApiFilters) {
   const dateFilters: SQL[] = [...buildAttendanceBaseFilters(filters)];
@@ -18,9 +21,12 @@ export async function getRankingAnalytics(filters: ExternalApiFilters) {
   const rankingFilters: SQL[] = [...dateFilters, isNotNull(atendimentos.tecnicoId), excludedFilter];
   const whereClause = combineFilters(rankingFilters);
 
-  const supportWhere = combineFilters(
-    buildMonthlyPeriodFilter(filters, supportRecords.periodMonth, supportRecords.periodYear)
-  );
+  const supportFilters: SQL[] = [];
+  const supportDateRef = buildSupportDateReference();
+  if (filters.workspaceId) supportFilters.push(eq(supportRecords.workspaceId, filters.workspaceId));
+  if (filters.startDate) supportFilters.push(gte(supportDateRef, filters.startDate));
+  if (filters.endDate) supportFilters.push(lte(supportDateRef, filters.endDate));
+  const supportWhere = supportFilters.length ? and(...supportFilters) : undefined;
 
   const [technicianRows, attendantRows] = await Promise.all([
     db
@@ -41,14 +47,14 @@ export async function getRankingAnalytics(filters: ExternalApiFilters) {
     db
       .select({
         attendantName: supportRecords.attendantName,
-        totalSupports: sql<number>`cast(sum(${supportRecords.total}) as int)`,
+        totalSupports: sql<number>`cast(sum(case when coalesce(${supportRecords.total}, 0) > 0 then ${supportRecords.total} else 1 end) as int)`,
         totalWithoutManut: sql<number>`cast(sum(${supportRecords.withoutManut}) as int)`,
         totalOpenedManutExt: sql<number>`cast(sum(${supportRecords.openedManutExt}) as int)`,
       })
       .from(supportRecords)
       .where(supportWhere)
       .groupBy(supportRecords.attendantName)
-      .orderBy(desc(sql`sum(${supportRecords.total})`))
+      .orderBy(desc(sql`sum(case when coalesce(${supportRecords.total}, 0) > 0 then ${supportRecords.total} else 1 end)`))
       .limit(Math.min(filters.limit, 100)),
   ]);
 

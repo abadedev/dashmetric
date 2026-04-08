@@ -98,9 +98,44 @@ async function importQualityModule(context: ModuleImportContext): Promise<Module
   };
 }
 
-async function importSupportModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
+function detectSupportPeriod(rows: Record<string, string>[]): { month: number; year: number } {
   const now = new Date();
-  const resumo = await importarSuporte(context.rows, now.getMonth() + 1, now.getFullYear(), context.workspaceId);
+  const fallback = { month: now.getMonth() + 1, year: now.getFullYear() };
+  const firstRow = rows[0];
+  if (!firstRow) return fallback;
+
+  const combinedDate =
+    firstRow['data_abertura'] ??
+    firstRow['dataabertura'] ??
+    firstRow['data_pedido'] ??
+    firstRow['datapedido'] ??
+    firstRow['data_finalizacao'] ??
+    firstRow['datafinalizacao'] ??
+    '';
+  const dateMatch = String(combinedDate).match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (dateMatch) {
+    const month = parseInt(dateMatch[2], 10);
+    const rawYear = parseInt(dateMatch[3], 10);
+    const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+    if (month >= 1 && month <= 12 && year >= 2000) {
+      return { month, year };
+    }
+  }
+
+  const mes = firstRow['mes'] ?? firstRow['month'] ?? firstRow['periodo'] ?? firstRow['competencia'] ?? '';
+  const ano = firstRow['ano'] ?? firstRow['year'] ?? '';
+  const month = parseInt(mes.replace(/\D/g, ''), 10);
+  const year  = parseInt(ano.replace(/\D/g, ''), 10);
+
+  return {
+    month: month >= 1 && month <= 12 ? month : fallback.month,
+    year:  year  >= 2000              ? year  : fallback.year,
+  };
+}
+
+async function importSupportModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
+  const { month, year } = detectSupportPeriod(context.rows);
+  const resumo = await importarSuporte(context.rows, month, year, context.workspaceId);
 
   return {
     success: true,
