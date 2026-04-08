@@ -43,7 +43,9 @@ export function detectarTipoPlanilha(headers: string[], nomeArquivo?: string): T
   if (
     hasAll('titulo', 'categoria') ||
     hasAll('title', 'category') ||
-    hasAll('categoria', 'cidade', 'referencia')
+    hasAll('categoria', 'cidade', 'referencia') ||
+    hasAll('cidade', 'equip', 'problema') ||
+    hasAll('cidade', 'ca', 'problema')
   ) {
     return 'infraestrutura';
   }

@@ -58,7 +58,7 @@ function RankingPageContent() {
             <SelectTrigger className="w-[220px]">
               <SelectValue placeholder="Filtrar cidade" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent side="bottom" alignItemWithTrigger={false}>
               <SelectItem value="all">Todas as cidades</SelectItem>
               {(data?.cities || []).map((item: string) => (
                 <SelectItem key={item} value={item}>

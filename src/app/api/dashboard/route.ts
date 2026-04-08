@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const fromStr = searchParams.get('from');
     const toStr   = searchParams.get('to');
+    const city    = searchParams.get('city');
 
     // Filtro de data para atendimentos: COALESCE(aberturaAt, finalizacaoAt, createdAt)
     const atendFilters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
@@ -26,12 +27,14 @@ export async function GET(req: NextRequest) {
       if (fromStr) atendFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
       if (toStr)   atendFilters.push(sql`${dataRef} <= ${new Date(toStr)}`);
     }
+    if (city && city !== 'all') atendFilters.push(eq(atendimentos.cidade, city));
     const atendWhere = atendFilters.length ? and(...atendFilters) : undefined;
 
     // Filtro de data para qualidade (usa openedAt)
     const qualityFilters: SQL[] = [eq(qualityRecords.workspaceId, result.context.workspaceId)];
     if (fromStr) qualityFilters.push(gte(qualityRecords.openedAt, new Date(fromStr)));
     if (toStr)   qualityFilters.push(lte(qualityRecords.openedAt, new Date(toStr)));
+    if (city && city !== 'all') qualityFilters.push(eq(qualityRecords.city, city));
     const qualityWhere = qualityFilters.length ? and(...qualityFilters) : undefined;
 
     // Filtro de reparos para RTV
@@ -41,13 +44,24 @@ export async function GET(req: NextRequest) {
     ];
     if (fromStr) reparoFilters.push(gte(atendimentos.aberturaAt, new Date(fromStr)));
     if (toStr)   reparoFilters.push(lte(atendimentos.aberturaAt, new Date(toStr)));
+    if (city && city !== 'all') reparoFilters.push(eq(atendimentos.cidade, city));
     const reparoWhere = and(...reparoFilters);
+
+    // Cidades distintas para o filtro (escopo: workspace + data, sem filtro de cidade)
+    const baseCityFilters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
+    if (fromStr || toStr) {
+      const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
+      if (fromStr) baseCityFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
+      if (toStr)   baseCityFilters.push(sql`${dataRef} <= ${new Date(toStr)}`);
+    }
+    const baseCityWhere = and(...baseCityFilters);
 
     const [
       [totalRow],
       slaByTypeRaw,
       qualityIndicatorsRaw,
       [reparoRow],
+      citiesRaw,
     ] = await Promise.all([
       db.select({ total: count() }).from(atendimentos).where(atendWhere),
 
@@ -76,6 +90,11 @@ export async function GET(req: NextRequest) {
         .groupBy(qualityRecords.indicator),
 
       db.select({ total: count() }).from(atendimentos).where(reparoWhere),
+
+      db
+        .selectDistinct({ cidade: atendimentos.cidade })
+        .from(atendimentos)
+        .where(baseCityWhere),
     ]);
 
     const slaByType = slaByTypeRaw.map((t) => {
@@ -118,6 +137,10 @@ export async function GET(req: NextRequest) {
       metaSLA: 0.95,
       slaByType,
       qualityIndicators,
+      cities: citiesRaw
+        .map((r) => r.cidade)
+        .filter((v): v is string => Boolean(v))
+        .sort((a, b) => a.localeCompare(b, 'pt-BR')),
     });
   } catch (err) {
     console.error('[dashboard]', err);

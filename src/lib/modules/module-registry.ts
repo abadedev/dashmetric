@@ -168,7 +168,7 @@ async function importCancellationsModule(context: ModuleImportContext): Promise<
 }
 
 async function importInfrastructureModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
-  const resumo = await importarInfraestrutura(context.rows, context.workspaceId);
+  const resumo = await importarInfraestrutura(context.rows, context.workspaceId, context.fileName);
 
   return {
     success: true,

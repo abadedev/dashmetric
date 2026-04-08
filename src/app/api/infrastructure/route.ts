@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const from = searchParams.get('from');
     const to = searchParams.get('to');
+    const city = searchParams.get('city');
+    const technician = searchParams.get('technician');
 
     const filters = [eq(infrastructureRecords.workspaceId, result.context.workspaceId)];
 
@@ -43,16 +45,82 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const rows = await db
-      .select()
+    const baseCondition = filters.length ? and(...filters) : undefined;
+    
+    // Distinct cities
+    const citiesRaw = await db
+      .selectDistinct({ cidade: infrastructureRecords.city })
       .from(infrastructureRecords)
-      .where(filters.length ? and(...filters) : undefined)
-      .orderBy(desc(infrastructureRecords.createdAt))
-      .limit(20);
+      .where(baseCondition);
+    const availableCities = citiesRaw
+      .map((r) => r.cidade)
+      .filter(Boolean)
+      .sort((a, b) => (a ?? '').localeCompare(b ?? '', 'pt-BR'));
+
+    // Distinct technicians using COALESCE from jsonb payload
+    const techRaw = await db
+      .selectDistinct({ 
+        tecnico: sql<string>`UPPER(COALESCE(${infrastructureRecords.payload}->>'tecnico', ${infrastructureRecords.payload}->>'TÉCNICO', ${infrastructureRecords.payload}->>'técnico'))` 
+      })
+      .from(infrastructureRecords)
+      .where(baseCondition);
+    const availableTechnicians = techRaw
+      .map((r) => r.tecnico)
+      .filter(Boolean)
+      .sort((a, b) => (a ?? '').localeCompare(b ?? '', 'pt-BR'));
+
+
+    // Apply independent filters
+    if (city && city !== 'all') {
+      filters.push(eq(infrastructureRecords.city, city));
+    }
+    
+    if (technician && technician !== 'all') {
+      filters.push(sql`UPPER(COALESCE(${infrastructureRecords.payload}->>'tecnico', ${infrastructureRecords.payload}->>'TÉCNICO', ${infrastructureRecords.payload}->>'técnico')) = UPPER(${technician})`);
+    }
+
+    const condition = filters.length ? and(...filters) : undefined;
+
+    const [
+      totalResult,
+      byCityResult,
+      byCategoryResult,
+      recentRecords
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(infrastructureRecords).where(condition),
+      
+      db.select({
+        city: infrastructureRecords.city,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(infrastructureRecords)
+      .where(condition)
+      .groupBy(infrastructureRecords.city)
+      .orderBy(desc(sql`count(*)`)),
+
+      db.select({
+        category: infrastructureRecords.category,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(infrastructureRecords)
+      .where(condition)
+      .groupBy(infrastructureRecords.category)
+      .orderBy(desc(sql`count(*)`)),
+
+      db.select()
+        .from(infrastructureRecords)
+        .where(condition)
+        .orderBy(desc(infrastructureRecords.referenceDate))
+        .limit(100)
+    ]);
 
     return NextResponse.json({
-      total: rows.length,
-      data: rows,
+      total: totalResult[0]?.count ?? 0,
+      byCity: byCityResult,
+      byCategory: byCategoryResult,
+      cities: availableCities,
+      technicians: availableTechnicians,
+      data: recentRecords,
     });
   } catch (error) {
     console.error('[infrastructure]', error);
