@@ -63,3 +63,24 @@ test('buildSalesOverview ignora pedido cancelado no funil de conversao padrao', 
   assert.equal(result.totals.cancelledOrders, 1);
   assert.equal(result.totals.conversionRate, 0);
 });
+
+test('buildSalesOverview inclui registros crm nos KPIs de negociados e fechados', () => {
+  const rows: SalesRecord[] = [
+    makeRow({ id: 1, recordType: 'negociado', clientName: 'Ana', csvCategory: 'crm' }),
+    makeRow({ id: 2, recordType: 'negociado', clientName: 'Bruno', csvCategory: 'crm' }),
+    makeRow({ id: 3, recordType: 'fechado', clientName: 'Ana', csvCategory: 'crm' }),
+    makeRow({ id: 4, recordType: 'fechado', clientName: 'Carlos', csvCategory: 'fora_horario' }),
+    makeRow({ id: 5, recordType: 'pedido_cancelado', clientName: 'Dora' }),
+  ];
+
+  const result = buildSalesOverview(rows);
+
+  assert.equal(result.totals.negotiatedClients, 2);
+  assert.equal(result.totals.closedClients, 1);
+  assert.equal(result.totals.outsideBusinessHoursClosedClients, 1);
+  assert.equal(result.totals.cancelledOrders, 1);
+  assert.equal(result.totals.conversionRate, 0.5);
+
+  assert.ok(result.byType.some((item) => item.type === 'Negociados' && item.total === 2));
+  assert.ok(result.byType.some((item) => item.type === 'Fechados' && item.total === 1));
+});

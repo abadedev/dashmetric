@@ -70,10 +70,16 @@ function getTypeLabel(row: SalesOverviewRow) {
 
 export function buildSalesOverview(rows: SalesOverviewRow[]) {
   const standardNegotiatedRows = rows.filter(
-    (row) => row.recordType === 'negociado' && row.originSector === 'vendas' && row.csvCategory === 'padrao'
+    (row) =>
+      row.recordType === 'negociado' &&
+      row.originSector === 'vendas' &&
+      (row.csvCategory === 'padrao' || row.csvCategory === 'crm')
   );
   const standardClosedRows = rows.filter(
-    (row) => row.recordType === 'fechado' && row.originSector === 'vendas' && row.csvCategory === 'padrao'
+    (row) =>
+      row.recordType === 'fechado' &&
+      row.originSector === 'vendas' &&
+      (row.csvCategory === 'padrao' || row.csvCategory === 'crm')
   );
   const outsideBusinessHoursRows = rows.filter(
     (row) => row.recordType === 'fechado' && row.originSector === 'vendas' && row.csvCategory === 'fora_horario'

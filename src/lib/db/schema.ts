@@ -742,6 +742,7 @@ export type Holiday = typeof holidays.$inferSelect;
 export type ActivityType = typeof activityTypeEnum.enumValues[number];
 export type QualityIndicator = typeof qualityIndicatorEnum.enumValues[number];
 export type SalesRecordType = typeof salesRecordTypeEnum.enumValues[number];
+export type SalesCsvCategory = 'padrao' | 'fora_horario' | 'crm';
 export type SalesReferralStatus = typeof salesReferralStatusEnum.enumValues[number];
 export type LoteImportacao = typeof lotesImportacao.$inferSelect;
 export type Atendimento = typeof atendimentos.$inferSelect;

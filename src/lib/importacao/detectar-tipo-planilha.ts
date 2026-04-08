@@ -4,6 +4,7 @@ export type TipoPlanilha =
   | 'atendimentos'
   | 'qualidade'
   | 'suporte'
+  | 'crm'
   | 'vendas'
   | 'cancelamentos'
   | 'infraestrutura'
@@ -50,6 +51,10 @@ export function detectarTipoPlanilha(headers: string[], nomeArquivo?: string): T
     hasAll('cidade', 'ca', 'problema')
   ) {
     return 'infraestrutura';
+  }
+
+  if (has('status') && has('vendedor') && has('motivo_de_perda')) {
+    return 'crm';
   }
 
   if (

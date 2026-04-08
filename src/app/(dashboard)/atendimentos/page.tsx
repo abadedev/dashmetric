@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Filters } from '@/components/atendimentos/filters';
 import type { AtendimentoFilters } from '@/components/atendimentos/filters';
@@ -13,9 +13,31 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { Button } from '@/components/ui/button';
 import { PageLayout } from '@/components/layout/page-layout';
 import { PageSkeleton, StateDisplay, TableSkeleton } from '@/components/ui/state-display';
+import { TablePagination } from '@/components/atendimentos/table-pagination';
+import { cn } from '@/lib/utils';
+
+function MetricCard({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value: number | string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-card px-5 py-4 flex flex-col gap-1.5">
+      <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        {label}
+      </span>
+      <span className={cn('text-2xl font-semibold tabular-nums', valueClass)}>
+        {value}
+      </span>
+    </div>
+  );
+}
 
 function AtendimentosPageContent() {
   const [page, setPage] = useState(1);
@@ -29,29 +51,59 @@ function AtendimentosPageContent() {
   });
   const [selectedOs, setSelectedOs] = useState<any | null>(null);
 
-  const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState("to", parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
+  const [to] = useQueryState('to', parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
 
-  const queryParams = new URLSearchParams({
-    page: String(page),
-    pageSize: '50',
-    ...(filters.type && { type: filters.type }),
-    ...(filters.slaStatus && { slaStatus: filters.slaStatus }),
-    ...(filters.search && { search: filters.search }),
-    ...(filters.city && { city: filters.city }),
-    ...(filters.plan && { plan: filters.plan }),
-    ...(filters.bairro && { bairro: filters.bairro }),
-  });
-  if (from) queryParams.set('from', from.toISOString());
-  if (to) queryParams.set('to', to.toISOString());
+  // Base params shared by main + stats queries (no page, no slaStatus)
+  const baseParams = useMemo(() => {
+    const p = new URLSearchParams();
+    if (filters.type)   p.set('type', filters.type);
+    if (filters.search) p.set('search', filters.search);
+    if (filters.city)   p.set('city', filters.city);
+    if (filters.plan)   p.set('plan', filters.plan);
+    if (filters.bairro) p.set('bairro', filters.bairro);
+    if (from) p.set('from', from.toISOString());
+    if (to)   p.set('to', to.toISOString());
+    return p.toString();
+  }, [filters.type, filters.search, filters.city, filters.plan, filters.bairro, from, to]);
+
+  const queryParams = useMemo(() => {
+    const p = new URLSearchParams(baseParams);
+    p.set('page', String(page));
+    p.set('pageSize', '50');
+    if (filters.slaStatus) p.set('slaStatus', filters.slaStatus);
+    return p.toString();
+  }, [baseParams, page, filters.slaStatus]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['service-orders', queryParams.toString()],
+    queryKey: ['service-orders', queryParams],
     queryFn: async () => {
-      const res = await fetch(`/api/service-orders?${queryParams.toString()}`);
+      const res = await fetch(`/api/service-orders?${queryParams}`);
       if (!res.ok) throw new Error(`service-orders error: ${res.status}`);
       return res.json();
     },
+    retry: false,
+  });
+
+  const { data: statsIn } = useQuery({
+    queryKey: ['service-orders-stats-in', baseParams],
+    queryFn: async () => {
+      const res = await fetch(`/api/service-orders?${baseParams}&slaStatus=ok&pageSize=1`);
+      if (!res.ok) return { total: 0 };
+      return res.json();
+    },
+    staleTime: 1000 * 60,
+    retry: false,
+  });
+
+  const { data: statsOut } = useQuery({
+    queryKey: ['service-orders-stats-out', baseParams],
+    queryFn: async () => {
+      const res = await fetch(`/api/service-orders?${baseParams}&slaStatus=nok&pageSize=1`);
+      if (!res.ok) return { total: 0 };
+      return res.json();
+    },
+    staleTime: 1000 * 60,
     retry: false,
   });
 
@@ -73,30 +125,50 @@ function AtendimentosPageContent() {
   });
 
   return (
+    <>
     <PageLayout
       title="Atividades"
       description="Listagem de todas as ordens de serviço com filtros por período, tipo e status de SLA."
-      actions={
-        <div className="flex flex-wrap gap-3">
-          <GlobalDateFilter />
-          <Filters
-            filters={filters}
-            options={filterContract?.options}
-            onFilterChange={(newFilters) => {
-              setFilters(newFilters);
-              setPage(1);
-            }}
-          />
-        </div>
-      }
+      actions={<GlobalDateFilter />}
     >
+      {/* Metric cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <MetricCard label="Total de OS" value={data?.total ?? '—'} />
+        <MetricCard
+          label="Dentro da meta"
+          value={statsIn?.total ?? '—'}
+          valueClass="text-emerald-600 dark:text-emerald-400"
+        />
+        <MetricCard
+          label="Fora da meta"
+          value={statsOut?.total ?? '—'}
+          valueClass="text-red-500 dark:text-red-400"
+        />
+      </div>
+
+      {/* Filters bar */}
+      <div className="rounded-xl border bg-card px-4 py-3">
+        <Filters
+          filters={filters}
+          options={filterContract?.options}
+          onFilterChange={(newFilters) => {
+            setFilters(newFilters);
+            setPage(1);
+          }}
+        />
+      </div>
+
+      {/* Table */}
       <div className="rounded-xl border bg-card overflow-auto">
         <Table>
           <TableHeader className="bg-muted/50 sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-10"
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -117,11 +189,11 @@ function AtendimentosPageContent() {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  className="cursor-pointer hover:bg-muted/40 transition-colors"
                   onClick={() => setSelectedOs(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="py-3">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -130,7 +202,11 @@ function AtendimentosPageContent() {
             ) : (
               <TableRow>
                 <TableCell colSpan={Columns.length} className="h-64 align-middle">
-                  <StateDisplay variant="empty" title="Nenhum atendimento" description="Não encontramos atendimentos com os filtros informados." />
+                  <StateDisplay
+                    variant="empty"
+                    title="Nenhum atendimento"
+                    description="Não encontramos atendimentos com os filtros informados."
+                  />
                 </TableCell>
               </TableRow>
             )}
@@ -138,22 +214,21 @@ function AtendimentosPageContent() {
         </Table>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          Página {data?.page || 1} de {data?.totalPages || 1} — {data?.data?.length || 0} de {data?.total || 0} registros
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1 || isLoading}>
-            Anterior
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page === (data?.totalPages || 1) || isLoading}>
-            Próximo
-          </Button>
-        </div>
-      </div>
+      {/* spacer so the fixed pagination bar doesn't overlap the last table row */}
+      <div className="h-14" aria-hidden="true" />
 
       <OsDetailSheet os={selectedOs} isOpen={!!selectedOs} onClose={() => setSelectedOs(null)} />
     </PageLayout>
+
+    <TablePagination
+      page={page}
+      totalPages={data?.totalPages || 1}
+      total={data?.total || 0}
+      isLoading={isLoading}
+      onPrev={() => setPage((p) => Math.max(1, p - 1))}
+      onNext={() => setPage((p) => p + 1)}
+    />
+    </>
   );
 }
 

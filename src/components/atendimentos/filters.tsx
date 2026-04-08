@@ -36,20 +36,22 @@ export function Filters({ filters, onFilterChange, options }: FiltersProps) {
   };
 
   return (
-    <div className="flex w-full flex-wrap items-center gap-4">
-      <div className="relative w-full md:w-64">
-        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+    <div className="flex flex-wrap items-center gap-2">
+      {/* Search */}
+      <div className="relative min-w-[200px] flex-1 md:flex-none md:w-64">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         <Input
-          placeholder="Buscar por OS, cliente ou endereco..."
-          className="pl-8"
+          placeholder="Buscar por OS, cliente ou endereço..."
+          className="pl-8 h-9 text-sm"
           value={filters.search}
           onChange={(e) => handleChange('search', e.target.value)}
         />
       </div>
 
+      {/* City */}
       <Input
         placeholder="Cidade"
-        className="w-full md:w-40"
+        className="h-9 text-sm w-32"
         list="attendance-city-options"
         value={filters.city || ''}
         onChange={(e) => handleChange('city', e.target.value)}
@@ -60,9 +62,10 @@ export function Filters({ filters, onFilterChange, options }: FiltersProps) {
         ))}
       </datalist>
 
+      {/* Plan */}
       <Input
         placeholder="Plano"
-        className="w-full md:w-40"
+        className="h-9 text-sm w-28"
         list="attendance-plan-options"
         value={filters.plan || ''}
         onChange={(e) => handleChange('plan', e.target.value)}
@@ -73,9 +76,10 @@ export function Filters({ filters, onFilterChange, options }: FiltersProps) {
         ))}
       </datalist>
 
+      {/* Bairro */}
       <Input
         placeholder="Bairro"
-        className="w-full md:w-36"
+        className="h-9 text-sm w-28"
         list="attendance-bairro-options"
         value={filters.bairro || ''}
         onChange={(e) => handleChange('bairro', e.target.value)}
@@ -86,8 +90,12 @@ export function Filters({ filters, onFilterChange, options }: FiltersProps) {
         ))}
       </datalist>
 
-      <Select value={filters.type || 'all'} onValueChange={(value) => handleChange('type', value ?? 'all')}>
-        <SelectTrigger className="w-[190px]">
+      {/* Activity type */}
+      <Select
+        value={filters.type || 'all'}
+        onValueChange={(value) => handleChange('type', value ?? 'all')}
+      >
+        <SelectTrigger className="h-9 w-[180px] text-sm">
           <SelectValue placeholder="Tipo de atividade" />
         </SelectTrigger>
         <SelectContent>
@@ -100,8 +108,12 @@ export function Filters({ filters, onFilterChange, options }: FiltersProps) {
         </SelectContent>
       </Select>
 
-      <Select value={filters.slaStatus || 'all'} onValueChange={(value) => handleChange('slaStatus', value ?? 'all')}>
-        <SelectTrigger className="w-[150px]">
+      {/* SLA status */}
+      <Select
+        value={filters.slaStatus || 'all'}
+        onValueChange={(value) => handleChange('slaStatus', value ?? 'all')}
+      >
+        <SelectTrigger className="h-9 w-[150px] text-sm">
           <SelectValue placeholder="Status da meta" />
         </SelectTrigger>
         <SelectContent>
