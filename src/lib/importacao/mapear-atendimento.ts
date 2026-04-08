@@ -25,6 +25,9 @@ const TIPO_MAP: Record<string, string> = {
   'mudanca de plano':              'Mudança de Plano',
   'mudança de plano':              'Mudança de Plano',
   'retorno':                       'Retorno',
+  'nova fibra':                     'Instalação (Nova)',
+  'reativacao fibra':              'Instalação (Reativação)',
+  'reativação fibra':              'Instalação (Reativação)',
   // Formatos já canônicos
   'instalação (nova)':             'Instalação (Nova)',
   'instalação (reativação)':       'Instalação (Reativação)',
@@ -120,7 +123,7 @@ export function mapearAtendimento(
   });
 
   const tecnicoNome = trimOrNull(linha.tecnico);
-  const dataReferencia = aberturaAt ?? finalizacaoAt ?? new Date();
+  const dataReferencia = finalizacaoAt ?? aberturaAt ?? new Date();
 
   const maxLen = (str: string | null | undefined, len: number) => 
     str ? str.slice(0, len) : null;
