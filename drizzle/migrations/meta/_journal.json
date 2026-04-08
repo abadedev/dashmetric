@@ -113,6 +113,20 @@
       "when": 1775700000000,
       "tag": "0015_omnichannel_period_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1775703600000,
+      "tag": "0016_omnichannel_sales_records",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1775710800000,
+      "tag": "0017_sales_referral_records",
+      "breakpoints": true
     }
   ]
 }

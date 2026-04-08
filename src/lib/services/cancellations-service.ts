@@ -41,6 +41,7 @@ export async function getCancellationsOverview(filtersInput: CancellationOvervie
   const rows = await db
     .select({
       city:        cancellationRecords.city,
+      status:      cancellationRecords.status,
       reason:      cancellationRecords.reason,
       observation: cancellationRecords.observation,
     })

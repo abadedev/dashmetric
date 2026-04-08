@@ -12,6 +12,8 @@ import { importarVendas } from '@/lib/importacao/importar-vendas';
 import { processarCanceladasMudancaPlano } from '@/lib/importacao/processar-canceladas-mudanca-plano';
 import { processarInviabilidadeICT } from '@/lib/importacao/processar-inviabilidade-ict';
 import { importarOmnichannel } from '@/lib/importacao/importar-omnichannel';
+import { importarOmnichannelVendas } from '@/lib/importacao/importar-omnichannel-vendas';
+import { importarIndiqueUmAmigo } from '@/lib/importacao/importar-indique-um-amigo';
 
 export type SystemModuleKey =
   | 'atendimentos'
@@ -22,7 +24,9 @@ export type SystemModuleKey =
   | 'infraestrutura'
   | 'canceladas_mudanca_plano'
   | 'inviabilidade_ict'
-  | 'omnichannel_matrix_go';
+  | 'omnichannel_matrix_go'
+  | 'omnichannel_omni_vendas'
+  | 'indique_um_amigo';
 
 export type ModuleFilterField = {
   key: string;
@@ -281,6 +285,28 @@ async function importOmnichannelModule(context: ModuleImportContext): Promise<Mo
   };
 }
 
+async function importOmnichannelVendasModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
+  const resumo = await importarOmnichannelVendas(context.rows, context.workspaceId, context.fileName);
+
+  return {
+    success: true,
+    tipoPlanilha: 'omnichannel_omni_vendas',
+    message: `Omni Vendas importado: ${resumo.agentesProcessados} agente(s), ${resumo.totalLidas} atendimento(s).`,
+    resumo,
+  };
+}
+
+async function importIndiqueUmAmigoModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
+  const resumo = await importarIndiqueUmAmigo(context.rows, context.workspaceId);
+
+  return {
+    success: true,
+    tipoPlanilha: 'indique_um_amigo',
+    message: `Indique um Amigo importado: ${resumo.totalInseridas} indicação(ões).`,
+    resumo,
+  };
+}
+
 export const MODULE_REGISTRY: Record<SystemModuleKey, ModuleRegistryEntry> = {
   atendimentos: {
     key: 'atendimentos',
@@ -379,6 +405,18 @@ export const MODULE_REGISTRY: Record<SystemModuleKey, ModuleRegistryEntry> = {
     title: 'Matrix Go (Omnichannel)',
     importMessage: 'Importação Matrix Go concluída.',
     importHandler: importOmnichannelModule,
+  },
+  omnichannel_omni_vendas: {
+    key: 'omnichannel_omni_vendas',
+    title: 'Omni Vendas (Atendimentos)',
+    importMessage: 'Importação Omni Vendas concluída.',
+    importHandler: importOmnichannelVendasModule,
+  },
+  indique_um_amigo: {
+    key: 'indique_um_amigo',
+    title: 'Indique um Amigo',
+    importMessage: 'Importação Indique um Amigo concluída.',
+    importHandler: importIndiqueUmAmigoModule,
   },
 };
 

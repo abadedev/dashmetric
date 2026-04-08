@@ -44,7 +44,7 @@ const DEFAULT_MODULES: Array<{
   },
   {
     module: {
-      name: 'Atendimentos',
+      name: 'Atividades',
       slug: 'atendimentos',
       description: 'Listagem detalhada das ordens e ocorrencias operacionais.',
       icon: 'ListTodo',
@@ -182,6 +182,20 @@ const DEFAULT_MODULES: Array<{
         profileKey: 'vendas_instalacoes',
         label: 'Pedidos de instalacoes',
         detectorType: 'vendas_instalacoes',
+        isActive: true,
+      },
+      {
+        moduleId: 0,
+        profileKey: 'omnichannel_omni_vendas',
+        label: 'Omni Vendas (Atendimentos)',
+        detectorType: 'omnichannel_omni_vendas',
+        isActive: true,
+      },
+      {
+        moduleId: 0,
+        profileKey: 'indique_um_amigo',
+        label: 'Indique um Amigo',
+        detectorType: 'indique_um_amigo',
         isActive: true,
       },
     ],

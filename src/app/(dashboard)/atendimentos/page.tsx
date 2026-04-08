@@ -74,7 +74,7 @@ function AtendimentosPageContent() {
 
   return (
     <PageLayout
-      title="Atendimentos"
+      title="Atividades"
       description="Listagem de todas as ordens de serviço com filtros por período, tipo e status de SLA."
       actions={
         <div className="flex flex-wrap gap-3">
