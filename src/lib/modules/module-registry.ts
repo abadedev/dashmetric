@@ -9,6 +9,7 @@ import {
 } from '@/lib/importacao/importar-qualidade';
 import { importarSuporte } from '@/lib/importacao/importar-suporte';
 import { importarVendas } from '@/lib/importacao/importar-vendas';
+import { importarCRM } from '@/lib/importacao/importar-crm';
 import { processarCanceladasMudancaPlano } from '@/lib/importacao/processar-canceladas-mudanca-plano';
 import { processarInviabilidadeICT } from '@/lib/importacao/processar-inviabilidade-ict';
 import { importarOmnichannel } from '@/lib/importacao/importar-omnichannel';
@@ -19,6 +20,7 @@ export type SystemModuleKey =
   | 'atendimentos'
   | 'qualidade'
   | 'suporte'
+  | 'crm'
   | 'vendas'
   | 'cancelamentos'
   | 'infraestrutura'
@@ -156,6 +158,17 @@ async function importSalesModule(context: ModuleImportContext): Promise<ModuleIm
     success: true,
     tipoPlanilha: 'vendas',
     message: 'Importacao de Vendas concluida',
+    resumo,
+  };
+}
+
+async function importCrmModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
+  const resumo = await importarCRM(context.rows, context.workspaceId);
+
+  return {
+    success: true,
+    tipoPlanilha: 'crm',
+    message: 'Importacao de CRM concluida',
     resumo,
   };
 }
@@ -347,6 +360,12 @@ export const MODULE_REGISTRY: Record<SystemModuleKey, ModuleRegistryEntry> = {
     title: 'Suporte',
     importMessage: 'Importacao de Suporte Tecnico concluida',
     importHandler: importSupportModule,
+  },
+  crm: {
+    key: 'crm',
+    title: 'CRM',
+    importMessage: 'Importacao de CRM concluida',
+    importHandler: importCrmModule,
   },
   vendas: {
     key: 'vendas',

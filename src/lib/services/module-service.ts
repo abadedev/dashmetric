@@ -186,6 +186,13 @@ const DEFAULT_MODULES: Array<{
       },
       {
         moduleId: 0,
+        profileKey: 'vendas_crm',
+        label: 'CRM – Funil comercial (Ganho / Lead / Follow Up / Negociação)',
+        detectorType: 'crm',
+        isActive: true,
+      },
+      {
+        moduleId: 0,
         profileKey: 'omnichannel_omni_vendas',
         label: 'Omni Vendas (Atendimentos)',
         detectorType: 'omnichannel_omni_vendas',

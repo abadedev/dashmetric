@@ -1,27 +1,21 @@
 'use client';
 
-import { Handshake, PackageCheck, Target, TrendingUp, UserRoundCheck, UserRoundX } from 'lucide-react';
+import { Handshake, PackageCheck, Target, TrendingUp, UserRoundCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatNumber, formatPercent } from '@/lib/utils/format';
 
 export function SalesKpiCards({ totals }: { totals: any }) {
   const items = [
     {
-      title: 'Clientes negociados',
+      title: 'Clientes negociados (CRM)',
       value: formatNumber(totals?.negotiatedClients || 0),
-      helper: 'Base comercial consolidada no período',
+      helper: 'Leads, Follow Ups e Negociações registrados no CRM',
       icon: Handshake,
     },
     {
-      title: 'Clientes fechados',
+      title: 'Clientes fechados (CRM)',
       value: formatNumber(totals?.closedClients || 0),
-      helper: 'Fechamentos do fluxo comercial padrão',
-      icon: UserRoundCheck,
-    },
-    {
-      title: 'Fechados fora do horário',
-      value: formatNumber(totals?.outsideBusinessHoursClosedClients || 0),
-      helper: 'Contratações presencial/fora do horário separadas do funil padrão',
+      helper: 'Contratos com status Ganho registrados no CRM',
       icon: UserRoundCheck,
     },
     {
@@ -35,12 +29,6 @@ export function SalesKpiCards({ totals }: { totals: any }) {
       value: formatNumber(totals?.installedOrders || 0),
       helper: 'Ordens de instalação concluídas',
       icon: PackageCheck,
-    },
-    {
-      title: 'Pedidos cancelados',
-      value: formatNumber(totals?.cancelledOrders || 0),
-      helper: 'Cancelamentos antes da instalação',
-      icon: UserRoundX,
     },
     {
       title: 'Taxa de conversão',

@@ -6,6 +6,7 @@ const HEADER_KEYWORDS = [
   'atendente', 'data_abertura', 'datapedido', 'data_pedido', 'os',
   'n_os', 'plano', 'motivo', 'solucao', 'manut', 'percentual',
   'abertura', 'finalizacao', 'login', 'nome',
+  'vendedor', 'motivo_de_perda',
   'agente', 'conta', 'servico', 'contato', 'telefone', 'protocolo',
   'canal', 'data_de_entrada', 'data_de_atendimento', 'data_de_fila',
   'tempo_em_fila', 'tempo_de_atendimento', 'tempo_em_pendencia',
