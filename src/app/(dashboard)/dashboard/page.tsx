@@ -10,18 +10,22 @@ import { Top5Ranking } from '@/components/dashboard/top5-ranking';
 import { VolumePieChart } from '@/components/dashboard/volume-pie-chart';
 import { PageLayout } from '@/components/layout/page-layout';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageSkeleton } from '@/components/ui/state-display';
 import { useQueryState } from 'nuqs';
 
 function DashboardPageContent() {
   const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
   const [to] = useQueryState('to', parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [city, setCity] = useQueryState('city');
+
   const rangeStart = from ?? startOfMonth(new Date());
   const rangeEnd = to ?? endOfMonth(new Date());
 
   const queryParams = new URLSearchParams();
   queryParams.set('from', rangeStart.toISOString());
   queryParams.set('to', rangeEnd.toISOString());
+  if (city) queryParams.set('city', city);
   const qs = queryParams.toString();
 
   const { data: dashboardData, isLoading: isLoadingDash } = useQuery({
@@ -48,7 +52,24 @@ function DashboardPageContent() {
     <PageLayout
       title="Dashboard Executivo"
       description="Visão geral de SLA, ranking de técnicos e indicadores de qualidade."
-      actions={<GlobalDateFilter />}
+      actions={
+        <>
+          <Select value={city || 'all'} onValueChange={(value) => setCity(value === 'all' ? null : value)}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Filtrar cidade" />
+            </SelectTrigger>
+            <SelectContent side="bottom" alignItemWithTrigger={false}>
+              <SelectItem value="all">Todas as cidades</SelectItem>
+              {(dashboardData?.cities || []).map((item: string) => (
+                <SelectItem key={item} value={item}>
+                  {item}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <GlobalDateFilter />
+        </>
+      }
     >
       <KpiCards data={dashboardData} />
 

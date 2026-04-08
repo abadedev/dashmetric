@@ -20,6 +20,7 @@ import {
   BarChart,
   Upload,
 } from 'lucide-react';
+import Image from 'next/image';
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -186,8 +187,23 @@ export function Sidebar() {
       </div>
 
       {/* Footer */}
-      <div className="shrink-0 border-t border-sidebar-border/80 px-5 py-3.5">
-        <span className="text-xs text-sidebar-foreground/50">Dashmetric v1.0.0</span>
+      <div onClick={() => window.location.href = 'https://www.linkedin.com/in/rafael-abade/'} className="cursor-pointer shrink-0 border-t border-sidebar-border/80 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <Image
+            src="https://lh3.googleusercontent.com/a/ACg8ocJOhWkGNQHE-zbn2F7bopSptXBrEh9nCAZKyTCUv2lp2eZWynFS=s288-c-no"
+            alt="Rafael de S Abade Junior"
+            width={36}
+            height={36}
+            className="rounded-full ring-1 ring-sidebar-border/60 shrink-0"
+            unoptimized
+          />
+          <div className="min-w-0 flex flex-col">
+            <span className="truncate text-xs font-medium text-sidebar-foreground/90 leading-tight">
+              Rafael de S Abade Junior
+            </span>
+            <span className="text-[10px] text-sidebar-foreground/45 leading-tight">Criador/Desenvolvedor</span>
+          </div>
+        </div>
       </div>
     </div>
   );

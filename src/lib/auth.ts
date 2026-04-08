@@ -6,10 +6,15 @@ import { user, session, account, verification } from '@/lib/db/schemas/global';
 import { sendMagicLink } from '@/lib/email';
 import { getRequiredEnv } from '@/lib/env';
 
-const appUrl =
-  process.env.BETTER_AUTH_URL ??
-  process.env.NEXT_PUBLIC_APP_URL ??
-  getRequiredEnv('NEXT_PUBLIC_APP_URL');
+export const getBaseUrl = () => {
+  if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return 'http://localhost:3000';
+};
+
+const appUrl = getBaseUrl();
 const appOrigin = new URL(appUrl).origin;
 const appHost = new URL(appUrl).host;
 const appProtocol = new URL(appUrl).protocol === 'https:' ? 'https' : 'http';
