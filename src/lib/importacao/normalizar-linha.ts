@@ -1,5 +1,10 @@
 import { trimOrNull } from './helpers';
 
+/** Retorna '' quando o valor é um erro de fórmula Excel (#REF!, #VALUE!, etc.) */
+function sanitizeExcelError(v: string): string {
+  return /^#(REF!|VALUE!|N\/A|DIV\/0!|NUM!|NAME\?|NULL!)/i.test(v.trim()) ? '' : v;
+}
+
 /**
  * Mapa de aliases: chave canônica → possíveis nomes de header no arquivo
  * (já normalizados por normalizeHeader, portanto lowercase sem acento).
@@ -47,8 +52,8 @@ function get(row: Record<string, string>, key: string): string {
  * normalizada esperada pelo mapeador e validador.
  */
 export function normalizarLinha(row: Record<string, string>): Record<string, string> {
-  const dataPedido = get(row, 'dataPedido');
-  const dataFinalizacao = get(row, 'dataFinalizacao');
+  const dataPedido = sanitizeExcelError(get(row, 'dataPedido'));
+  const dataFinalizacao = sanitizeExcelError(get(row, 'dataFinalizacao'));
 
   // dataPedido pode vir como "DD/MM/YY - HH:MM" (combinado) ou só data
   const aberturaSplit = splitCombinado(dataPedido);

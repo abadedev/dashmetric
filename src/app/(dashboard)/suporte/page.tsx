@@ -8,13 +8,12 @@ import { PageSkeleton, TableSkeleton } from '@/components/ui/state-display';
 import { StateDisplay } from '@/components/ui/state-display';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { useQueryState } from 'nuqs';
-import { startOfMonth, endOfMonth } from 'date-fns';
 import { PageLayout } from '@/components/layout/page-layout';
 import { Button } from '@/components/ui/button';
 
 function SuportePageContent() {
-  const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState("to", parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [from] = useQueryState("from", parseAsLocalIsoDate);
+  const [to] = useQueryState("to", parseAsLocalIsoDate);
 
   const queryParams = new URLSearchParams();
   if (from) queryParams.set('from', from.toISOString());

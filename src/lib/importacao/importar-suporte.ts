@@ -1,8 +1,8 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { supportRecords, supportCallCategories } from '@/lib/db/schema';
-import { normalizeHeader, normalizeTechName, trimOrNull } from './helpers';
-import { buildSupportSummary, type SupportCategoryItem } from './classify-support';
+import { normalizeHeader, normalizeTechName, parseBRDateWithTime, splitBRDateTime, trimOrNull } from './helpers';
+import { buildSupportSummary, classifySupportRecord, type SupportCategoryItem } from './classify-support';
 
 // ── Aliases de colunas ────────────────────────────────────────────────────────
 
@@ -16,6 +16,10 @@ const ALIASES: Record<string, string[]> = {
   total:              ['total', 'total_atendimentos', 'qtd_total'],
   mes:                ['mes', 'month', 'periodo', 'competencia'],
   ano:                ['ano', 'year'],
+  dataAbertura:       ['data_abertura', 'datapedido', 'data_pedido', 'abertura', 'data', 'data_chamado'],
+  horaAbertura:       ['hora_abertura', 'hora_inicio'],
+  dataFinalizacao:    ['data_finalizacao', 'data_final', 'fechamento', 'finalizacao', 'data_fechamento'],
+  horaFinalizacao:    ['hora_finalizacao', 'hora_saida', 'hora_fechamento'],
   problemaReclamado:  ['problemareclamado', 'problema_reclamado', 'problema', 'reclamacao',
                        'motivo', 'descricao', 'assunto'],
 };
@@ -38,6 +42,19 @@ function toInt(v: string): number {
 function toDecimal(v: string): string | null {
   const cleaned = v.replace(',', '.').replace(/[^\d.]/g, '');
   return cleaned === '' ? null : cleaned;
+}
+
+function resolveSupportRowTotal(row: Record<string, string>) {
+  const explicitTotal = toInt(get(row, 'total'));
+  return explicitTotal > 0 ? explicitTotal : 1;
+}
+
+function parseSupportDateTime(dateValue: string, timeValue: string): Date | null {
+  if (!dateValue) return null;
+  const combined = splitBRDateTime(dateValue);
+  const resolvedDate = combined.date || dateValue;
+  const resolvedTime = timeValue || combined.time;
+  return parseBRDateWithTime(resolvedDate, resolvedTime);
 }
 
 export function resolveSupportAttendantName(row: Record<string, string>): string | null {
@@ -77,7 +94,8 @@ export async function importarSuporte(
   };
 
   const registros: typeof supportRecords.$inferInsert[] = [];
-  const problemas: Array<{ problemaReclamado: string }> = [];
+  // Agrupa problemas por período real de cada linha (não pelo lote)
+  const problemasPorPeriodo = new Map<string, { month: number; year: number; records: Array<{ problemaReclamado: string }> }>();
 
   for (let i = 0; i < linhas.length; i++) {
     const row = linhas[i];
@@ -94,22 +112,36 @@ export async function importarSuporte(
       // Respeita mês/ano da linha se existir, senão usa o do lote
       const mesLinha = get(row, 'mes');
       const anoLinha = get(row, 'ano');
-      const month = mesLinha ? toInt(mesLinha) || periodMonth : periodMonth;
-      const year  = anoLinha ? toInt(anoLinha) || periodYear  : periodYear;
+      const openedAt = parseSupportDateTime(get(row, 'dataAbertura'), get(row, 'horaAbertura'));
+      const closedAt = parseSupportDateTime(get(row, 'dataFinalizacao'), get(row, 'horaFinalizacao'));
+      const periodDate = openedAt ?? closedAt;
+      const month = periodDate
+        ? periodDate.getMonth() + 1
+        : mesLinha ? toInt(mesLinha) || periodMonth : periodMonth;
+      const year  = periodDate
+        ? periodDate.getFullYear()
+        : anoLinha ? toInt(anoLinha) || periodYear : periodYear;
+      const supportCategory = classifySupportRecord(get(row, 'problemaReclamado'));
 
       registros.push({
         workspaceId,
         attendantName:  atendente,
+        supportCategory,
         openedManutExt: toInt(get(row, 'aberturaManutExt')),
         percentage:     toDecimal(get(row, 'percentual')),
         withoutManut:   toInt(get(row, 'semManut')),
-        total:          toInt(get(row, 'total')),
+        total:          resolveSupportRowTotal(row),
+        openedAt,
+        closedAt,
         periodMonth:    month,
         periodYear:     year,
       });
 
-      // Coleta ProblemaReclamado para classificação (campo opcional)
-      problemas.push({ problemaReclamado: get(row, 'problemaReclamado') });
+      // Coleta ProblemaReclamado agrupado pelo período real da linha
+      const periodoKey = `${year}-${month}`;
+      const entrada = problemasPorPeriodo.get(periodoKey) ?? { month, year, records: [] };
+      entrada.records.push({ problemaReclamado: get(row, 'problemaReclamado') });
+      problemasPorPeriodo.set(periodoKey, entrada);
     } catch (err: unknown) {
       resumo.erros.push({ linha: numLinha, erro: String(err) });
       resumo.totalInvalidas++;
@@ -125,34 +157,37 @@ export async function importarSuporte(
     resumo.totalInseridas = registros.length;
   }
 
-  // ── Classificação automática por ProblemaReclamado ────────────────────────
-  if (problemas.length) {
-    const summary = buildSupportSummary(problemas);
-    resumo.categoriasResumo = summary;
+  // ── Classificação automática por ProblemaReclamado (por período) ──────────
+  const todasCategorias: SupportCategoryItem[] = [];
+  for (const { month, year, records } of problemasPorPeriodo.values()) {
+    const summary = buildSupportSummary(records);
+    if (!summary.length) continue;
 
-    if (summary.length) {
-      await db
-        .delete(supportCallCategories)
-        .where(
-          and(
-            eq(supportCallCategories.workspaceId, workspaceId),
-            eq(supportCallCategories.periodMonth, periodMonth),
-            eq(supportCallCategories.periodYear, periodYear)
-          )
-        );
+    todasCategorias.push(...summary);
 
-      await db.insert(supportCallCategories).values(
-        summary.map((item) => ({
-          workspaceId,
-          categoria:   item.tipo,
-          quantidade:  item.quantidade,
-          percentual:  String(item.percentual),
-          periodMonth,
-          periodYear,
-        }))
+    await db
+      .delete(supportCallCategories)
+      .where(
+        and(
+          eq(supportCallCategories.workspaceId, workspaceId),
+          eq(supportCallCategories.periodMonth, month),
+          eq(supportCallCategories.periodYear, year)
+        )
       );
-    }
+
+    await db.insert(supportCallCategories).values(
+      summary.map((item) => ({
+        workspaceId,
+        categoria:   item.tipo,
+        quantidade:  item.quantidade,
+        percentual:  String(item.percentual),
+        periodMonth: month,
+        periodYear:  year,
+      }))
+    );
   }
+
+  resumo.categoriasResumo = todasCategorias;
 
   return resumo;
 }
