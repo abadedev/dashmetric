@@ -9,7 +9,9 @@ export type TipoPlanilha =
   | 'infraestrutura'
   | 'canceladas_mudanca_plano'
   | 'inviabilidade_ict'
-  | 'omnichannel_matrix_go';
+  | 'omnichannel_matrix_go'
+  | 'omnichannel_omni_vendas'
+  | 'indique_um_amigo';
 
 /**
  * Detecta automaticamente o tipo de planilha analisando os headers normalizados.
@@ -93,6 +95,28 @@ export function detectarTipoPlanilha(headers: string[], nomeArquivo?: string): T
   // Matrix Go (Omnichannel) — identificada por agente + tme + tma (sem campos de atendimento normais)
   if (has('agente') && has('tme') && has('tma') && !has('datapedido') && !has('os')) {
     return 'omnichannel_matrix_go';
+  }
+
+  // Omni Vendas — export de atendimentos com Serviço/Tempo em Fila/Tempo de Atendimento
+  if (
+    has('agente') &&
+    has('tempo_em_fila') &&
+    has('tempo_de_atendimento') &&
+    (
+      has('servico') ||
+      has('classificacao') ||
+      nomeArquivoNorm.includes('omini') ||
+      nomeArquivoNorm.includes('omni')
+    )
+  ) {
+    return 'omnichannel_omni_vendas';
+  }
+
+  if (
+    hasAll('cadastro', 'indicante', 'indicado', 'tel_indicado', 'cidade', 'status') ||
+    hasAll('cadastro', 'indicante', 'indicado', 'contratado', 'cidade', 'status')
+  ) {
+    return 'indique_um_amigo';
   }
 
   return 'atendimentos';

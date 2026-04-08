@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       const linhasBrutas: Record<string, string>[] =
         tipoArquivo === 'xlsx'
           ? parseXlsx(buffer)
-          : parseCsv(buffer.toString('utf-8'));
+          : parseCsv(buffer);
 
       if (!linhasBrutas.length) {
         return NextResponse.json({ error: 'Arquivo vazio ou sem linhas validas.' }, { status: 400 });

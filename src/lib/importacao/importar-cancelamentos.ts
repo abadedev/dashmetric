@@ -4,9 +4,21 @@ import type { NewCancellationRecord } from '@/lib/db/schema';
 import { normalizeHeader, parseBRDate, trimOrNull } from './helpers';
 
 const ALIASES: Record<string, string[]> = {
-  clientName: ['cliente', 'client_name', 'nome_cliente', 'nome', 'assinante', 'nome_assinante', 'razao_social'],
+  clientName: ['cliente', 'client_name', 'nome_cliente', 'nome', 'assinante', 'nome_assinante', 'razao_social', 'nome_do_cliente'],
   city: ['cidade', 'city', 'cidade_uf', 'municipio', 'localidade', 'cidade_cliente'],
-  reason: ['motivo', 'reason', 'motivo_cancelamento', 'cancelamento', 'status', 'situacao', 'causa', 'motivo_saida'],
+  status: ['status', 'situacao', 'cancelamento', 'status_cancelamento'],
+  reason: [
+    'motivo_do_cancelamento__reversao_do_cancelamento',
+    'motivo_do_cancelamento_reversao_do_cancelamento',
+    'motivo_do_cancelamentoreversao_do_cancelamento',
+    'motivo_do_cancelamento',
+    'motivo_cancelamento_reversao',
+    'motivo',
+    'reason',
+    'motivo_cancelamento',
+    'causa',
+    'motivo_saida'
+  ],
   source: ['origem', 'source', 'indicacao', 'canal', 'origem_lead', 'origem_venda', 'canal_venda', 'midia'],
   plan: ['plano', 'plan', 'produto', 'pacote', 'combo', 'plano_contratado'],
   observation: ['observacao', 'obs', 'detalhe', 'comentario', 'descricao', 'observacoes', 'nota'],
@@ -18,6 +30,8 @@ const ALIASES: Record<string, string[]> = {
     'data',
     'data_solicitacao',
     'data_saida',
+    'data_da_retirada_de_kit',
+    'data_do_contato_do_cliente',
   ],
 };
 
@@ -58,7 +72,9 @@ export async function importarCancelamentos(
     try {
       const dateValue = get(row, 'cancelledAt');
       const cancelledAt = parseBRDate(dateValue) ?? new Date();
-      const reason = trimOrNull(get(row, 'reason')) ?? trimOrNull(get(row, 'observation'));
+      const status = trimOrNull(get(row, 'status'));
+      const rawReason = trimOrNull(get(row, 'reason'));
+      const reason = rawReason ?? 'Motivo não preenchido';
       const observation = trimOrNull(get(row, 'observation'));
 
       registros.push({
@@ -66,6 +82,7 @@ export async function importarCancelamentos(
         originSector: 'retencao',
         clientName:  trimOrNull(get(row, 'clientName')),
         city:        trimOrNull(get(row, 'city')),
+        status,
         reason,
         source:      trimOrNull(get(row, 'source')),
         plan:        trimOrNull(get(row, 'plan')),

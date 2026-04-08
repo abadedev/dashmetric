@@ -85,7 +85,7 @@ export function KpiCards({ data }: { data: any }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <KpiCard
-        title="Total de Atendimentos"
+        title="Total de Atividades"
         value={formatNumber(data.totalAtendimentos || 0)}
         caption="Ordens abertas no recorte atual"
         icon={Activity}

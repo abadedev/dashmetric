@@ -297,6 +297,39 @@ export const salesRecords = pgTable(
   ]
 );
 
+export const salesReferralStatusEnum = pgEnum('sales_referral_status', [
+  'contratado',
+  'pendente',
+  'reprovado',
+]);
+
+export const salesReferralRecords = pgTable(
+  'sales_referral_records',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'),
+    cadastroAt: timestamp('cadastro_at'),
+    indicante: varchar('indicante', { length: 255 }),
+    indicado: varchar('indicado', { length: 255 }),
+    contratado: varchar('contratado', { length: 255 }),
+    telefoneIndicado: varchar('telefone_indicado', { length: 50 }),
+    cidade: varchar('cidade', { length: 120 }),
+    status: salesReferralStatusEnum('status').notNull(),
+    rawStatus: varchar('raw_status', { length: 120 }),
+    periodMonth: integer('period_month').notNull(),
+    periodYear: integer('period_year').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('sales_referral_workspace_idx').on(table.workspaceId),
+    index('sales_referral_status_idx').on(table.status),
+    index('sales_referral_city_idx').on(table.cidade),
+    index('sales_referral_period_idx').on(table.periodYear, table.periodMonth),
+    index('sales_referral_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
+    index('sales_referral_cadastro_idx').on(table.cadastroAt),
+  ]
+);
+
 export const cancellationRecords = pgTable(
   'cancellation_records',
   {
@@ -305,6 +338,7 @@ export const cancellationRecords = pgTable(
     originSector: varchar('origin_sector', { length: 50 }).default('retencao').notNull(),
     clientName: varchar('client_name', { length: 255 }),
     city: varchar('city', { length: 120 }),
+    status: varchar('status', { length: 120 }),
     reason: text('reason'),
     source: varchar('source', { length: 120 }),
     plan: varchar('plan', { length: 255 }),
@@ -375,6 +409,42 @@ export const omnichannelRecords = pgTable(
     index('omnichannel_period_idx').on(table.periodYear, table.periodMonth),
     index('omnichannel_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
     index('omnichannel_agente_idx').on(table.agente),
+  ]
+);
+
+/**
+ * Resumo agregado de atendimentos do Omni Vendas por agente.
+ * Alimentado pela planilha Omni (serviço = Vendas) — estrutura diferente do Matrix Go.
+ * Um registro por agente por lote de importação.
+ */
+export const omnichannelSalesRecords = pgTable(
+  'omnichannel_sales_records',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id'),
+    agente: varchar('agente', { length: 255 }).notNull(),
+    quantidade: integer('quantidade').default(0).notNull(),
+    /** TMA médio (HH:MM:SS) */
+    tma: varchar('tma', { length: 20 }),
+    /** Tempo em fila médio (HH:MM:SS) */
+    tempoFila: varchar('tempo_fila', { length: 20 }),
+    /** Tempo de atendimento médio (HH:MM:SS) */
+    tempoAtendimento: varchar('tempo_atendimento', { length: 20 }),
+    /** Tempo em pendência médio (HH:MM:SS) */
+    tempoPendencia: varchar('tempo_pendencia', { length: 20 }),
+    /** TMIC médio (HH:MM:SS) */
+    tmic: varchar('tmic', { length: 20 }),
+    /** TMIA médio (HH:MM:SS) */
+    tmia: varchar('tmia', { length: 20 }),
+    periodMonth: integer('period_month').notNull(),
+    periodYear: integer('period_year').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('omnichannel_sales_workspace_idx').on(table.workspaceId),
+    index('omnichannel_sales_period_idx').on(table.periodYear, table.periodMonth),
+    index('omnichannel_sales_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
+    index('omnichannel_sales_agente_idx').on(table.agente),
   ]
 );
 
@@ -658,16 +728,21 @@ export type ModuleImportProfile = typeof moduleImportProfiles.$inferSelect;
 export type NewModuleImportProfile = typeof moduleImportProfiles.$inferInsert;
 export type SalesRecord = typeof salesRecords.$inferSelect;
 export type NewSalesRecord = typeof salesRecords.$inferInsert;
+export type SalesReferralRecord = typeof salesReferralRecords.$inferSelect;
+export type NewSalesReferralRecord = typeof salesReferralRecords.$inferInsert;
 export type CancellationRecord = typeof cancellationRecords.$inferSelect;
 export type NewCancellationRecord = typeof cancellationRecords.$inferInsert;
 export type InfrastructureRecord = typeof infrastructureRecords.$inferSelect;
 export type NewInfrastructureRecord = typeof infrastructureRecords.$inferInsert;
 export type OmnichannelRecord = typeof omnichannelRecords.$inferSelect;
 export type NewOmnichannelRecord = typeof omnichannelRecords.$inferInsert;
+export type OmnichannelSalesRecord = typeof omnichannelSalesRecords.$inferSelect;
+export type NewOmnichannelSalesRecord = typeof omnichannelSalesRecords.$inferInsert;
 export type Holiday = typeof holidays.$inferSelect;
 export type ActivityType = typeof activityTypeEnum.enumValues[number];
 export type QualityIndicator = typeof qualityIndicatorEnum.enumValues[number];
 export type SalesRecordType = typeof salesRecordTypeEnum.enumValues[number];
+export type SalesReferralStatus = typeof salesReferralStatusEnum.enumValues[number];
 export type LoteImportacao = typeof lotesImportacao.$inferSelect;
 export type Atendimento = typeof atendimentos.$inferSelect;
 export type NewAtendimento = typeof atendimentos.$inferInsert;
