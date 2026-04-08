@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     let linhasBrutas: Record<string, string>[];
     try {
-      linhasBrutas = tipoArquivo === 'xlsx' ? parseXlsx(buffer) : parseCsv(buffer.toString('utf-8'));
+      linhasBrutas = tipoArquivo === 'xlsx' ? parseXlsx(buffer) : parseCsv(buffer);
     } catch (e) {
       return NextResponse.json({ etapa: 'PARSE', erro: String(e), stack: e instanceof Error ? e.stack : undefined });
     }

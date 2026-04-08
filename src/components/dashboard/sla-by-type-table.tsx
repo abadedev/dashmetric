@@ -18,7 +18,7 @@ export function SlaByTypeTable({ data }: { data: any[] }) {
     return (
       <Card className="h-full">
         <CardHeader>
-          <CardTitle>SLA por Tipo de Atendimento</CardTitle>
+          <CardTitle>SLA por Tipo de Atividade</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="p-8 text-center text-muted-foreground">Sem dados para o período selecionado.</div>
@@ -32,7 +32,7 @@ export function SlaByTypeTable({ data }: { data: any[] }) {
   return (
     <Card className="flex h-full flex-col">
       <CardHeader>
-        <CardTitle>SLA por Tipo de Atendimento</CardTitle>
+        <CardTitle>SLA por Tipo de Atividade</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 overflow-auto">
         <Table>

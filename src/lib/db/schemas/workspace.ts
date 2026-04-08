@@ -227,6 +227,7 @@ export const cancellationRecords = pgTable(
     originSector: varchar('origin_sector', { length: 50 }).default('retencao').notNull(),
     clientName: varchar('client_name', { length: 255 }),
     city: varchar('city', { length: 120 }),
+    status: varchar('status', { length: 120 }),
     reason: text('reason'),
     source: varchar('source', { length: 120 }),
     plan: varchar('plan', { length: 255 }),

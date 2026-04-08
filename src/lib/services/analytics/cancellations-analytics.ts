@@ -61,6 +61,7 @@ export async function getCancellationsAnalytics(filters: ExternalApiFilters) {
         id:          cancellationRecords.id,
         clientName:  cancellationRecords.clientName,
         city:        cancellationRecords.city,
+        status:      cancellationRecords.status,
         reason:      cancellationRecords.reason,
         source:      cancellationRecords.source,
         plan:        cancellationRecords.plan,

@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { atendimentos, cancellationRecords, qualityRecords, salesRecords } from '@/lib/db/schema';
+import { atendimentos, cancellationRecords, qualityRecords, salesRecords, salesReferralRecords } from '@/lib/db/schema';
 import {
   getModuleFilterContract,
   type ModuleFilterResource,
@@ -56,13 +56,15 @@ async function getQualityOptions(workspaceId: string | null): Promise<OptionMap>
 }
 
 async function getSalesOptions(workspaceId: string | null): Promise<OptionMap> {
-  const [type, city, plan, source] = await Promise.all([
+  const [type, salesCity, referralCity, plan, source] = await Promise.all([
     getDistinctValues(salesRecords, salesRecords.recordType, workspaceId),
     getDistinctValues(salesRecords, salesRecords.city, workspaceId),
+    getDistinctValues(salesReferralRecords, salesReferralRecords.cidade, workspaceId),
     getDistinctValues(salesRecords, salesRecords.plan, workspaceId),
     getDistinctValues(salesRecords, salesRecords.source, workspaceId),
   ]);
 
+  const city = normalizeOptions([...salesCity, ...referralCity]);
   return { type, city, plan, source };
 }
 

@@ -11,8 +11,10 @@ import { Input } from '@/components/ui/input';
 import { PageSkeleton } from '@/components/ui/state-display';
 import { SalesDistributionChart } from '@/components/vendas/sales-distribution-chart';
 import { SalesKpiCards } from '@/components/vendas/sales-kpi-cards';
+import { SalesReferralsSection } from '@/components/vendas/sales-referrals-section';
 import { SalesSourceTable } from '@/components/vendas/sales-source-table';
 import { SalesTopCities } from '@/components/vendas/sales-top-cities';
+import { OmniVendasSection } from '@/components/vendas/omni-vendas-section';
 
 function VendasPageContent() {
   const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
@@ -130,6 +132,17 @@ function VendasPageContent() {
               </CardContent>
             </Card>
           </div>
+
+          <SalesReferralsSection
+            filters={{
+              from: from ? from.toISOString() : undefined,
+              to: to ? to.toISOString() : undefined,
+              city: city || undefined,
+              search: search || undefined,
+            }}
+          />
+
+          <OmniVendasSection />
         </>
       )}
     </PageLayout>

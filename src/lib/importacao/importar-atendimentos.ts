@@ -186,7 +186,7 @@ export async function importarAtendimentos(
   const linhasBrutas: Record<string, string>[] =
     tipoArquivo === 'xlsx'
       ? parseXlsx(buffer)
-      : parseCsv(buffer.toString('utf-8'));
+      : parseCsv(buffer);
 
   // 2. Cria o lote de importação
   const [lote] = await db
