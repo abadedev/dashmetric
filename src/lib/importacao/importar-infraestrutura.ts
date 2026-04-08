@@ -3,10 +3,10 @@ import { infrastructureRecords } from '@/lib/db/schema';
 import { normalizeHeader, parseBRDate, trimOrNull } from './helpers';
 
 const ALIASES: Record<string, string[]> = {
-  title: ['titulo', 'title', 'nome', 'item', 'evento'],
-  category: ['categoria', 'category', 'tipo', 'grupo'],
+  title: ['titulo', 'title', 'nome', 'item', 'evento', 'descricao'],
+  category: ['categoria', 'category', 'tipo', 'grupo', 'problema', 'servico', 'problema/servico'],
   city: ['cidade', 'city', 'municipio'],
-  referenceDate: ['data', 'datareferencia', 'data_referencia', 'referencia'],
+  referenceDate: ['data', 'datareferencia', 'referencia', 'criado_em'],
 };
 
 const STRUCTURED_HEADERS = new Set(
@@ -23,12 +23,13 @@ function get(row: Record<string, string>, aliases: string[]) {
 }
 
 function buildPayload(row: Record<string, string>) {
-  const extras = Object.fromEntries(
-    Object.entries(row).filter(([header, value]) => {
-      const normalized = normalizeHeader(header);
-      return !STRUCTURED_HEADERS.has(normalized) && value.trim() !== '';
-    })
-  );
+  const extras: Record<string, string> = {};
+  Object.entries(row).forEach(([header, value]) => {
+    const normalized = normalizeHeader(header);
+    if (!STRUCTURED_HEADERS.has(normalized) && value.trim() !== '') {
+      extras[normalized] = value.trim();
+    }
+  });
 
   return Object.keys(extras).length ? extras : null;
 }
@@ -40,9 +41,30 @@ export interface ResumoInfraestrutura {
   erros: Array<{ linha: number; erro: string }>;
 }
 
+function extractPeriodFromFilename(fileName?: string | null) {
+  const now = new Date();
+  if (!fileName) return { month: now.getMonth() + 1, year: now.getFullYear() };
+  
+  // Ex: "Infraestrutura 01_03 a 31_03.xlsx" -> month 3
+  const match = fileName.match(/(\d{2})[_\/\-](\d{2})/);
+  if (match) {
+    return {
+      month: parseInt(match[2], 10),
+      year: now.getFullYear(), // Simplified assuming current year
+    };
+  }
+  return { month: now.getMonth() + 1, year: now.getFullYear() };
+}
+
+function truncate(str: string | null | undefined, max: number = 255) {
+  if (!str) return null;
+  return str.length > max ? str.substring(0, max) : str;
+}
+
 export async function importarInfraestrutura(
   linhas: Record<string, string>[],
-  workspaceId: string
+  workspaceId: string,
+  fileName?: string | null
 ): Promise<ResumoInfraestrutura> {
   const resumo: ResumoInfraestrutura = {
     totalLidas: linhas.length,
@@ -52,22 +74,32 @@ export async function importarInfraestrutura(
   };
 
   const registros: typeof infrastructureRecords.$inferInsert[] = [];
+  const { month, year } = extractPeriodFromFilename(fileName);
 
   for (let index = 0; index < linhas.length; index++) {
     const row = linhas[index];
 
     try {
-      const referenceDate = parseBRDate(get(row, ALIASES.referenceDate)) ?? new Date();
+      const rawDate = get(row, ALIASES.referenceDate);
+      let referenceDate = new Date();
+
+      if (rawDate && /^\d{1,2}$/.test(rawDate.trim())) {
+        referenceDate = new Date(year, month - 1, parseInt(rawDate, 10));
+      } else {
+        referenceDate = parseBRDate(rawDate) ?? new Date();
+      }
+
+      const payload = buildPayload(row);
 
       registros.push({
         workspaceId,
-        title: trimOrNull(get(row, ALIASES.title)),
-        category: trimOrNull(get(row, ALIASES.category)),
-        city: trimOrNull(get(row, ALIASES.city)),
+        title: truncate(trimOrNull(get(row, ALIASES.title))) || 'Sem Título',
+        category: truncate(trimOrNull(get(row, ALIASES.category))),
+        city: truncate(trimOrNull(get(row, ALIASES.city))),
         referenceDate,
-        payload: buildPayload(row),
-        periodMonth: referenceDate.getMonth() + 1,
-        periodYear: referenceDate.getFullYear(),
+        payload,
+        periodMonth: month,
+        periodYear: year,
       });
     } catch (error) {
       resumo.totalInvalidas++;
