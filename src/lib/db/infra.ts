@@ -8,34 +8,32 @@ type InfraDb = ReturnType<typeof drizzle<typeof infraSchema>>;
 
 let infraDb: InfraDb | null = null;
 
-function buildInfraSslConfig() {
-  // Produção (Vercel): certificado CA via variável de ambiente
+function buildInfraSSL() {
+  // Produção: lê das variáveis de ambiente
   if (process.env.INFRA_DB_CERT) {
-    return { ca: process.env.INFRA_DB_CERT };
+    return {
+      ca: process.env.INFRA_DB_CERT,
+      cert: process.env.INFRA_DB_CERT_CLIENT ?? undefined,
+      key: process.env.INFRA_DB_KEY ?? undefined,
+      rejectUnauthorized: true,
+    };
   }
 
-  // Desenvolvimento: lê certificados físicos locais
-  const candidates = [
-    path.join(process.cwd(), 'certs'),
-    path.join(process.cwd(), 'dstech-noc', 'certs'),
-  ];
+  // Desenvolvimento: lê arquivos físicos locais
+  const caPath = path.resolve(process.cwd(), 'certs/ca-certificate.crt');
+  const certPath = path.resolve(process.cwd(), 'certs/certificate.pem');
+  const keyPath = path.resolve(process.cwd(), 'certs/private-key.key');
 
-  for (const certsDir of candidates) {
-    const caPath = path.join(certsDir, 'ca-certificate.crt');
-    const certPath = path.join(certsDir, 'certificate.pem');
-    const keyPath = path.join(certsDir, 'private-key.key');
-
-    if (fs.existsSync(caPath) && fs.existsSync(certPath) && fs.existsSync(keyPath)) {
-      return {
-        rejectUnauthorized: true,
-        ca: fs.readFileSync(caPath).toString(),
-        cert: fs.readFileSync(certPath).toString(),
-        key: fs.readFileSync(keyPath).toString(),
-      };
-    }
+  if (fs.existsSync(caPath)) {
+    return {
+      ca: fs.readFileSync(caPath, 'utf-8'),
+      cert: fs.existsSync(certPath) ? fs.readFileSync(certPath, 'utf-8') : undefined,
+      key: fs.existsSync(keyPath) ? fs.readFileSync(keyPath, 'utf-8') : undefined,
+      rejectUnauthorized: true,
+    };
   }
 
-  // Sem certificado configurado — conexão sem SSL (não recomendado em produção)
+  console.warn('[infra-db] Nenhum certificado SSL encontrado');
   return false;
 }
 
@@ -45,7 +43,7 @@ function createInfraDb() {
     max: 5,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
-    ssl: buildInfraSslConfig(),
+    ssl: buildInfraSSL(),
   });
 
   return drizzle(pool, { schema: infraSchema });
