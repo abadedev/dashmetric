@@ -55,4 +55,9 @@ export async function ensureServiceListingsTable() {
     ALTER TABLE service_listings
     ALTER COLUMN tipo_ocorrencia SET NOT NULL
   `);
+
+  await db.execute(sql`
+    ALTER TABLE service_listings
+    ADD COLUMN IF NOT EXISTS foto_url TEXT
+  `);
 }

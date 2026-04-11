@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -139,6 +140,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
   const cityInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState<ServiceFormState>(() => getInitialState(editRecord));
+  const [fotoUrl, setFotoUrl] = useState<string | null>(editRecord?.fotoUrl ?? null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const recentCities = useMemo(() => readRecentValues(RECENT_CITIES_KEY), [open]);
@@ -149,6 +151,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
     if (!open) return;
 
     setForm(getInitialState(editRecord));
+    setFotoUrl(editRecord?.fotoUrl ?? null);
     setSubmitError(null);
 
     const timer = window.setTimeout(() => {
@@ -173,6 +176,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
         tipoOcorrencia: form.tipoOcorrencia,
         observacaoInfra: normalizeMultiline(form.observacaoInfra) || null,
         status: form.status,
+        fotoUrl: fotoUrl || null,
       };
 
       if (!payload.referenceDate) {
@@ -450,6 +454,15 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                   rows={4}
                   placeholder="Observacao complementar opcional..."
                   className="min-h-[110px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Foto / Anexo</label>
+                <ImageUpload
+                  value={fotoUrl}
+                  onChange={setFotoUrl}
+                  disabled={mutation.isPending}
                 />
               </div>
 

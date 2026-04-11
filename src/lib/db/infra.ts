@@ -8,36 +8,44 @@ type InfraDb = ReturnType<typeof drizzle<typeof infraSchema>>;
 
 let infraDb: InfraDb | null = null;
 
-function resolveCertsDir() {
+function buildInfraSslConfig() {
+  // Produção (Vercel): certificado CA via variável de ambiente
+  if (process.env.INFRA_DB_CERT) {
+    return { ca: process.env.INFRA_DB_CERT };
+  }
+
+  // Desenvolvimento: lê certificados físicos locais
   const candidates = [
     path.join(process.cwd(), 'certs'),
     path.join(process.cwd(), 'dstech-noc', 'certs'),
   ];
 
-  for (const candidate of candidates) {
-    if (fs.existsSync(path.join(candidate, 'certificate.pem'))) {
-      return candidate;
+  for (const certsDir of candidates) {
+    const caPath = path.join(certsDir, 'ca-certificate.crt');
+    const certPath = path.join(certsDir, 'certificate.pem');
+    const keyPath = path.join(certsDir, 'private-key.key');
+
+    if (fs.existsSync(caPath) && fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+      return {
+        rejectUnauthorized: true,
+        ca: fs.readFileSync(caPath).toString(),
+        cert: fs.readFileSync(certPath).toString(),
+        key: fs.readFileSync(keyPath).toString(),
+      };
     }
   }
 
-  throw new Error(
-    `INFRA certs directory not found. Checked: ${candidates.join(', ')}`
-  );
+  // Sem certificado configurado — conexão sem SSL (não recomendado em produção)
+  return false;
 }
 
 function createInfraDb() {
-  const certsDir = resolveCertsDir();
   const pool = new Pool({
     connectionString: process.env.INFRA_DATABASE_URL,
     max: 5,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
-    ssl: {
-      rejectUnauthorized: true,
-      ca: fs.readFileSync(path.join(certsDir, 'ca-certificate.crt')).toString(),
-      cert: fs.readFileSync(path.join(certsDir, 'certificate.pem')).toString(),
-      key: fs.readFileSync(path.join(certsDir, 'private-key.key')).toString(),
-    },
+    ssl: buildInfraSslConfig(),
   });
 
   return drizzle(pool, { schema: infraSchema });
