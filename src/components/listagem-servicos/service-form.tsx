@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -34,9 +34,45 @@ interface ServiceFormState {
 
 const LAST_TECHNOLOGY_KEY = 'listagem-servicos:last-technology';
 const LAST_CITY_KEY = 'listagem-servicos:last-city-area';
-const RECENT_CITIES_KEY = 'listagem-servicos:recent-cities';
 const RECENT_ADDRESSES_KEY = 'listagem-servicos:recent-addresses';
 const RECENT_NETWORK_BOXES_KEY = 'listagem-servicos:recent-network-boxes';
+
+const CITY_OPTIONS = [
+  'Alcobaça',
+  'Aparaju',
+  'Barra de Caravelas',
+  'Bela Vista - Nova Viçosa',
+  'Canta Galo - Alcobaça',
+  'Caravelas',
+  'Caxanga',
+  'Cumuruxatiba - Prado',
+  'Duque de Caxias - Teixeira de Freitas',
+  'Guarani - Prado',
+  'Guaratiba - Prado',
+  'Itabatã - Mucuri',
+  'Itamaraju',
+  'Juerana - Caravelas',
+  'Ponta de Areia - Caravelas',
+  'Posto da Mata - Nova Viçosa',
+  'Prado',
+  'Rancho Alegre - Caravelas',
+  'Santo Antonio - Teixeira de Freitas',
+  'São José - Alcobaça',
+  'Taquari - Alcobaça',
+  'Teixeira de Freitas',
+] as const;
+
+const PRIORITY_LABELS: Record<string, string> = {
+  '1': '1 (Alta)',
+  '2': '2 (Média)',
+  '-': '- (Baixa)',
+};
+
+const TECHNOLOGY_LABELS: Record<string, string> = {
+  F: 'F (Fibra)',
+  C: 'C (Cabo)',
+  R: 'R (Rádio)',
+};
 
 const STATUSES = [
   { value: 'pendente', label: 'Pendente' },
@@ -137,13 +173,11 @@ function getInitialState(editRecord?: ServiceListing | null): ServiceFormState {
 export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceFormProps) {
   const queryClient = useQueryClient();
   const isEdit = !!editRecord;
-  const cityInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState<ServiceFormState>(() => getInitialState(editRecord));
   const [fotoUrl, setFotoUrl] = useState<string | null>(editRecord?.fotoUrl ?? null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const recentCities = useMemo(() => readRecentValues(RECENT_CITIES_KEY), [open]);
   const recentAddresses = useMemo(() => readRecentValues(RECENT_ADDRESSES_KEY), [open]);
   const recentNetworkBoxes = useMemo(() => readRecentValues(RECENT_NETWORK_BOXES_KEY), [open]);
 
@@ -153,13 +187,6 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
     setForm(getInitialState(editRecord));
     setFotoUrl(editRecord?.fotoUrl ?? null);
     setSubmitError(null);
-
-    const timer = window.setTimeout(() => {
-      cityInputRef.current?.focus();
-      cityInputRef.current?.select();
-    }, 30);
-
-    return () => window.clearTimeout(timer);
   }, [editRecord, open]);
 
   const mutation = useMutation({
@@ -215,7 +242,6 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(LAST_TECHNOLOGY_KEY, form.technology);
         window.localStorage.setItem(LAST_CITY_KEY, normalizedCity);
-        writeRecentValue(RECENT_CITIES_KEY, normalizedCity);
         writeRecentValue(RECENT_ADDRESSES_KEY, normalizedAddress);
         writeRecentValue(RECENT_NETWORK_BOXES_KEY, normalizedNetworkBox);
       }
@@ -292,10 +318,12 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                 <div className="space-y-2">
                   <Label htmlFor="sf-prio" className="text-sm font-medium">Prioridade</Label>
                   <Select value={form.priority || 'none'} onValueChange={(value) => updateField('priority', value === 'none' ? '' : value ?? '')}>
-                    <SelectTrigger id="sf-prio" className="h-10">
-                      <SelectValue placeholder={'\u2014'} />
+                    <SelectTrigger id="sf-prio" className="h-10 w-full">
+                      <SelectValue placeholder={'\u2014'}>
+                        {(value: string | null) => (value && value !== 'none' ? (PRIORITY_LABELS[value] ?? value) : '\u2014')}
+                      </SelectValue>
                     </SelectTrigger>
-                    <SelectContent className="w-[var(--anchor-width)] min-w-[var(--anchor-width)]">
+                    <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[140px]">
                       <SelectItem value="none">{'\u2014'}</SelectItem>
                       <SelectItem value="1">1 (Alta)</SelectItem>
                       <SelectItem value="2">{'2 (M\u00E9dia)'}</SelectItem>
@@ -307,10 +335,12 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                 <div className="space-y-2">
                   <Label htmlFor="sf-tech" className="text-sm font-medium">Tecnologia</Label>
                   <Select value={form.technology || 'none'} onValueChange={(value) => updateField('technology', value === 'none' ? '' : value ?? '')}>
-                    <SelectTrigger id="sf-tech" className="h-10">
-                      <SelectValue placeholder={'\u2014'} />
+                    <SelectTrigger id="sf-tech" className="h-10 w-full">
+                      <SelectValue placeholder={'\u2014'}>
+                        {(value: string | null) => (value && value !== 'none' ? (TECHNOLOGY_LABELS[value] ?? value) : '\u2014')}
+                      </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[140px]">
                       <SelectItem value="none">{'\u2014'}</SelectItem>
                       <SelectItem value="F">F (Fibra)</SelectItem>
                       <SelectItem value="C">C (Cabo)</SelectItem>
@@ -322,10 +352,10 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                 <div className="space-y-2">
                   <Label htmlFor="sf-status" className="text-sm font-medium">Status</Label>
                   <Select value={form.status} onValueChange={(value) => updateField('status', value ?? 'pendente')}>
-                    <SelectTrigger id="sf-status" className="h-10">
+                    <SelectTrigger id="sf-status" className="h-10 w-full">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[190px]">
                       {STATUSES.map((status) => (
                         <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>
                       ))}
@@ -335,22 +365,18 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="sf-city" className="text-sm font-medium">{'Cidade / \u00C1rea'}</Label>
-                <Input
-                  id="sf-city"
-                  ref={cityInputRef}
-                  value={form.cityArea}
-                  onChange={(event) => updateField('cityArea', event.target.value)}
-                  placeholder={'Cidade / \u00C1rea'}
-                  list="service-city-area-options"
-                  autoComplete="off"
-                  className="h-10"
-                />
-                <datalist id="service-city-area-options">
-                  {recentCities.map((item) => (
-                    <option key={item} value={item} />
-                  ))}
-                </datalist>
+                <Label htmlFor="sf-city" className="text-sm font-medium">Cidade</Label>
+                <Select value={form.cityArea || 'none'} onValueChange={(value) => updateField('cityArea', value === 'none' ? '' : value ?? '')}>
+                  <SelectTrigger id="sf-city" className="h-10 w-full">
+                    <SelectValue placeholder={'\u2014'} />
+                  </SelectTrigger>
+                  <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[280px]">
+                    <SelectItem value="none">{'\u2014'}</SelectItem>
+                    {CITY_OPTIONS.map((city) => (
+                      <SelectItem key={city} value={city} className="whitespace-nowrap">{city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -421,7 +447,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                     <SelectTrigger id="sf-occurrence" className="h-10 w-full">
                       <SelectValue placeholder="Selecione a ocorrencia" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[var(--anchor-width)]">
                       {INFRA_OCCURRENCE_OPTIONS.map((option) => (
                         <SelectItem key={option} value={option} className="whitespace-normal break-words pr-8">
                           {option}
