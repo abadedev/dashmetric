@@ -16,7 +16,15 @@ interface InfraDispatchModalProps {
 
 export function InfraDispatchModal({ record, open, onClose }: InfraDispatchModalProps) {
   const [copied, setCopied] = useState(false);
+  // Texto completo (com URL da foto) — usado apenas no clipboard
   const message = useMemo(() => (record ? buildInfraDispatchMessage(record) : ''), [record]);
+  // Texto de exibição sem a linha da foto (renderizada separadamente como link)
+  const displayMessage = useMemo(() => {
+    if (!message) return '';
+    return message.replace(/\n📷 Foto: .+$/, '');
+  }, [message]);
+
+  const fotoUrl = record?.fotoUrl ?? null;
 
   async function handleCopy() {
     if (!message) return;
@@ -40,8 +48,21 @@ export function InfraDispatchModal({ record, open, onClose }: InfraDispatchModal
 
         <div className="rounded-xl border bg-muted/30 p-4">
           <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-foreground">
-            {message}
+            {displayMessage}
           </pre>
+          {fotoUrl && (
+            <p className="mt-2 font-sans text-sm leading-6 text-foreground">
+              📷{' '}
+              <a
+                href={fotoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline underline-offset-2"
+              >
+                Ver foto anexada
+              </a>
+            </p>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:justify-between">
