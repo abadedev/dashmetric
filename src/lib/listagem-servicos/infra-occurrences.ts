@@ -74,20 +74,20 @@ function getBestLocation(record: Pick<ServiceListing, 'locationUrl' | 'address' 
 
 export function buildInfraDispatchMessage(record: Pick<
   ServiceListing,
-  'id' | 'cityArea' | 'address' | 'locationUrl' | 'networkBox' | 'tipoOcorrencia' | 'observacaoInfra' | 'referenceDate'
+  'id' | 'cityArea' | 'address' | 'locationUrl' | 'networkBox' | 'tipoOcorrencia' | 'observacaoInfra' | 'referenceDate' | 'fotoUrl'
 >) {
+  const observacao = normalizeNullableText(record.observacaoInfra);
+
   return [
     '🚨 OS PARA MANUTENÇÃO',
-    '',
+    `OS: #${record.id}`,
+    `Data: ${formatDisplayDate(record.referenceDate)}`,
+    `Caixa / Rede: ${normalizeNullableText(record.networkBox) ?? '-'}`,
     `Cidade: ${normalizeNullableText(record.cityArea) ?? '-'}`,
     `Endereço: ${normalizeNullableText(record.address) ?? '-'}`,
     `Localização: ${getBestLocation(record)}`,
-    `Caixa / Rede: ${normalizeNullableText(record.networkBox) ?? '-'}`,
-    '',
     `Ocorrência: ${record.tipoOcorrencia}`,
-    `Observação: ${normalizeNullableText(record.observacaoInfra) ?? '-'}`,
-    '',
-    `OS: #${record.id}`,
-    `Data: ${formatDisplayDate(record.referenceDate)}`,
-  ].join('\n');
+    observacao ? `Observação: ${observacao}` : null,
+    record.fotoUrl ? `📷 Foto: ${record.fotoUrl}` : null,
+  ].filter(Boolean).join('\n');
 }
