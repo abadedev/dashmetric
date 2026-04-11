@@ -259,9 +259,25 @@ const DEFAULT_MODULES: Array<{
   },
   {
     module: {
+      name: 'Listagem de Servicos',
+      slug: 'listagem-servicos',
+      description: 'Controle operacional diario de servicos de infraestrutura de rede.',
+      icon: 'ListTodo',
+      href: '/listagem-servicos',
+      sortOrder: 85,
+      isActive: true,
+      showInSidebar: true,
+      allowImport: false,
+      requiredRole: 'user',
+      templateSource: 'infraestrutura',
+      isEditable: false,
+    },
+  },
+  {
+    module: {
       name: 'Infraestrutura',
       slug: 'infraestrutura',
-      description: 'Modulo em branco para evolucao futura dos indicadores de infraestrutura.',
+      description: 'Dashboard visual dos dados de infraestrutura de rede.',
       icon: 'Network',
       href: '/infraestrutura',
       sortOrder: 80,
@@ -269,8 +285,8 @@ const DEFAULT_MODULES: Array<{
       showInSidebar: true,
       allowImport: false,
       requiredRole: 'user',
-      templateSource: 'infraestrutura',
-      isEditable: true,
+      templateSource: 'dashboard',
+      isEditable: false,
     },
   },
   {
@@ -411,12 +427,14 @@ export async function ensureDefaultModules(workspaceId: string) {
     }
 
     if (found.slug === 'infraestrutura') {
-      if (found.allowImport !== false || found.templateSource !== 'infraestrutura') {
+      if (found.allowImport !== false || found.templateSource !== 'dashboard' || found.isEditable !== false) {
         await db
           .update(systemModules)
           .set({
             allowImport: false,
-            templateSource: 'infraestrutura',
+            templateSource: 'dashboard',
+            isEditable: false,
+            description: 'Dashboard visual dos dados de infraestrutura de rede.',
             updatedAt: new Date(),
           })
           .where(eq(systemModules.id, found.id));
