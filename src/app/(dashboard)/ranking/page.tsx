@@ -54,19 +54,22 @@ function RankingPageContent() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-[180px]"
           />
-          <Select value={city || 'all'} onValueChange={(value) => setCity(value === 'all' ? null : value)}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Filtrar cidade" />
-            </SelectTrigger>
-            <SelectContent side="bottom" alignItemWithTrigger={false}>
-              <SelectItem value="all">Todas as cidades</SelectItem>
-              {(data?.cities || []).map((item: string) => (
-                <SelectItem key={item} value={item}>
-                  {item}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cidade</label>
+            <Select value={city || 'all'} onValueChange={(value) => setCity(value === 'all' ? null : value)}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todas as cidades' : v.replace(/_/g, ' ')}</SelectValue>
+              </SelectTrigger>
+              <SelectContent side="bottom" alignItemWithTrigger={false}>
+                <SelectItem value="all">Todas as cidades</SelectItem>
+                {(data?.cities || []).map((item: string) => (
+                  <SelectItem key={item} value={item}>
+                    {item.replace(/_/g, ' ')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <GlobalDateFilter />
         </>
       }
