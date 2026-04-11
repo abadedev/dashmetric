@@ -91,37 +91,43 @@ export function Filters({ filters, onFilterChange, options }: FiltersProps) {
       </datalist>
 
       {/* Activity type */}
-      <Select
-        value={filters.type || 'all'}
-        onValueChange={(value) => handleChange('type', value ?? 'all')}
-      >
-        <SelectTrigger className="h-9 w-[180px] text-sm">
-          <SelectValue placeholder="Tipo de atividade" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos os tipos</SelectItem>
-          {Object.entries(ACTIVITY_LABELS).map(([key, label]) => (
-            <SelectItem key={key} value={key}>
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tipo</label>
+        <Select
+          value={filters.type || 'all'}
+          onValueChange={(value) => handleChange('type', value ?? 'all')}
+        >
+          <SelectTrigger className="h-9 w-[180px] text-sm">
+            <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todos os tipos' : (ACTIVITY_LABELS[v as keyof typeof ACTIVITY_LABELS] ?? v)}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os tipos</SelectItem>
+            {Object.entries(ACTIVITY_LABELS).map(([key, label]) => (
+              <SelectItem key={key} value={key}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* SLA status */}
-      <Select
-        value={filters.slaStatus || 'all'}
-        onValueChange={(value) => handleChange('slaStatus', value ?? 'all')}
-      >
-        <SelectTrigger className="h-9 w-[150px] text-sm">
-          <SelectValue placeholder="Status da meta" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos</SelectItem>
-          <SelectItem value="ok">No prazo (OK)</SelectItem>
-          <SelectItem value="nok">Atrasado (NOK)</SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">SLA</label>
+        <Select
+          value={filters.slaStatus || 'all'}
+          onValueChange={(value) => handleChange('slaStatus', value ?? 'all')}
+        >
+          <SelectTrigger className="h-9 w-[150px] text-sm">
+            <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todos' : v === 'ok' ? 'No prazo (OK)' : 'Atrasado (NOK)'}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="ok">No prazo (OK)</SelectItem>
+            <SelectItem value="nok">Atrasado (NOK)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }

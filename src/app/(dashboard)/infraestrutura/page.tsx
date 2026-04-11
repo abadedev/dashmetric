@@ -106,53 +106,65 @@ function InfraestruturaContent() {
       description="Dashboard visual dos dados de infraestrutura de rede."
       actions={
         <>
-          <Select value={tipoOcorrencia || 'all'} onValueChange={(value) => setTipoOcorrencia(value === 'all' ? null : value)}>
-            <SelectTrigger className="w-[240px]">
-              <SelectValue placeholder="Ocorrencia" />
-            </SelectTrigger>
-            <SelectContent side="bottom" alignItemWithTrigger={false}>
-              <SelectItem value="all">Todas as ocorrencias</SelectItem>
-              {(data?.filters.occurrenceTypes ?? INFRA_OCCURRENCE_OPTIONS).map((item) => (
-                <SelectItem key={item} value={item}>{item}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ocorrência</label>
+            <Select value={tipoOcorrencia || 'all'} onValueChange={(value) => setTipoOcorrencia(value === 'all' ? null : value)}>
+              <SelectTrigger className="w-[240px]">
+                <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todas as ocorrências' : v}</SelectValue>
+              </SelectTrigger>
+              <SelectContent side="bottom" alignItemWithTrigger={false}>
+                <SelectItem value="all">Todas as ocorrências</SelectItem>
+                {(data?.filters.occurrenceTypes ?? INFRA_OCCURRENCE_OPTIONS).map((item) => (
+                  <SelectItem key={item} value={item}>{item}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={city || 'all'} onValueChange={(value) => setCity(value === 'all' ? null : value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Cidade" />
-            </SelectTrigger>
-            <SelectContent side="bottom" alignItemWithTrigger={false}>
-              <SelectItem value="all">Todas as cidades</SelectItem>
-              {(data?.filters.cities ?? []).map((item) => (
-                <SelectItem key={item} value={item}>{item}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cidade</label>
+            <Select value={city || 'all'} onValueChange={(value) => setCity(value === 'all' ? null : value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todas as cidades' : v.replace(/_/g, ' ')}</SelectValue>
+              </SelectTrigger>
+              <SelectContent side="bottom" alignItemWithTrigger={false}>
+                <SelectItem value="all">Todas as cidades</SelectItem>
+                {(data?.filters.cities ?? []).map((item) => (
+                  <SelectItem key={item} value={item}>{item.replace(/_/g, ' ')}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={technician || 'all'} onValueChange={(value) => setTechnician(value === 'all' ? null : value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Tecnico" />
-            </SelectTrigger>
-            <SelectContent side="bottom" alignItemWithTrigger={false}>
-              <SelectItem value="all">Todos os tecnicos</SelectItem>
-              {(data?.filters.technicians ?? []).map((item) => (
-                <SelectItem key={item} value={item}>{item}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Técnico</label>
+            <Select value={technician || 'all'} onValueChange={(value) => setTechnician(value === 'all' ? null : value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todos os técnicos' : v}</SelectValue>
+              </SelectTrigger>
+              <SelectContent side="bottom" alignItemWithTrigger={false}>
+                <SelectItem value="all">Todos os técnicos</SelectItem>
+                {(data?.filters.technicians ?? []).map((item) => (
+                  <SelectItem key={item} value={item}>{item}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? null : value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent side="bottom" alignItemWithTrigger={false}>
-              <SelectItem value="all">Todos os status</SelectItem>
-              {(data?.filters.statuses ?? []).map((item) => (
-                <SelectItem key={item} value={item}>{item}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</label>
+            <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? null : value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todos os status' : v}</SelectValue>
+              </SelectTrigger>
+              <SelectContent side="bottom" alignItemWithTrigger={false}>
+                <SelectItem value="all">Todos os status</SelectItem>
+                {(data?.filters.statuses ?? []).map((item) => (
+                  <SelectItem key={item} value={item}>{item}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <GlobalDateFilter />
 

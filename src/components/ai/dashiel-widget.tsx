@@ -211,6 +211,7 @@ function InsightStrip({ cards }: { cards: InsightCard[] }) {
 
 export function DashielWidget({ workspaceSlug }: { workspaceSlug?: string }) {
   const [open, setOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [insightCards, setInsightCards] = useState<InsightCard[]>([]);
@@ -322,7 +323,7 @@ export function DashielWidget({ workspaceSlug }: { workspaceSlug?: string }) {
   }
 
   return (
-    <div className="pointer-events-none fixed bottom-0 right-0 z-50 flex flex-col items-end gap-4 p-4 md:p-6">
+    <div className="pointer-events-none fixed bottom-20 right-0 z-50 flex flex-col items-end gap-4 p-4 md:p-6">
       {/* ── Chat window ── */}
       <AnimatePresence>
         {open && (
@@ -413,18 +414,26 @@ export function DashielWidget({ workspaceSlug }: { workspaceSlug?: string }) {
       {/* ── Trigger button ── */}
       <motion.button
         type="button"
+        title=""
         onClick={() => setOpen((prev) => !prev)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         whileTap={{ scale: 0.96 }}
-        className="pointer-events-auto flex items-center gap-3 rounded-full border border-border bg-background/90 px-4 py-3 shadow-2xl shadow-black/40 backdrop-blur-xl transition hover:bg-card"
+        className="pointer-events-auto flex items-center overflow-hidden rounded-full border border-border bg-background/90 p-2 shadow-xl shadow-black/50 backdrop-blur-xl transition-all duration-200 hover:bg-card"
         aria-label={open ? 'Fechar chat' : 'Abrir chat com IA'}
       >
-        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-zinc-900 shadow-lg">
-          <img src="/favicon.ico" alt="Dashiel" className="h-9 w-9 object-contain" />
-          <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-background bg-emerald-400" />
+        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-zinc-900 shadow-xl">
+          <img src="/favicon.ico" alt="Dashiel" className="h-8 w-8 object-contain" />
+          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-emerald-400" />
         </div>
-        <div className="pr-2 text-left">
-          <p className="text-sm font-medium leading-none text-foreground">Falar com Dashiel</p>
-          <p className="mt-1 text-xs text-muted-foreground">Pergunte sobre sua operação</p>
+        <div
+          className={cn(
+            'overflow-hidden text-left transition-all duration-200',
+            hovered ? 'max-w-[200px] opacity-100 pl-2 pr-2' : 'max-w-0 opacity-0',
+          )}
+        >
+          <p className="whitespace-nowrap text-sm font-medium leading-none text-foreground">Falar com Dashiel</p>
+          <p className="mt-1 whitespace-nowrap text-xs text-muted-foreground">Pergunte sobre sua operação</p>
         </div>
       </motion.button>
     </div>

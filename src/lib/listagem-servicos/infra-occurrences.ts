@@ -55,6 +55,16 @@ export function normalizeNullableText(value: string | null | undefined) {
   return trimmed ? trimmed : null;
 }
 
+function formatPriorityLabel(value: string | null | undefined) {
+  const priority = normalizeNullableText(value);
+
+  if (priority === '1') return '1 (Alta)';
+  if (priority === '2') return '2 (Média)';
+  if (priority === '-') return '- (Baixa)';
+
+  return priority ?? '-';
+}
+
 function formatDisplayDate(value: string | null | undefined) {
   if (!value) return '-';
   const [year, month, day] = value.split('-');
@@ -74,13 +84,14 @@ function getBestLocation(record: Pick<ServiceListing, 'locationUrl' | 'address' 
 
 export function buildInfraDispatchMessage(record: Pick<
   ServiceListing,
-  'id' | 'cityArea' | 'address' | 'locationUrl' | 'networkBox' | 'tipoOcorrencia' | 'observacaoInfra' | 'referenceDate' | 'fotoUrl'
+  'id' | 'priority' | 'cityArea' | 'address' | 'locationUrl' | 'networkBox' | 'tipoOcorrencia' | 'observacaoInfra' | 'referenceDate' | 'fotoUrl'
 >) {
   const observacao = normalizeNullableText(record.observacaoInfra);
 
   return [
     '🚨 OS PARA MANUTENÇÃO',
     `OS: #${record.id}`,
+    `Prioridade: ${formatPriorityLabel(record.priority)}`,
     `Data: ${formatDisplayDate(record.referenceDate)}`,
     `Caixa / Rede: ${normalizeNullableText(record.networkBox) ?? '-'}`,
     `Cidade: ${normalizeNullableText(record.cityArea) ?? '-'}`,

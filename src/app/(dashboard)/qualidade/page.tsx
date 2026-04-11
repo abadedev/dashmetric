@@ -87,20 +87,23 @@ function QualidadePageContent() {
               <option key={item} value={item} />
             ))}
           </datalist>
-          <Select value={indicator} onValueChange={(val) => setIndicator(val || 'all')}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Indicador" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Indicadores</SelectItem>
-              <SelectItem value="IQIv">IQIv (Rep. após Inst)</SelectItem>
-              <SelectItem value="IQRv">IQRv (Rep. Reincidente)</SelectItem>
-              <SelectItem value="RTV">RTV (Varejo/Anatel)</SelectItem>
-              <SelectItem value="RST">RST (Serviço Téc.)</SelectItem>
-              <SelectItem value="ICT">ICT (Inviabilidade)</SelectItem>
-              <SelectItem value="Retorno">Retorno Geral</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Indicador</label>
+            <Select value={indicator} onValueChange={(val) => setIndicator(val || 'all')}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todos os indicadores' : v}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os indicadores</SelectItem>
+                <SelectItem value="IQIv">IQIv (Rep. após Inst)</SelectItem>
+                <SelectItem value="IQRv">IQRv (Rep. Reincidente)</SelectItem>
+                <SelectItem value="RTV">RTV (Varejo/Anatel)</SelectItem>
+                <SelectItem value="RST">{'RST (Servi\u00E7o T\u00E9c.)'}</SelectItem>
+                <SelectItem value="ICT">ICT (Inviabilidade)</SelectItem>
+                <SelectItem value="Retorno">Retorno Geral</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       }
     >
