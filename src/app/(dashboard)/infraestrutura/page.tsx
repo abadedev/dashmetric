@@ -1,221 +1,259 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, type ElementType } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Network, PencilRuler } from 'lucide-react';
-import { PageLayout } from '@/components/layout/page-layout';
-import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { AlertCircle, CheckCircle2, Clock, Network, RefreshCw, TrendingUp } from 'lucide-react';
 import { useQueryState } from 'nuqs';
 import { endOfMonth, startOfMonth } from 'date-fns';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PageSkeleton, StateDisplay, TableSkeleton } from '@/components/ui/state-display';
+import { PageLayout } from '@/components/layout/page-layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PageSkeleton } from '@/components/ui/state-display';
+import {
+  CityBarChart,
+  DailyBarChart,
+  NetworkBoxTable,
+  OccurrenceDistributionChart,
+  RecurringIssuesTable,
+  TechnicianRankingTable,
+} from '@/components/infraestrutura/infra-charts';
+import { INFRA_OCCURRENCE_OPTIONS } from '@/lib/listagem-servicos/infra-occurrences';
 
-function InfraestruturaPageContent() {
-  const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState("to", parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+interface DashboardData {
+  kpi: {
+    total: number;
+    pending: number;
+    resolved: number;
+    recurring: number;
+    resolutionRate: number;
+    avgResolutionDays: number;
+    topOccurrence: string;
+  };
+  byDay: Array<{ date: string; opened: number; resolved: number }>;
+  byOccurrence: Array<{ name: string; value: number }>;
+  byCity: Array<{ city: string; total: number }>;
+  byNetworkBox: Array<{ networkBox: string; total: number }>;
+  byTechnician: Array<{ technician: string; total: number }>;
+  recurringIssues: Array<{ occurrenceType: string; city: string; networkBox: string; total: number }>;
+  filters: {
+    cities: string[];
+    technicians: string[];
+    statuses: string[];
+    occurrenceTypes: string[];
+  };
+}
 
-  const [city, setCity] = useQueryState("city");
-  const [technician, setTechnician] = useQueryState("technician");
+function KpiCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  accent,
+}: {
+  title: string;
+  value: string | number;
+  subtitle: string;
+  icon: ElementType;
+  accent: string;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <div className={`rounded-md p-1.5 ${accent}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="line-clamp-2 text-2xl font-bold">{value}</div>
+        <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function InfraestruturaContent() {
+  const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
+  const [to] = useQueryState('to', parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [city, setCity] = useQueryState('city');
+  const [technician, setTechnician] = useQueryState('technician');
+  const [status, setStatus] = useQueryState('status');
+  const [tipoOcorrencia, setTipoOcorrencia] = useQueryState('tipoOcorrencia');
 
   const queryParams = new URLSearchParams();
-  if (from) queryParams.set('from', from.toISOString());
-  if (to) queryParams.set('to', to.toISOString());
+  if (from) queryParams.set('from', from.toISOString().slice(0, 10));
+  if (to) queryParams.set('to', to.toISOString().slice(0, 10));
   if (city && city !== 'all') queryParams.set('city', city);
   if (technician && technician !== 'all') queryParams.set('technician', technician);
+  if (status && status !== 'all') queryParams.set('status', status);
+  if (tipoOcorrencia && tipoOcorrencia !== 'all') queryParams.set('tipoOcorrencia', tipoOcorrencia);
   const qs = queryParams.toString();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['infrastructure-overview', qs],
+  const { data, isLoading, refetch, isFetching } = useQuery<DashboardData>({
+    queryKey: ['infrastructure-dashboard', qs],
     queryFn: async () => {
-      const response = await fetch(`/api/infrastructure?${qs}`);
-      return response.json();
+      const res = await fetch(`/api/infrastructure-dashboard?${qs}`);
+      return res.json();
     },
   });
 
   return (
     <PageLayout
       title="Infraestrutura"
-      description="Painel analítico das manutenções, ocorrências e reparos de infraestrutura."
+      description="Dashboard visual dos dados de infraestrutura de rede."
       actions={
         <>
-          <Select value={technician || 'all'} onValueChange={(value) => setTechnician(value === 'all' ? null : value)}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filtrar técnico" />
+          <Select value={tipoOcorrencia || 'all'} onValueChange={(value) => setTipoOcorrencia(value === 'all' ? null : value)}>
+            <SelectTrigger className="w-[240px]">
+              <SelectValue placeholder="Ocorrencia" />
             </SelectTrigger>
             <SelectContent side="bottom" alignItemWithTrigger={false}>
-              <SelectItem value="all">Todos os técnicos</SelectItem>
-              {(data?.technicians || []).map((item: string) => (
-                <SelectItem key={item} value={item} className="capitalize">
-                  {item.toLowerCase()}
-                </SelectItem>
+              <SelectItem value="all">Todas as ocorrencias</SelectItem>
+              {(data?.filters.occurrenceTypes ?? INFRA_OCCURRENCE_OPTIONS).map((item) => (
+                <SelectItem key={item} value={item}>{item}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+
           <Select value={city || 'all'} onValueChange={(value) => setCity(value === 'all' ? null : value)}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filtrar cidade" />
+              <SelectValue placeholder="Cidade" />
             </SelectTrigger>
             <SelectContent side="bottom" alignItemWithTrigger={false}>
               <SelectItem value="all">Todas as cidades</SelectItem>
-              {(data?.cities || []).map((item: string) => (
-                <SelectItem key={item} value={item}>
-                  {item}
-                </SelectItem>
+              {(data?.filters.cities ?? []).map((item) => (
+                <SelectItem key={item} value={item}>{item}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+
+          <Select value={technician || 'all'} onValueChange={(value) => setTechnician(value === 'all' ? null : value)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Tecnico" />
+            </SelectTrigger>
+            <SelectContent side="bottom" alignItemWithTrigger={false}>
+              <SelectItem value="all">Todos os tecnicos</SelectItem>
+              {(data?.filters.technicians ?? []).map((item) => (
+                <SelectItem key={item} value={item}>{item}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? null : value)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent side="bottom" alignItemWithTrigger={false}>
+              <SelectItem value="all">Todos os status</SelectItem>
+              {(data?.filters.statuses ?? []).map((item) => (
+                <SelectItem key={item} value={item}>{item}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <GlobalDateFilter />
+
+          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching} title="Atualizar">
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          </Button>
         </>
       }
     >
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Manutenções Registradas</CardTitle>
-            <Network className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data?.total || 0}</div>
-            <p className="text-xs text-muted-foreground">tickets no período selecionado</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cidades Afetadas</CardTitle>
-            <Network className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data?.byCity?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">cidades com ocorrências registradas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tipos de Serviço</CardTitle>
-            <PencilRuler className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data?.byCategory?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">categorias distintas demandadas</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        {isLoading ? (
+          Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-24 rounded-xl" />)
+        ) : (
+          <>
+            <KpiCard
+              title="Total de OS"
+              value={data?.kpi.total ?? 0}
+              subtitle="ocorrencias no periodo"
+              icon={Network}
+              accent="bg-indigo-500/10 text-indigo-400"
+            />
+            <KpiCard
+              title="Pendentes"
+              value={data?.kpi.pending ?? 0}
+              subtitle="aguardando tratamento"
+              icon={AlertCircle}
+              accent="bg-orange-500/10 text-orange-400"
+            />
+            <KpiCard
+              title="Resolvidas"
+              value={data?.kpi.resolved ?? 0}
+              subtitle="OS finalizadas"
+              icon={CheckCircle2}
+              accent="bg-emerald-500/10 text-emerald-400"
+            />
+            <KpiCard
+              title="Problema Lider"
+              value={data?.kpi.topOccurrence ?? '-'}
+              subtitle="tipo mais frequente"
+              icon={TrendingUp}
+              accent="bg-sky-500/10 text-sky-400"
+            />
+            <KpiCard
+              title="Recorrentes"
+              value={data?.kpi.recurring ?? 0}
+              subtitle="marcadas para ocorrencia"
+              icon={Clock}
+              accent="bg-amber-500/10 text-amber-400"
+            />
+            <KpiCard
+              title="Tempo Medio"
+              value={`${data?.kpi.avgResolutionDays ?? 0}d`}
+              subtitle={`taxa de resolucao ${data?.kpi.resolutionRate ?? 0}%`}
+              icon={CheckCircle2}
+              accent="bg-purple-500/10 text-purple-400"
+            />
+          </>
+        )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr] mt-4">
-        {/* Gráfico 1: Volume por Categoria */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ocorrências por Serviço/Problema</CardTitle>
-            <CardDescription>
-              Volume de atividades agrupadas pela categoria do serviço.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {data?.byCategory?.length > 0 ? (
-              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-4">
-                {data.byCategory.map((cat: any) => (
-                  <div key={cat.category} className="flex items-center">
-                    <div className="space-y-1 w-full">
-                      <div className="flex justify-between items-center w-full">
-                        <p className="text-sm font-medium leading-none">{cat.category || 'Desconhecida'}</p>
-                        <div className="font-medium">{cat.total}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
-                Sem dados para exibir
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Gráfico 2: Volume por Cidade */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Cidades mais afetadas</CardTitle>
-            <CardDescription>
-              Locais com maior volume de infraestrutura no período.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {data?.byCity?.length > 0 ? (
-              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-4">
-                {data.byCity.map((city: any) => (
-                  <div key={city.city} className="flex items-center">
-                    <div className="space-y-1 w-full">
-                      <div className="flex justify-between items-center w-full">
-                        <p className="text-sm font-medium leading-none">{city.city || 'Desconhecida'}</p>
-                        <div className="font-medium">{city.total}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
-                Sem dados para exibir
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+        {isLoading ? (
+          <>
+            <Skeleton className="h-72 rounded-xl" />
+            <Skeleton className="h-72 rounded-xl" />
+          </>
+        ) : (
+          <>
+            <DailyBarChart data={data?.byDay ?? []} />
+            <OccurrenceDistributionChart data={data?.byOccurrence ?? []} />
+          </>
+        )}
       </div>
 
-      {isLoading ? (
-        <TableSkeleton />
-      ) : (
-        <Card className="mt-4">
-          <CardHeader>
-            <CardTitle>Últimos Registros Consolidados</CardTitle>
-            <CardDescription>
-              Detalhamento das ocorrências, caixas e técnicos responsáveis (Limitado a 100).
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Cidade</TableHead>
-                  <TableHead>CA/Equipamento</TableHead>
-                  <TableHead>Problema/Serviço</TableHead>
-                  <TableHead>Técnico</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.data?.length ? (
-                  data.data.map((item: any) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="whitespace-nowrap">
-                        {item.referenceDate
-                          ? new Date(item.referenceDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
-                          : '-'}
-                      </TableCell>
-                      <TableCell>{item.city || '-'}</TableCell>
-                      <TableCell>{item.payload?.caequip || item.payload?.['ca/equip'] || item.payload?.equip || item.payload?.ca_equip || '-'}</TableCell>
-                      <TableCell>{item.category || '-'}</TableCell>
-                      <TableCell className="capitalize">{item.payload?.tecnico || item.payload?.técnico || '-'}</TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-32 text-center text-muted-foreground align-middle">
-                      Nenhuma ocorrência importada no período.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid gap-6 xl:grid-cols-2">
+        {isLoading ? (
+          <>
+            <Skeleton className="h-80 rounded-xl" />
+            <Skeleton className="h-80 rounded-xl" />
+          </>
+        ) : (
+          <>
+            <CityBarChart data={data?.byCity ?? []} />
+            <NetworkBoxTable data={data?.byNetworkBox ?? []} />
+          </>
+        )}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        {isLoading ? (
+          <>
+            <Skeleton className="h-72 rounded-xl" />
+            <Skeleton className="h-72 rounded-xl" />
+          </>
+        ) : (
+          <>
+            <RecurringIssuesTable data={data?.recurringIssues ?? []} />
+            <TechnicianRankingTable data={data?.byTechnician ?? []} />
+          </>
+        )}
+      </div>
     </PageLayout>
   );
 }
@@ -223,7 +261,7 @@ function InfraestruturaPageContent() {
 export default function InfraestruturaPage() {
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <InfraestruturaPageContent />
+      <InfraestruturaContent />
     </Suspense>
   );
 }
