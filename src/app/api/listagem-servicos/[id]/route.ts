@@ -101,6 +101,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         'solution',
         'resolutionDate',
         'resolutionNotes',
+        'fotoUrl',
       ];
 
       for (const key of allowed) {
@@ -122,7 +123,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             key === 'technician' ||
             key === 'solution' ||
             key === 'resolutionDate' ||
-            key === 'resolutionNotes'
+            key === 'resolutionNotes' ||
+            key === 'fotoUrl'
           ) {
             updateData[key] = normalizeNullableText(parsedData[key] as string | null | undefined);
             continue;

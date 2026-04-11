@@ -8,7 +8,7 @@ import {
 import { ACTIVITY_LABELS, formatSLATime } from '@/lib/services/sla-engine';
 import {
   Clock, User, MapPin, Wrench,
-  CheckCircle2, XCircle, Minus, X,
+  CheckCircle2, XCircle, Minus, X, Image as ImageIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -251,6 +251,25 @@ export function OsDetailSheet({ os, isOpen, onClose }: OsDetailSheetProps) {
               </div>
             </div>
           </Section>
+
+          {/* Foto anexada */}
+          {os.fotoUrl && (
+            <Section icon={ImageIcon} title="Foto Anexada">
+              <div className="px-4">
+                <div className="flex items-start gap-3 py-2.5">
+                  <a
+                    href={os.fotoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                  >
+                    <ImageIcon className="h-4 w-4 shrink-0" />
+                    Abrir foto
+                  </a>
+                </div>
+              </div>
+            </Section>
+          )}
 
         </div>
       </DialogContent>

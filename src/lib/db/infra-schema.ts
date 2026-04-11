@@ -18,6 +18,7 @@ export const serviceListings = pgTable('service_listings', {
   solution: text('solution'),
   resolutionDate: date('resolution_date'),
   resolutionNotes: text('resolution_notes'),
+  fotoUrl: text('foto_url'),
   createdBy: varchar('created_by', { length: 255 }),
   resolvedBy: varchar('resolved_by', { length: 255 }),
   createdAt: timestamp('created_at').defaultNow(),
