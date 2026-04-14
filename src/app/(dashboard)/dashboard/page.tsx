@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { endOfMonth, startOfMonth } from 'date-fns';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
 import { QualitySummary } from '@/components/dashboard/quality-summary';
 import { SlaByTypeTable } from '@/components/dashboard/sla-by-type-table';
@@ -15,16 +14,13 @@ import { PageSkeleton } from '@/components/ui/state-display';
 import { useQueryState } from 'nuqs';
 
 function DashboardPageContent() {
-  const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState('to', parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [from] = useQueryState('from', parseAsLocalIsoDate);
+  const [to] = useQueryState('to', parseAsLocalIsoDate);
   const [city, setCity] = useQueryState('city');
 
-  const rangeStart = from ?? startOfMonth(new Date());
-  const rangeEnd = to ?? endOfMonth(new Date());
-
   const queryParams = new URLSearchParams();
-  queryParams.set('from', rangeStart.toISOString());
-  queryParams.set('to', rangeEnd.toISOString());
+  if (from) queryParams.set('from', from.toISOString());
+  if (to) queryParams.set('to', to.toISOString());
   if (city) queryParams.set('city', city);
   const qs = queryParams.toString();
 

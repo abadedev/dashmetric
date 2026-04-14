@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { endOfMonth, startOfMonth } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { useQueryState } from 'nuqs';
 import { PageLayout } from '@/components/layout/page-layout';
@@ -17,8 +16,8 @@ import { SalesTopCities } from '@/components/vendas/sales-top-cities';
 import { OmniVendasSection } from '@/components/vendas/omni-vendas-section';
 
 function VendasPageContent() {
-  const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState('to', parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [from] = useQueryState('from', parseAsLocalIsoDate);
+  const [to] = useQueryState('to', parseAsLocalIsoDate);
   const [city, setCity] = useState('');
   const [plan, setPlan] = useState('');
   const [source, setSource] = useState('');

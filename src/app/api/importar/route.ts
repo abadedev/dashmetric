@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { detectFileType } from '@/lib/importacao/detect-file-type';
 import { detectarTipoPlanilha } from '@/lib/importacao/detectar-tipo-planilha';
 import { parseCsv } from '@/lib/importacao/parse-csv';
-import { parseXlsx } from '@/lib/importacao/parse-xlsx';
+import { isListaServicosXlsx, parseXlsx } from '@/lib/importacao/parse-xlsx';
 import {
   getModuleRegistryEntry,
   isSystemModuleKey,
@@ -45,10 +45,14 @@ export async function POST(req: NextRequest) {
       const buffer = Buffer.from(await file.arrayBuffer());
       const tipoArquivo = detectFileType(file.name, buffer);
 
-      const linhasBrutas: Record<string, string>[] =
-        tipoArquivo === 'xlsx'
-          ? parseXlsx(buffer)
-          : parseCsv(buffer);
+      let linhasBrutas: Record<string, string>[];
+
+      if (tipoArquivo === 'xlsx' && isListaServicosXlsx(buffer)) {
+        // Lista de Serviços: multi-aba com formato próprio — o handler usa o buffer diretamente
+        linhasBrutas = [{ _tipo: 'lista_servicos' }];
+      } else {
+        linhasBrutas = tipoArquivo === 'xlsx' ? parseXlsx(buffer) : parseCsv(buffer);
+      }
 
       if (!linhasBrutas.length) {
         return NextResponse.json({ error: 'Arquivo vazio ou sem linhas validas.' }, { status: 400 });

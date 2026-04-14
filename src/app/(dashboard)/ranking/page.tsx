@@ -10,12 +10,11 @@ import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-da
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useQueryState } from 'nuqs';
-import { startOfMonth, endOfMonth } from 'date-fns';
 import { PageLayout } from '@/components/layout/page-layout';
 
 function RankingPageContent() {
-  const [from] = useQueryState("from", parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState("to", parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [from] = useQueryState("from", parseAsLocalIsoDate);
+  const [to] = useQueryState("to", parseAsLocalIsoDate);
   const [city, setCity] = useQueryState('city');
   const [searchTerm, setSearchTerm] = useState('');
 

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle, Download, MapPin, Pencil, Trash2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { TableSkeleton, StateDisplay } from '@/components/ui/state-display';
 import { FinalizeDialog } from './finalize-dialog';
 import { ServiceForm } from './service-form';
@@ -34,6 +35,16 @@ interface ServiceListingsTableProps {
   isLoading: boolean;
   userRole: AppRole;
   queryKey: readonly unknown[];
+  sortField: string | null;
+  sortDir: 'asc' | 'desc';
+  onSort: (field: string) => void;
+  searchValue: string;
+  onSearchChange: (val: string) => void;
+  queryString: string;
+  activeTab: 'pendentes' | 'resolvidos';
+  onTabChange: (tab: 'pendentes' | 'resolvidos') => void;
+  totalPendentes: number;
+  totalResolvidos: number;
 }
 
 const PENDING_STATUSES = new Set(['pendente', 'em_andamento', 'tecnico_direcionado']);
@@ -155,6 +166,47 @@ function DeleteConfirmDialog({
   );
 }
 
+function calcularTempoAberto(referenceDate: string): { texto: string; cor: string } {
+  const inicio = new Date(referenceDate);
+  const agora = new Date();
+  const dias = Math.floor((agora.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
+  if (dias === 0) return { texto: 'Hoje', cor: 'text-green-500' };
+  if (dias <= 4) return { texto: `${dias}d`, cor: 'text-yellow-500' };
+  if (dias <= 7) return { texto: `${dias}d`, cor: 'text-orange-500' };
+  return { texto: `${dias}d`, cor: 'text-red-500' };
+}
+
+async function exportarCSV(queryString: string) {
+  const res = await fetch(`/api/listagem-servicos?${queryString}&pageSize=9999`);
+  const json = (await res.json()) as { data: ServiceListing[] };
+  const dados = json.data ?? [];
+
+  const headers = ['Data', 'Prioridade', 'Tecnologia', 'Cidade', 'Endereço',
+    'Rede/Caixa', 'Ocorrência', 'Observação', 'Status', 'Técnico', 'Solução', 'Data Conclusão'];
+
+  const linhas = dados.map((r) =>
+    [r.referenceDate, r.priority, r.technology, r.cityArea, r.address,
+     r.networkBox, r.tipoOcorrencia, r.observacaoInfra, r.status,
+     r.technician, r.solution, r.resolutionDate]
+      .map((v) => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
+      .join(',')
+  );
+
+  const csv = [headers.join(','), ...linhas].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `listagem-servicos-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function SortIcon({ field, sortField, sortDir }: { field: string; sortField: string | null; sortDir: 'asc' | 'desc' }) {
+  if (sortField !== field) return <span className="ml-1 opacity-0 group-hover:opacity-50">↕</span>;
+  return <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>;
+}
+
 function RecordsTable({
   rows,
   userRole,
@@ -162,6 +214,10 @@ function RecordsTable({
   onFinalize,
   onEdit,
   onDelete,
+  sortField,
+  sortDir,
+  onSort,
+  showTempoAberto,
 }: {
   rows: ServiceListing[];
   userRole: AppRole;
@@ -169,6 +225,10 @@ function RecordsTable({
   onFinalize: (record: ServiceListing) => void;
   onEdit: (record: ServiceListing) => void;
   onDelete: (id: number) => void;
+  sortField: string | null;
+  sortDir: 'asc' | 'desc';
+  onSort: (field: string) => void;
+  showTempoAberto: boolean;
 }) {
   const canEdit = userRole === 'editor' || userRole === 'admin';
   const isAdmin = userRole === 'admin';
@@ -187,15 +247,46 @@ function RecordsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-8">P</TableHead>
-            <TableHead className="whitespace-nowrap">Data</TableHead>
+            <TableHead
+              className="group w-8 cursor-pointer select-none hover:text-foreground"
+              onClick={() => onSort('priority')}
+            >
+              P<SortIcon field="priority" sortField={sortField} sortDir={sortDir} />
+            </TableHead>
+            <TableHead
+              className="group cursor-pointer select-none whitespace-nowrap hover:text-foreground"
+              onClick={() => onSort('referenceDate')}
+            >
+              Data<SortIcon field="referenceDate" sortField={sortField} sortDir={sortDir} />
+            </TableHead>
             <TableHead>Tec.</TableHead>
-            <TableHead>{'Cidade / \u00C1rea'}</TableHead>
+            <TableHead
+              className="group cursor-pointer select-none hover:text-foreground"
+              onClick={() => onSort('cityArea')}
+            >
+              {'Cidade / \u00C1rea'}<SortIcon field="cityArea" sortField={sortField} sortDir={sortDir} />
+            </TableHead>
             <TableHead>{'Endere\u00E7o'}</TableHead>
-            <TableHead>Rede/Caixa</TableHead>
+            <TableHead
+              className="group cursor-pointer select-none hover:text-foreground"
+              onClick={() => onSort('networkBox')}
+            >
+              Rede/Caixa<SortIcon field="networkBox" sortField={sortField} sortDir={sortDir} />
+            </TableHead>
             <TableHead>Ocorrencia</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>{'T\u00E9cnico'}</TableHead>
+            <TableHead
+              className="group cursor-pointer select-none hover:text-foreground"
+              onClick={() => onSort('status')}
+            >
+              Status<SortIcon field="status" sortField={sortField} sortDir={sortDir} />
+            </TableHead>
+            {showTempoAberto && <TableHead className="whitespace-nowrap">Em aberto</TableHead>}
+            <TableHead
+              className="group cursor-pointer select-none hover:text-foreground"
+              onClick={() => onSort('technician')}
+            >
+              {'T\u00E9cnico'}<SortIcon field="technician" sortField={sortField} sortDir={sortDir} />
+            </TableHead>
             <TableHead className="w-8 text-center">OC</TableHead>
             <TableHead className="w-28" />
           </TableRow>
@@ -215,6 +306,10 @@ function RecordsTable({
                 <OccurrenceCell row={row} />
               </TableCell>
               <TableCell><StatusBadge status={row.status} /></TableCell>
+              {showTempoAberto && (() => {
+                const { texto, cor } = calcularTempoAberto(row.referenceDate);
+                return <TableCell className={`whitespace-nowrap text-xs font-medium ${cor}`}>{texto}</TableCell>;
+              })()}
               <TableCell className="whitespace-nowrap text-xs">{row.technician || '\u2014'}</TableCell>
               <TableCell className="text-center">
                 <OccurrenceToggle record={row} canEdit={canEdit} queryKey={queryKey} />
@@ -270,33 +365,81 @@ export function ServiceListingsTable({
   isLoading,
   userRole,
   queryKey,
+  sortField,
+  sortDir,
+  onSort,
+  searchValue,
+  onSearchChange,
+  queryString,
+  activeTab,
+  onTabChange,
+  totalPendentes,
+  totalResolvidos,
 }: ServiceListingsTableProps) {
   const [finalizeRecord, setFinalizeRecord] = useState<ServiceListing | null>(null);
   const [editRecord, setEditRecord] = useState<ServiceListing | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [inputValue, setInputValue] = useState(searchValue);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const pendentes = (data ?? []).filter((record) => PENDING_STATUSES.has(record.status ?? ''));
-  const resolvidos = (data ?? []).filter((record) => !PENDING_STATUSES.has(record.status ?? ''));
+  useEffect(() => {
+    setInputValue(searchValue);
+  }, [searchValue]);
+
+  function handleSearchInput(val: string) {
+    setInputValue(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onSearchChange(val), 400);
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await exportarCSV(queryString);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   if (isLoading) return <TableSkeleton />;
 
   return (
     <>
-      <Tabs defaultValue="pendentes">
+      <div className="flex items-center gap-2">
+        <Input
+          placeholder="Buscar por endereço ou CA..."
+          value={inputValue}
+          onChange={(e) => handleSearchInput(e.target.value)}
+          className="max-w-xs"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={exporting}
+          className="ml-auto"
+        >
+          <Download className="mr-1.5 h-4 w-4" />
+          {exporting ? 'Exportando...' : 'Exportar CSV'}
+        </Button>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as 'pendentes' | 'resolvidos')}>
         <TabsList>
           <TabsTrigger value="pendentes">
             Pendentes
-            {pendentes.length > 0 && (
+            {totalPendentes > 0 && (
               <span className="ml-1.5 rounded-full bg-orange-500/20 px-1.5 py-0.5 text-xs text-orange-400">
-                {pendentes.length}
+                {totalPendentes}
               </span>
             )}
           </TabsTrigger>
           <TabsTrigger value="resolvidos">
             Resolvidos
-            {resolvidos.length > 0 && (
+            {totalResolvidos > 0 && (
               <span className="ml-1.5 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-xs text-emerald-400">
-                {resolvidos.length}
+                {totalResolvidos}
               </span>
             )}
           </TabsTrigger>
@@ -310,12 +453,16 @@ export function ServiceListingsTable({
             </CardHeader>
             <CardContent className="p-0">
               <RecordsTable
-                rows={pendentes}
+                rows={data ?? []}
                 userRole={userRole}
                 queryKey={queryKey}
                 onFinalize={setFinalizeRecord}
                 onEdit={setEditRecord}
                 onDelete={setDeleteId}
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={onSort}
+                showTempoAberto
               />
             </CardContent>
           </Card>
@@ -329,12 +476,16 @@ export function ServiceListingsTable({
             </CardHeader>
             <CardContent className="p-0">
               <RecordsTable
-                rows={resolvidos}
+                rows={data ?? []}
                 userRole={userRole}
                 queryKey={queryKey}
                 onFinalize={setFinalizeRecord}
                 onEdit={setEditRecord}
                 onDelete={setDeleteId}
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={onSort}
+                showTempoAberto={false}
               />
             </CardContent>
           </Card>

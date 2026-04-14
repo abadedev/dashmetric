@@ -267,11 +267,20 @@ const DEFAULT_MODULES: Array<{
       sortOrder: 85,
       isActive: true,
       showInSidebar: true,
-      allowImport: false,
+      allowImport: true,
       requiredRole: 'user',
       templateSource: 'infraestrutura',
       isEditable: false,
     },
+    importProfiles: [
+      {
+        moduleId: 0,
+        profileKey: 'lista_servicos',
+        label: 'Lista de Servicos DSTech',
+        detectorType: 'lista_servicos',
+        isActive: true,
+      },
+    ],
   },
   {
     module: {
@@ -355,11 +364,7 @@ export function canAccessModule(userRole: AppRole, requiredRole: AppRole) {
 }
 
 export async function ensureDefaultModules(workspaceId: string) {
-  // Also include rows with NULL workspace_id: these are legacy modules created
-  // before the workspace migration. We'll claim them below instead of re-inserting
-  // (which would hit the old global unique index on slug).
-  // TODO(next phase): once every environment is verified and backfilled,
-  // stop claiming NULL workspace rows here and enforce workspace ownership at the schema level.
+  // Include rows with NULL workspace_id so they can be associated to the workspace here.
   const existing = await db
     .select()
     .from(systemModules)
@@ -408,7 +413,6 @@ export async function ensureDefaultModules(workspaceId: string) {
       continue;
     }
 
-    // Claim legacy rows that have NULL workspace_id (created before workspace migration).
     if (found.workspaceId === null) {
       await db
         .update(systemModules)
@@ -452,11 +456,18 @@ export async function ensureDefaultModules(workspaceId: string) {
       }
     }
 
-    // Migrate omnichannel icon from legacy 'Headphones' to 'WhatsAppIcon'.
     if (found.slug === 'omnichannel' && found.icon !== 'WhatsAppIcon') {
       await db
         .update(systemModules)
         .set({ icon: 'WhatsAppIcon', updatedAt: new Date() })
+        .where(eq(systemModules.id, found.id));
+    }
+
+    // Enable import for listagem-servicos (previously had allowImport: false).
+    if (found.slug === 'listagem-servicos' && found.allowImport !== true) {
+      await db
+        .update(systemModules)
+        .set({ allowImport: true, updatedAt: new Date() })
         .where(eq(systemModules.id, found.id));
     }
 

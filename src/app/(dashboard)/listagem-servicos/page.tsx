@@ -4,7 +4,6 @@ import { Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, RefreshCw } from 'lucide-react';
 import { useQueryState } from 'nuqs';
-import { endOfMonth, startOfMonth } from 'date-fns';
 import { PageLayout } from '@/components/layout/page-layout';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,15 +18,38 @@ import type { ServiceListing } from '@/lib/db/infra-schema';
 import { INFRA_OCCURRENCE_OPTIONS } from '@/lib/listagem-servicos/infra-occurrences';
 
 function ListagemServicosContent() {
-  const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState('to', parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [from] = useQueryState('from', parseAsLocalIsoDate);
+  const [to] = useQueryState('to', parseAsLocalIsoDate);
   const [city, setCity] = useQueryState('city');
   const [technician, setTechnician] = useQueryState('technician');
   const [technology, setTechnology] = useQueryState('technology');
   const [tipoOcorrencia, setTipoOcorrencia] = useQueryState('tipoOcorrencia');
   const [page, setPage] = useQueryState('page', { defaultValue: '1' });
 
+  const [activeTab, setActiveTab] = useState<'pendentes' | 'resolvidos'>('pendentes');
   const [newFormOpen, setNewFormOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  function handleTabChange(tab: 'pendentes' | 'resolvidos') {
+    setActiveTab(tab);
+    setPage('1');
+  }
+
+  function handleSort(field: string) {
+    if (sortField === field) {
+      if (sortDir === 'asc') {
+        setSortDir('desc');
+      } else {
+        setSortField(null);
+        setSortDir('asc');
+      }
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  }
 
   const queryParams = new URLSearchParams();
   if (from) queryParams.set('from', from.toISOString().slice(0, 10));
@@ -36,8 +58,14 @@ function ListagemServicosContent() {
   if (technician && technician !== 'all') queryParams.set('technician', technician);
   if (technology && technology !== 'all') queryParams.set('technology', technology);
   if (tipoOcorrencia && tipoOcorrencia !== 'all') queryParams.set('tipoOcorrencia', tipoOcorrencia);
+  queryParams.set('status', activeTab);
   queryParams.set('page', page ?? '1');
-  queryParams.set('pageSize', '50');
+  queryParams.set('pageSize', '100');
+  if (sortField) {
+    queryParams.set('sort', sortField);
+    queryParams.set('dir', sortDir);
+  }
+  if (searchQuery) queryParams.set('search', searchQuery);
   const qs = queryParams.toString();
 
   const queryKey = ['listagem-servicos', qs] as const;
@@ -49,6 +77,9 @@ function ListagemServicosContent() {
       return res.json() as Promise<{
         data: ServiceListing[];
         total: number;
+        totalPendentes: number;
+        totalResolvidos: number;
+        totalPages: number;
         page: number;
         pageSize: number;
         cities: string[];
@@ -62,7 +93,7 @@ function ListagemServicosContent() {
   const { data: session } = useSession();
   const userRole: AppRole = ((session?.user as { role?: AppRole })?.role ?? 'user') as AppRole;
   const canEdit = userRole === 'editor' || userRole === 'admin';
-  const totalPages = data ? Math.ceil(data.total / 50) : 1;
+  const totalPages = data?.totalPages ?? 1;
   const currentPage = parseInt(page ?? '1', 10);
 
   return (
@@ -155,7 +186,7 @@ function ListagemServicosContent() {
             </Select>
           </div>
 
-          <GlobalDateFilter />
+          <GlobalDateFilter noDefault />
 
           <Button variant="outline" size="icon" onClick={() => refetch()} title="Atualizar">
             <RefreshCw className="h-4 w-4" />
@@ -189,6 +220,16 @@ function ListagemServicosContent() {
         isLoading={isLoading}
         userRole={userRole}
         queryKey={queryKey}
+        sortField={sortField}
+        sortDir={sortDir}
+        onSort={handleSort}
+        searchValue={searchQuery}
+        onSearchChange={(val) => { setSearchQuery(val); setPage('1'); }}
+        queryString={qs}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        totalPendentes={data?.totalPendentes ?? 0}
+        totalResolvidos={data?.totalResolvidos ?? 0}
       />
 
       {totalPages > 1 && (

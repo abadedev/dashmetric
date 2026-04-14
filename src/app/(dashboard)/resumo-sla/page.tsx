@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { startOfMonth, endOfMonth } from 'date-fns';
 import { useTheme } from 'next-themes';
 import { useQueryState } from 'nuqs';
 import {
@@ -71,8 +70,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 function ResumoSlaPageContent() {
-  const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState('to', parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [from] = useQueryState('from', parseAsLocalIsoDate);
+  const [to] = useQueryState('to', parseAsLocalIsoDate);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 

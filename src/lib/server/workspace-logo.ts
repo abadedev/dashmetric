@@ -67,11 +67,7 @@ export async function deleteWorkspaceLogoVariant(workspaceId: string, variant: L
   );
 }
 
-/**
- * @deprecated Legacy single-logo save. Kept for backward compatibility.
- * Persist the logo file for a workspace, replacing any previous one.
- * Returns the public URL path (e.g. `/uploads/workspaces/{id}/logo.png`).
- */
+/** Persist the default logo file for a workspace. */
 export async function saveWorkspaceLogo(
   workspaceId: string,
   buffer: Buffer,

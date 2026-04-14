@@ -15,6 +15,7 @@ import { processarInviabilidadeICT } from '@/lib/importacao/processar-inviabilid
 import { importarOmnichannel } from '@/lib/importacao/importar-omnichannel';
 import { importarOmnichannelVendas } from '@/lib/importacao/importar-omnichannel-vendas';
 import { importarIndiqueUmAmigo } from '@/lib/importacao/importar-indique-um-amigo';
+import { importarListaServicos } from '@/lib/importacao/importar-lista-servicos';
 
 export type SystemModuleKey =
   | 'atendimentos'
@@ -28,7 +29,8 @@ export type SystemModuleKey =
   | 'inviabilidade_ict'
   | 'omnichannel_matrix_go'
   | 'omnichannel_omni_vendas'
-  | 'indique_um_amigo';
+  | 'indique_um_amigo'
+  | 'lista_servicos';
 
 export type ModuleFilterField = {
   key: string;
@@ -320,6 +322,17 @@ async function importIndiqueUmAmigoModule(context: ModuleImportContext): Promise
   };
 }
 
+async function importListaServicosModule(context: ModuleImportContext): Promise<ModuleImportResponse> {
+  const resumo = await importarListaServicos(context.buffer, context.workspaceId);
+
+  return {
+    success: true,
+    tipoPlanilha: 'lista_servicos',
+    message: `Importação da Lista de Serviços concluída: ${resumo.totalInseridas} registros de ${resumo.totalAbas} abas`,
+    resumo,
+  };
+}
+
 export const MODULE_REGISTRY: Record<SystemModuleKey, ModuleRegistryEntry> = {
   atendimentos: {
     key: 'atendimentos',
@@ -436,6 +449,12 @@ export const MODULE_REGISTRY: Record<SystemModuleKey, ModuleRegistryEntry> = {
     title: 'Indique um Amigo',
     importMessage: 'Importação Indique um Amigo concluída.',
     importHandler: importIndiqueUmAmigoModule,
+  },
+  lista_servicos: {
+    key: 'lista_servicos',
+    title: 'Lista de Serviços',
+    importMessage: 'Importação da Lista de Serviços concluída.',
+    importHandler: importListaServicosModule,
   },
 };
 
