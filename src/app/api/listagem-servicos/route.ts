@@ -30,37 +30,78 @@ export async function GET(req: NextRequest) {
     const technician = searchParams.get('technician');
     const technology = searchParams.get('technology');
     const tipoOcorrencia = searchParams.get('tipoOcorrencia');
+    const search = searchParams.get('search');
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
-    const pageSize = Math.min(200, Math.max(1, parseInt(searchParams.get('pageSize') ?? '50', 10)));
+    const pageSize = Math.min(9999, Math.max(1, parseInt(searchParams.get('pageSize') ?? '100', 10)));
     const offset = (page - 1) * pageSize;
+    const sortParam = searchParams.get('sort');
+    const dirParam = searchParams.get('dir') === 'desc' ? 'desc' : 'asc';
+
+    const ALLOWED_SORT_FIELDS = {
+      priority: serviceListings.priority,
+      referenceDate: serviceListings.referenceDate,
+      cityArea: serviceListings.cityArea,
+      networkBox: serviceListings.networkBox,
+      status: serviceListings.status,
+      technician: serviceListings.technician,
+    } as const;
+
+    const sortColumn =
+      sortParam && sortParam in ALLOWED_SORT_FIELDS
+        ? ALLOWED_SORT_FIELDS[sortParam as keyof typeof ALLOWED_SORT_FIELDS]
+        : serviceListings.referenceDate;
+
+    const orderClause = dirParam === 'desc' ? desc(sortColumn) : asc(sortColumn);
 
     const db = getInfraDb();
-    const filters = [];
 
-    if (statusFilter === 'pendentes') {
-      filters.push(or(...['pendente', 'em_andamento', 'tecnico_direcionado'].map((status) => eq(serviceListings.status, status)))!);
-    } else if (statusFilter === 'resolvidos') {
-      filters.push(or(...RESOLVED_STATUSES.map((status) => eq(serviceListings.status, status)))!);
-    } else if (statusFilter && statusFilter !== 'all') {
-      filters.push(eq(serviceListings.status, statusFilter));
+    // Base filters (date, city, technician, technology, occurrence, search) — no status
+    const baseFilters = [];
+    if (from) baseFilters.push(gte(serviceListings.referenceDate, from));
+    if (to) baseFilters.push(lte(serviceListings.referenceDate, to));
+    if (city && city !== 'all') baseFilters.push(ilike(serviceListings.cityArea, `%${city}%`));
+    if (technician && technician !== 'all') baseFilters.push(ilike(serviceListings.technician, `%${technician}%`));
+    if (technology && technology !== 'all') baseFilters.push(eq(serviceListings.technology, technology));
+    if (tipoOcorrencia && tipoOcorrencia !== 'all') baseFilters.push(eq(serviceListings.tipoOcorrencia, tipoOcorrencia));
+    if (search) {
+      baseFilters.push(
+        or(
+          ilike(serviceListings.address, `%${search}%`),
+          ilike(serviceListings.networkBox, `%${search}%`)
+        )!
+      );
     }
 
-    if (from) filters.push(gte(serviceListings.referenceDate, from));
-    if (to) filters.push(lte(serviceListings.referenceDate, to));
-    if (city && city !== 'all') filters.push(ilike(serviceListings.cityArea, `%${city}%`));
-    if (technician && technician !== 'all') filters.push(ilike(serviceListings.technician, `%${technician}%`));
-    if (technology && technology !== 'all') filters.push(eq(serviceListings.technology, technology));
-    if (tipoOcorrencia && tipoOcorrencia !== 'all') filters.push(eq(serviceListings.tipoOcorrencia, tipoOcorrencia));
+    // Status filter — applied on top of base filters for the main query
+    const statusFilters = [];
+    if (statusFilter === 'pendentes') {
+      statusFilters.push(or(...['pendente', 'em_andamento', 'tecnico_direcionado'].map((s) => eq(serviceListings.status, s)))!);
+    } else if (statusFilter === 'resolvidos') {
+      statusFilters.push(or(...RESOLVED_STATUSES.map((s) => eq(serviceListings.status, s)))!);
+    } else if (statusFilter && statusFilter !== 'all') {
+      statusFilters.push(eq(serviceListings.status, statusFilter));
+    }
 
-    const condition = filters.length ? and(...filters) : undefined;
+    const allFilters = [...baseFilters, ...statusFilters];
+    const condition = allFilters.length ? and(...allFilters) : undefined;
+    const baseCondition = baseFilters.length ? and(...baseFilters) : undefined;
 
-    const [countResult, rows, citiesRaw, techniciansRaw] = await Promise.all([
+    const pendingStatusOr = or(...['pendente', 'em_andamento', 'tecnico_direcionado'].map((s) => eq(serviceListings.status, s)))!;
+    const resolvedStatusOr = or(...RESOLVED_STATUSES.map((s) => eq(serviceListings.status, s)))!;
+
+    const [countResult, countPendentes, countResolvidos, rows, citiesRaw, techniciansRaw] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(serviceListings).where(condition),
+      db.select({ count: sql<number>`count(*)::int` }).from(serviceListings).where(
+        baseCondition ? and(baseCondition, pendingStatusOr) : pendingStatusOr
+      ),
+      db.select({ count: sql<number>`count(*)::int` }).from(serviceListings).where(
+        baseCondition ? and(baseCondition, resolvedStatusOr) : resolvedStatusOr
+      ),
       db
         .select()
         .from(serviceListings)
         .where(condition)
-        .orderBy(desc(serviceListings.referenceDate), asc(serviceListings.id))
+        .orderBy(orderClause, asc(serviceListings.id))
         .limit(pageSize)
         .offset(offset),
       db
@@ -75,9 +116,14 @@ export async function GET(req: NextRequest) {
         .orderBy(asc(serviceListings.technician)),
     ]);
 
+    const total = countResult[0]?.count ?? 0;
+
     return NextResponse.json({
       data: rows,
-      total: countResult[0]?.count ?? 0,
+      total,
+      totalPendentes: countPendentes[0]?.count ?? 0,
+      totalResolvidos: countResolvidos[0]?.count ?? 0,
+      totalPages: Math.ceil(total / pageSize),
       page,
       pageSize,
       cities: citiesRaw.map((row) => row.cityArea).filter(Boolean),

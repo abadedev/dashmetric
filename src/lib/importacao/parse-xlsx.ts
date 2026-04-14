@@ -1,5 +1,19 @@
 // @ts-expect-error – node-xlsx-parser não tem types declarados
 import XLSXParser from 'node-xlsx-parser';
+
+/**
+ * Retorna true se o workbook tiver mais de 3 abas com nome no formato DDMMYYYY ou DDMMYY.
+ * Usado para identificar a planilha Lista de Serviços DSTech sem precisar parsear o conteúdo.
+ */
+export function isListaServicosXlsx(buffer: Buffer): boolean {
+  try {
+    const workbook = XLSX.read(buffer, { type: 'buffer', bookSheets: true });
+    const numericSheets = workbook.SheetNames.filter((name) => /^\d{6}$|^\d{8}$/.test(name));
+    return numericSheets.length > 3;
+  } catch {
+    return false;
+  }
+}
 import { normalizeHeader } from './helpers';
 import { parseCsv } from './parse-csv';
 import * as XLSX from 'xlsx';

@@ -303,19 +303,11 @@ export const lotesImportacao = pgTable('lotes_importacao', {
 export const importacoesBrutas = pgTable('importacoes_brutas', {
   id: serial('id').primaryKey(),
   loteImportacaoId: integer('lote_importacao_id').references(() => lotesImportacao.id),
-  /**
-   * Current strategy: persist the full raw payload indefinitely for audit/reprocessing safety.
-   * TODO(next phase): define retention and cleanup rules before this volume grows unbounded.
-   */
   rawJson: jsonb('raw_json').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const atendimentos = pgTable(
-  /**
-   * @deprecated Legacy operational naming preserved for backward compatibility.
-   * Do not use this Portuguese table identifier as reference for new technical structures.
-   */
   'atendimentos',
   {
     id: serial('id').primaryKey(),

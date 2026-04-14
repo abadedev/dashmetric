@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, Clock, Layers3, Shield, ShieldAlert, Users } from 'lucide-react';
+import { Building2, Clock, Layers3, Shield, ShieldAlert, Trash2, Users } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { UsersManager } from '@/components/admin/users-manager';
 import { RolesManager } from '@/components/admin/roles-manager';
 import { WorkspaceManager } from '@/components/admin/workspace-manager';
 import { PendingUsersManager, usePendingUsersCount } from '@/components/admin/pending-users-manager';
+import { DataCleanupManager } from '@/components/admin/data-cleanup-manager';
 
 function readActiveWorkspaceCookie() {
   if (typeof document === 'undefined') return null;
@@ -129,6 +130,12 @@ export default function AdminPage() {
               Workspaces
             </TabsTrigger>
           ) : null}
+          {isPlatformAdmin ? (
+            <TabsTrigger value="limpeza">
+              <Trash2 className="h-4 w-4" />
+              Limpeza de Dados
+            </TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="pendentes" className="mt-4">
@@ -150,6 +157,11 @@ export default function AdminPage() {
         {isPlatformAdmin ? (
           <TabsContent value="workspaces" className="mt-4">
             <WorkspaceManager />
+          </TabsContent>
+        ) : null}
+        {isPlatformAdmin ? (
+          <TabsContent value="limpeza" className="mt-4">
+            <DataCleanupManager />
           </TabsContent>
         ) : null}
       </Tabs>

@@ -4,7 +4,6 @@ import { Suspense, type ElementType } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2, Clock, Network, RefreshCw, TrendingUp } from 'lucide-react';
 import { useQueryState } from 'nuqs';
-import { endOfMonth, startOfMonth } from 'date-fns';
 import { PageLayout } from '@/components/layout/page-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -76,8 +75,8 @@ function KpiCard({
 }
 
 function InfraestruturaContent() {
-  const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState('to', parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [from] = useQueryState('from', parseAsLocalIsoDate);
+  const [to] = useQueryState('to', parseAsLocalIsoDate);
   const [city, setCity] = useQueryState('city');
   const [technician, setTechnician] = useQueryState('technician');
   const [status, setStatus] = useQueryState('status');
