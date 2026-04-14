@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { endOfMonth, startOfMonth } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { useQueryState } from 'nuqs';
 import { CancellationsCityChart } from '@/components/cancelamentos/cancellations-city-chart';
@@ -13,8 +12,8 @@ import { Input } from '@/components/ui/input';
 import { PageSkeleton } from '@/components/ui/state-display';
 
 function CancelamentosPageContent() {
-  const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState('to', parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [from] = useQueryState('from', parseAsLocalIsoDate);
+  const [to] = useQueryState('to', parseAsLocalIsoDate);
   const [city, setCity] = useState('');
   const [plan, setPlan] = useState('');
   const [source, setSource] = useState('');

@@ -53,8 +53,6 @@ async function resolverTecnicos(
 
       if (existingGlobal) {
         const loginCode = loginMap.get(nome) ?? null;
-        // Legacy compatibility: some environments still enforce global unique technician names.
-        // Reuse the existing technician instead of failing the import on duplicate name.
         if (!existingGlobal.login && loginCode) {
           await db
             .update(technicians)

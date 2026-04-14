@@ -102,18 +102,11 @@ export const qualityIndicatorEnum = pgEnum('quality_indicator', [
 ]);
 
 // ========== TABELAS ==========
-//
-// LEGACY MIGRATION NOTE:
-// Several operational tables still keep `workspaceId` nullable in the canonical schema
-// for cross-environment rollout safety. The current environment is already backfilled,
-// but we are intentionally not enforcing mass `NOT NULL` here until every deployed
-// database is verified and covered by broader integration checks.
 
 export const technicians = pgTable(
   'technicians',
   {
     id: serial('id').primaryKey(),
-    // nullable during migration — TODO: add .notNull() after data migration
     workspaceId: uuid('workspace_id'),
     name: varchar('name', { length: 255 }).notNull(),
     login: varchar('login', { length: 100 }),
@@ -122,7 +115,6 @@ export const technicians = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [
-    // unique name per workspace; legacy global uniqueness kept until migration completes
     uniqueIndex('tech_name_idx').on(table.name),
     index('tech_login_idx').on(table.login),
     index('tech_workspace_id_idx').on(table.workspaceId),
@@ -133,7 +125,7 @@ export const qualityRecords = pgTable(
   'quality_records',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
     osNumber: varchar('os_number', { length: 20 }),
     indicator: qualityIndicatorEnum('indicator').notNull(),
     reason: text('reason'),
@@ -163,7 +155,7 @@ export const supportRecords = pgTable(
   'support_records',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
     attendantName: varchar('attendant_name', { length: 255 }).notNull(),
     supportCategory: varchar('support_category', { length: 200 }),
     openedManutExt: integer('opened_manut_ext').default(0),
@@ -187,14 +179,14 @@ export const supportRecords = pgTable(
 );
 
 /**
- * Resumo de classificação automática dos atendimentos de suporte por telefone.
- * Gerado automaticamente durante a importação do CSV de suporte.
+ * Resumo de classificaÃ§Ã£o automÃ¡tica dos atendimentos de suporte por telefone.
+ * Gerado automaticamente durante a importaÃ§Ã£o do CSV de suporte.
  */
 export const supportCallCategories = pgTable(
   'support_call_categories',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
     categoria: varchar('categoria', { length: 200 }).notNull(),
     quantidade: integer('quantidade').notNull(),
     percentual: numeric('percentual', { precision: 6, scale: 2 }).notNull(),
@@ -213,7 +205,7 @@ export const systemModules = pgTable(
   'system_modules',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
     name: varchar('name', { length: 120 }).notNull(),
     slug: varchar('slug', { length: 120 }).notNull(),
     description: text('description'),
@@ -270,7 +262,7 @@ export const salesRecords = pgTable(
   'sales_records',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
     recordType: salesRecordTypeEnum('record_type').notNull(),
     originSector: varchar('origin_sector', { length: 50 }).default('vendas').notNull(),
     csvCategory: varchar('csv_category', { length: 50 }).default('padrao').notNull(),
@@ -334,7 +326,7 @@ export const cancellationRecords = pgTable(
   'cancellation_records',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
     originSector: varchar('origin_sector', { length: 50 }).default('retencao').notNull(),
     clientName: varchar('client_name', { length: 255 }),
     city: varchar('city', { length: 120 }),
@@ -361,7 +353,7 @@ export const infrastructureRecords = pgTable(
   'infrastructure_records',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
     title: varchar('title', { length: 255 }),
     category: varchar('category', { length: 120 }),
     city: varchar('city', { length: 120 }),
@@ -414,8 +406,8 @@ export const omnichannelRecords = pgTable(
 
 /**
  * Resumo agregado de atendimentos do Omni Vendas por agente.
- * Alimentado pela planilha Omni (serviço = Vendas) — estrutura diferente do Matrix Go.
- * Um registro por agente por lote de importação.
+ * Alimentado pela planilha Omni (serviÃ§o = Vendas) â€” estrutura diferente do Matrix Go.
+ * Um registro por agente por lote de importaÃ§Ã£o.
  */
 export const omnichannelSalesRecords = pgTable(
   'omnichannel_sales_records',
@@ -424,17 +416,17 @@ export const omnichannelSalesRecords = pgTable(
     workspaceId: uuid('workspace_id'),
     agente: varchar('agente', { length: 255 }).notNull(),
     quantidade: integer('quantidade').default(0).notNull(),
-    /** TMA médio (HH:MM:SS) */
+    /** TMA mÃ©dio (HH:MM:SS) */
     tma: varchar('tma', { length: 20 }),
-    /** Tempo em fila médio (HH:MM:SS) */
+    /** Tempo em fila mÃ©dio (HH:MM:SS) */
     tempoFila: varchar('tempo_fila', { length: 20 }),
-    /** Tempo de atendimento médio (HH:MM:SS) */
+    /** Tempo de atendimento mÃ©dio (HH:MM:SS) */
     tempoAtendimento: varchar('tempo_atendimento', { length: 20 }),
-    /** Tempo em pendência médio (HH:MM:SS) */
+    /** Tempo em pendÃªncia mÃ©dio (HH:MM:SS) */
     tempoPendencia: varchar('tempo_pendencia', { length: 20 }),
-    /** TMIC médio (HH:MM:SS) */
+    /** TMIC mÃ©dio (HH:MM:SS) */
     tmic: varchar('tmic', { length: 20 }),
-    /** TMIA médio (HH:MM:SS) */
+    /** TMIA mÃ©dio (HH:MM:SS) */
     tmia: varchar('tmia', { length: 20 }),
     periodMonth: integer('period_month').notNull(),
     periodYear: integer('period_year').notNull(),
@@ -463,8 +455,7 @@ export const slaTargets = pgTable(
   'sla_targets',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
-    // TODO: after migration, drop the global unique and replace with uniqueIndex on (workspaceId, activityType)
+    workspaceId: uuid('workspace_id'),
     activityType: activityTypeEnum('activity_type').notNull(),
     targetHours: integer('target_hours'),
   },
@@ -475,34 +466,32 @@ export const slaTargets = pgTable(
 );
 
 /**
- * Configurações do cálculo SLA (horário comercial).
+ * ConfiguraÃ§Ãµes do cÃ¡lculo SLA (horÃ¡rio comercial).
  * Chaves: weekday_open, weekday_close, saturday_enabled,
  *         saturday_open, saturday_close, sunday_enabled
  */
 export const slaConfig = pgTable(
   'sla_config',
   {
-    // Composite PK: (workspaceId, key) — workspaceId nullable during migration
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
     key:       varchar('key', { length: 100 }).notNull(),
     value:     text('value').notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [
     index('sla_config_workspace_id_idx').on(table.workspaceId),
-    // TODO: after migration make (workspaceId, key) the PK and drop the legacy single-key PK
     uniqueIndex('sla_config_ws_key_idx').on(table.workspaceId, table.key),
   ]
 );
 
-// ========== MÓDULO DE IMPORTAÇÃO (novo) ==========
+// ========== MÃ“DULO DE IMPORTAÃ‡ÃƒO (novo) ==========
 
-/** Lote de importação: metadados de cada upload */
+/** Lote de importaÃ§Ã£o: metadados de cada upload */
 export const lotesImportacao = pgTable(
   'lotes_importacao',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
     arquivo: varchar('arquivo', { length: 255 }).notNull(),
     tipoArquivo: varchar('tipo_arquivo', { length: 10 }).notNull(), // 'csv' | 'xlsx'
     status: varchar('status', { length: 20 }).notNull().default('pendente'),
@@ -525,12 +514,8 @@ export const importacoesBrutas = pgTable(
   'importacoes_brutas',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
     loteImportacaoId: integer('lote_importacao_id').references(() => lotesImportacao.id),
-    /**
-     * Current strategy: preserve the full raw payload indefinitely for audit/reprocessing safety.
-     * TODO(next phase): define retention, archival or purge policy by workspace/import batch.
-     */
     rawJson: jsonb('raw_json').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
@@ -540,15 +525,11 @@ export const importacoesBrutas = pgTable(
   ]
 );
 
-/**
- * @deprecated Naming legacy kept for production compatibility.
- * `atendimentos` remains the persisted operational contract; new technical abstractions should prefer English names around it.
- */
 export const atendimentos = pgTable(
   'atendimentos',
   {
     id: serial('id').primaryKey(),
-    workspaceId: uuid('workspace_id'), // nullable during migration
+    workspaceId: uuid('workspace_id'),
 
     // Campos principais
     numeroOs: varchar('numero_os', { length: 50 }),
@@ -561,7 +542,7 @@ export const atendimentos = pgTable(
     cidade: varchar('cidade', { length: 100 }),
     plano: varchar('plano', { length: 255 }),
 
-    // Data/hora (strings de exibição + timestamp para queries)
+    // Data/hora (strings de exibiÃ§Ã£o + timestamp para queries)
     dataAbertura: varchar('data_abertura', { length: 10 }),
     horaAbertura: varchar('hora_abertura', { length: 8 }),
     dataFinalizacao: varchar('data_finalizacao', { length: 10 }),
@@ -603,7 +584,7 @@ export const atendimentos = pgTable(
   },
   (t) => [
     index('atend_workspace_id_idx').on(t.workspaceId),
-    // hash dedup scoped per workspace — prevents cross-workspace collision
+    // hash dedup scoped per workspace â€” prevents cross-workspace collision
     uniqueIndex('atend_ws_hash_idx').on(t.workspaceId, t.hashImportacao),
     index('atend_hash_idx').on(t.hashImportacao),
     index('atend_tecnico_id_idx').on(t.tecnicoId),

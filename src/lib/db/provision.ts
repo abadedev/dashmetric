@@ -250,15 +250,11 @@ export async function provisionWorkspaceSchema(workspaceSlug: string): Promise<v
       CREATE TABLE IF NOT EXISTS importacoes_brutas (
         id                  serial PRIMARY KEY,
         lote_importacao_id  integer REFERENCES lotes_importacao(id),
-        -- Current strategy: keep raw payloads indefinitely for audit/reprocessing safety.
-        -- TODO(next phase): define retention/archival policy by workspace and import batch.
         raw_json            jsonb NOT NULL,
         created_at          timestamp DEFAULT now() NOT NULL
       )
     `);
 
-    // LEGACY NAMING: `atendimentos` is preserved here only because the production schema already depends on it.
-    // New technical abstractions should prefer English names and adapt to this contract instead of renaming destructively.
     // ── atendimentos ─────────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS atendimentos (

@@ -8,7 +8,6 @@ import { Columns } from '@/components/atendimentos/columns';
 import { OsDetailSheet } from '@/components/atendimentos/os-detail-sheet';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { useQueryState } from 'nuqs';
-import { startOfMonth, endOfMonth } from 'date-fns';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -51,8 +50,8 @@ function AtendimentosPageContent() {
   });
   const [selectedOs, setSelectedOs] = useState<any | null>(null);
 
-  const [from] = useQueryState('from', parseAsLocalIsoDate.withDefault(startOfMonth(new Date())));
-  const [to] = useQueryState('to', parseAsLocalIsoDate.withDefault(endOfMonth(new Date())));
+  const [from] = useQueryState('from', parseAsLocalIsoDate);
+  const [to] = useQueryState('to', parseAsLocalIsoDate);
 
   // Base params shared by main + stats queries (no page, no slaStatus)
   const baseParams = useMemo(() => {

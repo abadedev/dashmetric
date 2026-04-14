@@ -22,16 +22,22 @@ export const parseAsLocalIsoDate = createParser({
 const defaultFrom = startOfMonth(new Date());
 const defaultTo = endOfMonth(new Date());
 
-export function GlobalDateFilter() {
+export function GlobalDateFilter({ noDefault }: { noDefault?: boolean } = {}) {
   const [from, setFrom] = useQueryState(
     "from",
-    parseAsLocalIsoDate.withDefault(defaultFrom).withOptions({ shallow: false })
-  );
+    (noDefault
+      ? parseAsLocalIsoDate
+      : parseAsLocalIsoDate.withDefault(defaultFrom)
+    ).withOptions({ shallow: false })
+  ) as [Date | null, (v: Date | null) => Promise<URLSearchParams>];
 
   const [to, setTo] = useQueryState(
     "to",
-    parseAsLocalIsoDate.withDefault(defaultTo).withOptions({ shallow: false })
-  );
+    (noDefault
+      ? parseAsLocalIsoDate
+      : parseAsLocalIsoDate.withDefault(defaultTo)
+    ).withOptions({ shallow: false })
+  ) as [Date | null, (v: Date | null) => Promise<URLSearchParams>];
 
   const dateRange = useMemo(() => ({
     from: from || undefined,

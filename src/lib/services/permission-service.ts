@@ -9,13 +9,6 @@ import {
   workspaceMembers,
 } from '@/lib/db/schemas/global';
 import type { SystemModule } from '@/lib/db/schema';
-
-/**
- * Naming policy:
- * - technical permission contracts stay in English
- * - legacy module slugs may stay in Portuguese because they are runtime contracts
- * - new code should adapt around those slugs instead of renaming production data blindly
- */
 const MODULE_ACTIONS = ['view', 'create', 'edit', 'delete', 'import', 'export', 'manage', 'admin'] as const;
 
 const ADMIN_PERMISSION_DEFINITIONS = [

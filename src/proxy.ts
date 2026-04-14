@@ -8,10 +8,7 @@ const PUBLIC_PATHS = ['/auth', '/waiting'];
 const BYPASS_PREFIXES = ['/api/', '/_next', '/favicon', '/public', '/uploads/'];
 const STATIC_EXT = /\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff2?|ttf|otf|map)$/i;
 const RESERVED_SEGMENTS = new Set(['api', 'auth', 'waiting', '_next', 'favicon', 'public']);
-/**
- * @deprecated Legacy module paths kept only for backward-compatible redirects.
- * Do not use these Portuguese top-level routes as naming reference for new code.
- */
+// Redirect old top-level module paths to the active workspace.
 const LEGACY_MODULE_PATHS = new Set([
   '/dashboard',
   '/atendimentos',

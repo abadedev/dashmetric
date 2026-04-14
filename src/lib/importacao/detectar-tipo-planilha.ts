@@ -12,7 +12,8 @@ export type TipoPlanilha =
   | 'inviabilidade_ict'
   | 'omnichannel_matrix_go'
   | 'omnichannel_omni_vendas'
-  | 'indique_um_amigo';
+  | 'indique_um_amigo'
+  | 'lista_servicos';
 
 /**
  * Detecta automaticamente o tipo de planilha analisando os headers normalizados.
@@ -30,6 +31,11 @@ export function detectarTipoPlanilha(headers: string[], nomeArquivo?: string): T
   const has = (keyword: string) =>
     normalizedHeaders.some((header) => header.includes(normalizeHeader(keyword)));
   const hasAll = (...keywords: string[]) => keywords.every((keyword) => has(keyword));
+
+  // Lista de Serviços DSTech — detectada pelo nome do arquivo (prioridade máxima)
+  if (nomeArquivoNorm.includes('lista') && nomeArquivoNorm.includes('servico')) {
+    return 'lista_servicos';
+  }
 
   if (has('indicador')) return 'qualidade';
 
