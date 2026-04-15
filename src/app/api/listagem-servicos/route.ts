@@ -148,6 +148,9 @@ export async function POST(req: NextRequest) {
   try {
     await ensureServiceListingsTable();
 
+    const { searchParams } = new URL(req.url);
+    const force = searchParams.get('force') === 'true';
+
     const body = await req.json();
     const parsed = serviceListingPayloadSchema.safeParse(body);
     if (!parsed.success) {
@@ -157,6 +160,32 @@ export async function POST(req: NextRequest) {
     const db = getInfraDb();
     const userEmail = result.session.user.email ?? result.session.user.name ?? 'unknown';
     const payload = parsed.data;
+
+    if (!force && payload.networkBox && payload.cityArea) {
+      const caExistente = await db
+        .select({ id: serviceListings.id, status: serviceListings.status, referenceDate: serviceListings.referenceDate })
+        .from(serviceListings)
+        .where(
+          and(
+            eq(serviceListings.networkBox, payload.networkBox),
+            ilike(serviceListings.cityArea, payload.cityArea),
+            or(
+              eq(serviceListings.status, 'pendente'),
+              eq(serviceListings.status, 'em_andamento'),
+              eq(serviceListings.status, 'tecnico_direcionado')
+            )
+          )
+        )
+        .limit(1);
+
+      if (caExistente.length > 0) {
+        return NextResponse.json({
+          error: `Já existe uma OS pendente para ${payload.networkBox} em ${payload.cityArea} (aberta em ${caExistente[0]?.referenceDate}).`,
+          conflict: true,
+          existingId: caExistente[0]?.id,
+        }, { status: 409 });
+      }
+    }
 
     const [created] = await db
       .insert(serviceListings)

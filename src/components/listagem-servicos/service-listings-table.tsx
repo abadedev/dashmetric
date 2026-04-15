@@ -287,7 +287,6 @@ function RecordsTable({
             >
               {'T\u00E9cnico'}<SortIcon field="technician" sortField={sortField} sortDir={sortDir} />
             </TableHead>
-            <TableHead className="w-8 text-center">OC</TableHead>
             <TableHead className="w-28" />
           </TableRow>
         </TableHeader>
@@ -311,9 +310,6 @@ function RecordsTable({
                 return <TableCell className={`whitespace-nowrap text-xs font-medium ${cor}`}>{texto}</TableCell>;
               })()}
               <TableCell className="whitespace-nowrap text-xs">{row.technician || '\u2014'}</TableCell>
-              <TableCell className="text-center">
-                <OccurrenceToggle record={row} canEdit={canEdit} queryKey={queryKey} />
-              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
                   {canEdit && PENDING_STATUSES.has(row.status ?? '') && (
