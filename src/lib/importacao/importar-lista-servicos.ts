@@ -37,11 +37,28 @@ function parseSheetDate(sheetName: string): string | null {
 export function extrairData(valor: string): string | null {
   if (!valor || !valor.trim()) return null;
 
-  let datePart = valor.trim();
+  const v = valor.trim();
+
+  // Caso 1: objeto Date serializado pelo xlsx como ISO ou timestamp
+  // Ex: "2026-03-20T00:00:00.000Z" ou "2026-03-20"
+  const isoMatch = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  }
+
+  // Caso 2: string com hora e hífen "HH:MM - DD/MM/YYYY"
+  let datePart = v;
   if (datePart.includes(' - ')) {
     datePart = datePart.split(' - ')[1]?.trim() ?? '';
   }
 
+  // Caso 3: string com hora sem hífen "HH:MM DD/MM/YYYY"
+  const semHifen = datePart.match(/^\d{1,2}:\d{2}\s+(\d{1,2}\/\d{1,2}\/\d{4})$/);
+  if (semHifen) {
+    datePart = semHifen[1]!;
+  }
+
+  // Caso 4: data BR simples "DD/MM/YYYY"
   const match = datePart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (match) {
     const dd = parseInt(match[1]!, 10);
@@ -108,6 +125,35 @@ function getCellStr(row: unknown[], idx: number): string {
   return String(row[idx] ?? '').trim();
 }
 
+function extrairDataColA(row: unknown[], idx: number): string | null {
+  const val = row[idx];
+
+  if (val === null || val === undefined || val === '') return null;
+
+  // Se já é um objeto Date (xlsx parseou automaticamente)
+  if (val instanceof Date) {
+    const yyyy = val.getFullYear();
+    const mm = String(val.getMonth() + 1).padStart(2, '0');
+    const dd = String(val.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // Se é número (Excel serial date)
+  if (typeof val === 'number') {
+    const date = XLSX.SSF.parse_date_code(val);
+    if (date) {
+      return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
+    }
+  }
+
+  // Se é string, usar extrairData que trata todos os formatos de texto
+  if (typeof val === 'string') {
+    return extrairData(val);
+  }
+
+  return null;
+}
+
 function getCellHyperlink(ws: XLSX.WorkSheet, rowIdx: number, colIdx: number): string | null {
   const cellAddress = XLSX.utils.encode_cell({ r: rowIdx, c: colIdx });
   const cell = ws[cellAddress];
@@ -139,8 +185,19 @@ export async function importarListaServicos(buffer: Buffer, workspaceId: string)
     return { totalLidas, totalInseridas, totalInvalidas, totalAbas, erros };
   }
 
-  // A Lista de Servicos sempre substitui a base anterior para permitir reimportacao limpa.
-  await infraDb.delete(serviceListings);
+  const existentes = await infraDb
+    .select({
+      networkBox: serviceListings.networkBox,
+      cityArea: serviceListings.cityArea,
+      referenceDate: serviceListings.referenceDate,
+    })
+    .from(serviceListings);
+
+  const chaveExistentes = new Set(
+    existentes
+      .filter(r => r.networkBox && r.cityArea && r.referenceDate)
+      .map(r => `${r.networkBox}|${r.cityArea}|${r.referenceDate}`)
+  );
 
   const latestSheetDate = validSheets[0]?.date ?? null;
 
@@ -158,7 +215,7 @@ export async function importarListaServicos(buffer: Buffer, workspaceId: string)
     const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
       header: 1,
       defval: '',
-      blankrows: false,
+      blankrows: true,
     });
 
     const batch: NewServiceListing[] = [];
@@ -187,8 +244,27 @@ export async function importarListaServicos(buffer: Buffer, workspaceId: string)
         continue;
       }
 
+      const rawColA = getCellStr(row, 0);
+      const dataColA = extrairDataColA(row, 0);
+
+      // log nas primeiras 5 linhas de cada aba para diagnóstico
+      if (i <= 5) {
+        console.log(`[lista-servicos] aba=${sheetName} linha=${i} colA="${rawColA}" parsed="${dataColA}"`);
+      }
+
+      const referenceDate = dataColA ?? refDate;
+
+      const chave = `${col5}|${normalizarCidade(getCellStr(row, 3))}|${referenceDate}`;
+
+      if (chaveExistentes.has(chave)) {
+        totalInvalidas++;
+        continue;
+      }
+
+      chaveExistentes.add(chave);
+
       batch.push({
-        referenceDate: refDate,
+        referenceDate: referenceDate,
         priority: getCellStr(row, 1) || null,
         technology: getCellStr(row, 2) || null,
         cityArea: normalizarCidade(getCellStr(row, 3)) || null,

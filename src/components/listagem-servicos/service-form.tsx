@@ -177,6 +177,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
   const [form, setForm] = useState<ServiceFormState>(() => getInitialState(editRecord));
   const [fotoUrl, setFotoUrl] = useState<string | null>(editRecord?.fotoUrl ?? null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [conflito, setConflito] = useState<string | null>(null);
 
   const recentAddresses = useMemo(() => readRecentValues(RECENT_ADDRESSES_KEY), [open]);
   const recentNetworkBoxes = useMemo(() => readRecentValues(RECENT_NETWORK_BOXES_KEY), [open]);
@@ -187,10 +188,11 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
     setForm(getInitialState(editRecord));
     setFotoUrl(editRecord?.fotoUrl ?? null);
     setSubmitError(null);
+    setConflito(null);
   }, [editRecord, open]);
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (force?: boolean) => {
       const payload = {
         referenceDate: form.referenceDate,
         priority: form.priority || null,
@@ -218,7 +220,8 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
         throw new Error('Informe um link v\u00E1lido do Google Maps.');
       }
 
-      const url = isEdit ? `/api/listagem-servicos/${editRecord!.id}` : '/api/listagem-servicos';
+      const baseUrl = isEdit ? `/api/listagem-servicos/${editRecord!.id}` : '/api/listagem-servicos';
+      const url = !isEdit && force ? `${baseUrl}?force=true` : baseUrl;
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -228,13 +231,21 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
       });
 
       const data = await res.json().catch(() => null);
+
+      if (res.status === 409 && data?.conflict) {
+        setConflito(data.error);
+        return data;
+      }
+
       if (!res.ok) {
         throw new Error(data?.error ?? 'Falha ao salvar o registro.');
       }
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (result?.conflict) return;
+
       const normalizedCity = normalizeSingleLine(form.cityArea);
       const normalizedAddress = normalizeSingleLine(form.address);
       const normalizedNetworkBox = normalizeSingleLine(form.networkBox);
@@ -257,6 +268,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
   function updateField<K extends keyof ServiceFormState>(field: K, value: ServiceFormState[K]) {
     setForm((current) => ({ ...current, [field]: value }));
     if (submitError) setSubmitError(null);
+    if (conflito) setConflito(null);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
@@ -298,11 +310,20 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
             onSubmit={(event) => {
               event.preventDefault();
               setSubmitError(null);
-              mutation.mutate();
+              mutation.mutate(false);
             }}
             onKeyDown={handleKeyDown}
           >
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+              {conflito && (
+                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-400">
+                  ⚠️ {conflito}
+                  <div className="mt-1 text-xs text-yellow-400/70">
+                    Verifique se é a mesma ocorrência antes de cadastrar novamente.
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-4 md:grid-cols-4">
                 <div className="space-y-2">
                   <Label htmlFor="sf-date" className="text-sm font-medium">{'Data de refer\u00EAncia'}</Label>
@@ -501,6 +522,17 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
               <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
                 Cancelar
               </Button>
+              {conflito && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-yellow-500/40 text-yellow-400 hover:border-yellow-500/60 hover:text-yellow-300"
+                  disabled={mutation.isPending}
+                  onClick={() => { setConflito(null); mutation.mutate(true); }}
+                >
+                  Cadastrar mesmo assim
+                </Button>
+              )}
               <Button type="submit" className="min-w-[160px]" disabled={mutation.isPending}>
                 {mutation.isPending ? 'Salvando...' : isEdit ? 'Salvar altera\u00E7\u00F5es' : 'Criar registro'}
               </Button>
