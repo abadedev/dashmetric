@@ -37,28 +37,11 @@ function parseSheetDate(sheetName: string): string | null {
 export function extrairData(valor: string): string | null {
   if (!valor || !valor.trim()) return null;
 
-  const v = valor.trim();
-
-  // Caso 1: objeto Date serializado pelo xlsx como ISO ou timestamp
-  // Ex: "2026-03-20T00:00:00.000Z" ou "2026-03-20"
-  const isoMatch = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) {
-    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
-  }
-
-  // Caso 2: string com hora e hífen "HH:MM - DD/MM/YYYY"
-  let datePart = v;
+  let datePart = valor.trim();
   if (datePart.includes(' - ')) {
     datePart = datePart.split(' - ')[1]?.trim() ?? '';
   }
 
-  // Caso 3: string com hora sem hífen "HH:MM DD/MM/YYYY"
-  const semHifen = datePart.match(/^\d{1,2}:\d{2}\s+(\d{1,2}\/\d{1,2}\/\d{4})$/);
-  if (semHifen) {
-    datePart = semHifen[1]!;
-  }
-
-  // Caso 4: data BR simples "DD/MM/YYYY"
   const match = datePart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (match) {
     const dd = parseInt(match[1]!, 10);
@@ -125,40 +108,26 @@ function getCellStr(row: unknown[], idx: number): string {
   return String(row[idx] ?? '').trim();
 }
 
-function extrairDataColA(row: unknown[], idx: number): string | null {
-  const val = row[idx];
-
-  if (val === null || val === undefined || val === '') return null;
-
-  // Se já é um objeto Date (xlsx parseou automaticamente)
-  if (val instanceof Date) {
-    const yyyy = val.getFullYear();
-    const mm = String(val.getMonth() + 1).padStart(2, '0');
-    const dd = String(val.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  // Se é número (Excel serial date)
-  if (typeof val === 'number') {
-    const date = XLSX.SSF.parse_date_code(val);
-    if (date) {
-      return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
-    }
-  }
-
-  // Se é string, usar extrairData que trata todos os formatos de texto
-  if (typeof val === 'string') {
-    return extrairData(val);
-  }
-
-  return null;
-}
-
 function getCellHyperlink(ws: XLSX.WorkSheet, rowIdx: number, colIdx: number): string | null {
   const cellAddress = XLSX.utils.encode_cell({ r: rowIdx, c: colIdx });
   const cell = ws[cellAddress];
   if (!cell) return null;
   return cell.l?.Target ?? null;
+}
+
+function aplicarFallbackTecnicoEmFechadasAtuais(registros: NewServiceListing[]): void {
+  const fechadasSemTecnico = registros.filter((registro) => {
+    const tecnico = typeof registro.technician === 'string' ? registro.technician.trim() : '';
+    return registro.status === 'resolvido' && !tecnico;
+  });
+
+  if (fechadasSemTecnico.length === 0) return;
+
+  const totalMarlon = Math.round(fechadasSemTecnico.length * 0.55);
+
+  for (let i = 0; i < fechadasSemTecnico.length; i++) {
+    fechadasSemTecnico[i]!.technician = i < totalMarlon ? 'Marlon' : 'Azevedo';
+  }
 }
 
 export async function importarListaServicos(buffer: Buffer, workspaceId: string): Promise<ResumoListaServicos> {
@@ -185,19 +154,8 @@ export async function importarListaServicos(buffer: Buffer, workspaceId: string)
     return { totalLidas, totalInseridas, totalInvalidas, totalAbas, erros };
   }
 
-  const existentes = await infraDb
-    .select({
-      networkBox: serviceListings.networkBox,
-      cityArea: serviceListings.cityArea,
-      referenceDate: serviceListings.referenceDate,
-    })
-    .from(serviceListings);
-
-  const chaveExistentes = new Set(
-    existentes
-      .filter(r => r.networkBox && r.cityArea && r.referenceDate)
-      .map(r => `${r.networkBox}|${r.cityArea}|${r.referenceDate}`)
-  );
+  // A Lista de Servicos sempre substitui a base anterior para permitir reimportacao limpa.
+  await infraDb.delete(serviceListings);
 
   const latestSheetDate = validSheets[0]?.date ?? null;
 
@@ -215,7 +173,7 @@ export async function importarListaServicos(buffer: Buffer, workspaceId: string)
     const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
       header: 1,
       defval: '',
-      blankrows: true,
+      blankrows: false,
     });
 
     const batch: NewServiceListing[] = [];
@@ -244,27 +202,8 @@ export async function importarListaServicos(buffer: Buffer, workspaceId: string)
         continue;
       }
 
-      const rawColA = getCellStr(row, 0);
-      const dataColA = extrairDataColA(row, 0);
-
-      // log nas primeiras 5 linhas de cada aba para diagnóstico
-      if (i <= 5) {
-        console.log(`[lista-servicos] aba=${sheetName} linha=${i} colA="${rawColA}" parsed="${dataColA}"`);
-      }
-
-      const referenceDate = dataColA ?? refDate;
-
-      const chave = `${col5}|${normalizarCidade(getCellStr(row, 3))}|${referenceDate}`;
-
-      if (chaveExistentes.has(chave)) {
-        totalInvalidas++;
-        continue;
-      }
-
-      chaveExistentes.add(chave);
-
       batch.push({
-        referenceDate: referenceDate,
+        referenceDate: refDate,
         priority: getCellStr(row, 1) || null,
         technology: getCellStr(row, 2) || null,
         cityArea: normalizarCidade(getCellStr(row, 3)) || null,
@@ -279,30 +218,23 @@ export async function importarListaServicos(buffer: Buffer, workspaceId: string)
         solution: getCellStr(row, 10) || null,
         technician: getCellStr(row, 11) || null,
       });
-
-      if (batch.length === 100) {
-        try {
-          await infraDb.insert(serviceListings).values(batch);
-          totalInseridas += batch.length;
-        } catch (err) {
-          erros.push(
-            `Aba ${sheetName}: erro ao inserir lote — ${err instanceof Error ? err.message : String(err)}`
-          );
-        }
-        batch.length = 0;
-      }
     }
 
-    if (batch.length > 0) {
+    if (isLatestSheet) {
+      aplicarFallbackTecnicoEmFechadasAtuais(batch);
+    }
+
+    for (let i = 0; i < batch.length; i += 100) {
+      const lote = batch.slice(i, i + 100);
+
       try {
-        await infraDb.insert(serviceListings).values(batch);
-        totalInseridas += batch.length;
+        await infraDb.insert(serviceListings).values(lote);
+        totalInseridas += lote.length;
       } catch (err) {
         erros.push(
-          `Aba ${sheetName}: erro ao inserir lote final — ${err instanceof Error ? err.message : String(err)}`
+          `Aba ${sheetName}: erro ao inserir lote${i + 100 >= batch.length ? ' final' : ''} — ${err instanceof Error ? err.message : String(err)}`
         );
       }
-      batch.length = 0;
     }
   }
 
