@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const PIE_COLORS = ['#0f766e', '#f97316', '#2563eb', '#dc2626', '#9333ea', '#4f46e5', '#64748b'];
+const HIDDEN_NETWORK_BOXES = new Set(['CA-10.4.7']);
 
 const tooltipStyle = {
   backgroundColor: '#0f1117',
@@ -105,6 +106,8 @@ export function CityBarChart({ data }: { data: Array<{ city: string; total: numb
 }
 
 export function NetworkBoxTable({ data }: { data: Array<{ networkBox: string; total: number }> }) {
+  const visibleData = data.filter((row) => !HIDDEN_NETWORK_BOXES.has(row.networkBox));
+
   return (
     <Card>
       <CardHeader>
@@ -120,14 +123,14 @@ export function NetworkBoxTable({ data }: { data: Array<{ networkBox: string; to
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.length === 0 ? (
+            {visibleData.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={2} className="h-16 text-center text-muted-foreground">
                   Nenhum dado disponivel.
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((row) => (
+              visibleData.map((row) => (
                 <TableRow key={`${row.networkBox}-${row.total}`}>
                   <TableCell className="max-w-[320px] truncate font-medium" title={row.networkBox}>
                     {row.networkBox}
@@ -148,6 +151,8 @@ export function RecurringIssuesTable({
 }: {
   data: Array<{ occurrenceType: string; city: string; networkBox: string; total: number }>;
 }) {
+  const visibleData = data.filter((row) => !HIDDEN_NETWORK_BOXES.has(row.networkBox));
+
   return (
     <Card>
       <CardHeader>
@@ -165,14 +170,14 @@ export function RecurringIssuesTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.length === 0 ? (
+            {visibleData.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="h-16 text-center text-muted-foreground">
                   Nenhum problema recorrente no periodo.
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((row) => (
+              visibleData.map((row) => (
                 <TableRow key={`${row.occurrenceType}-${row.city}-${row.networkBox}`}>
                   <TableCell className="font-medium">{row.occurrenceType}</TableCell>
                   <TableCell>{row.city}</TableCell>
