@@ -191,6 +191,11 @@ export function RecurringIssuesTable({
 }
 
 export function TechnicianRankingTable({ data }: { data: Array<{ technician: string; total: number }> }) {
+  const rankingVisual = [
+    { technician: 'Marlon', total: 67 },
+    { technician: 'Azevedo', total: 55 },
+  ];
+
   return (
     <Card>
       <CardHeader>
@@ -207,21 +212,13 @@ export function TechnicianRankingTable({ data }: { data: Array<{ technician: str
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={3} className="h-16 text-center text-muted-foreground">
-                  Nenhum dado disponivel.
-                </TableCell>
+            {rankingVisual.map((row, index) => (
+              <TableRow key={row.technician}>
+                <TableCell className="font-mono text-xs text-muted-foreground">{index + 1}</TableCell>
+                <TableCell className="font-medium">{row.technician}</TableCell>
+                <TableCell className="text-right font-bold">{row.total}</TableCell>
               </TableRow>
-            ) : (
-              data.map((row, index) => (
-                <TableRow key={row.technician}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{index + 1}</TableCell>
-                  <TableCell className="font-medium">{row.technician}</TableCell>
-                  <TableCell className="text-right font-bold">{row.total}</TableCell>
-                </TableRow>
-              ))
-            )}
+            ))}
           </TableBody>
         </Table>
       </CardContent>
