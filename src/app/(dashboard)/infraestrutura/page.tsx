@@ -14,7 +14,7 @@ import { PageSkeleton } from '@/components/ui/state-display';
 import {
   CityBarChart,
   DailyBarChart,
-  NetworkBoxTable,
+  OccurrenceByTypeTable,
   OccurrenceDistributionChart,
   RecurringIssuesTable,
   TechnicianRankingTable,
@@ -247,7 +247,7 @@ function InfraestruturaContent() {
         ) : (
           <>
             <CityBarChart data={data?.byCity ?? []} />
-            <NetworkBoxTable data={data?.byNetworkBox ?? []} />
+            <OccurrenceByTypeTable data={data?.byOccurrence ?? []} />
           </>
         )}
       </div>

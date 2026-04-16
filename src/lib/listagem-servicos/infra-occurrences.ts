@@ -48,6 +48,7 @@ export const serviceListingPayloadSchema = z.object({
   resolutionDate: z.string().trim().nullable().optional(),
   resolutionNotes: z.string().trim().nullable().optional(),
   fotoUrl: z.string().trim().nullable().optional(),
+  solicitante: z.string().trim().max(255).nullable().optional(),
 });
 
 export function normalizeNullableText(value: string | null | undefined) {

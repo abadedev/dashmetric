@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, Download, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle, Download, Eye, MapPin, Pencil, Trash2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -22,18 +22,20 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { TableSkeleton, StateDisplay } from '@/components/ui/state-display';
 import { FinalizeDialog } from './finalize-dialog';
+import { OsServiceDetailSheet } from './os-detail-sheet';
 import { ServiceForm } from './service-form';
 import { ShareOsMessageButton } from './share-os-message-button';
 import { PriorityDot, StatusBadge } from './status-badge';
 import type { ServiceListing } from '@/lib/db/infra-schema';
-import type { AppRole } from '@/lib/services/module-service';
+import type { ModuleAccessLevel } from '@/lib/module-access';
 
 interface ServiceListingsTableProps {
   data: ServiceListing[] | undefined;
   isLoading: boolean;
-  userRole: AppRole;
+  moduleAccessLevel: ModuleAccessLevel;
   queryKey: readonly unknown[];
   sortField: string | null;
   sortDir: 'asc' | 'desc';
@@ -59,12 +61,12 @@ function AddressCell({ row }: { row: ServiceListing }) {
   const address = row.address || '\u2014';
 
   if (!row.locationUrl) {
-    return <span className="block truncate" title={row.address ?? ''}>{address}</span>;
+    return <span className="block min-w-0 truncate" title={row.address ?? ''}>{address}</span>;
   }
 
   return (
-    <div className="flex items-center gap-1">
-      <span className="truncate" title={row.address ?? ''}>{address}</span>
+    <div className="flex min-w-0 items-center gap-1">
+      <span className="block min-w-0 flex-1 truncate" title={row.address ?? ''}>{address}</span>
       <a
         href={row.locationUrl}
         target="_blank"
@@ -80,12 +82,14 @@ function AddressCell({ row }: { row: ServiceListing }) {
 
 function OccurrenceCell({ row }: { row: ServiceListing }) {
   return (
-    <div className="space-y-1">
-      <p className="line-clamp-2 text-xs font-medium text-foreground" title={row.tipoOcorrencia}>
-        {row.tipoOcorrencia}
-      </p>
-      <p className="line-clamp-2 text-[11px] text-muted-foreground" title={row.observacaoInfra ?? row.problem ?? ''}>
-        {row.observacaoInfra || row.problem || '\u2014'}
+    <div className="min-w-0 space-y-0.5">
+      <div className="flex min-w-0 items-center gap-1">
+        <p className="truncate text-xs font-medium text-foreground" title={row.tipoOcorrencia}>
+          {row.tipoOcorrencia}
+        </p>
+      </div>
+      <p className="truncate text-[11px] text-muted-foreground" title={row.observacaoInfra ?? row.problem ?? ''}>
+        {row.observacaoInfra || row.problem || ''}
       </p>
     </div>
   );
@@ -101,6 +105,7 @@ function OccurrenceToggle({
   queryKey: readonly unknown[];
 }) {
   const queryClient = useQueryClient();
+  const isOpened = record.occurrenceCreated === true;
   const mutation = useMutation({
     mutationFn: async (value: boolean) => {
       const res = await fetch(`/api/listagem-servicos/${record.id}`, {
@@ -114,14 +119,29 @@ function OccurrenceToggle({
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
+  if (!canEdit) {
+    return (
+      <Badge variant={isOpened ? 'default' : 'outline'} className="min-w-[52px] justify-center">
+        {isOpened ? 'Sim' : 'Não'}
+      </Badge>
+    );
+  }
+
   return (
-    <input
-      type="checkbox"
-      checked={record.occurrenceCreated ?? false}
-      disabled={!canEdit || mutation.isPending}
-      onChange={(event) => mutation.mutate(event.target.checked)}
-      className="h-4 w-4 rounded border-border cursor-pointer disabled:cursor-default"
-    />
+    <button
+      type="button"
+      disabled={mutation.isPending}
+      onClick={() => mutation.mutate(!isOpened)}
+      title={isOpened ? 'OC aberta' : 'OC não aberta'}
+      className="disabled:opacity-70"
+    >
+      <Badge
+        variant={isOpened ? 'default' : 'outline'}
+        className="min-w-[52px] cursor-pointer justify-center transition-colors"
+      >
+        {mutation.isPending ? '...' : isOpened ? 'Sim' : 'Não'}
+      </Badge>
+    </button>
   );
 }
 
@@ -177,17 +197,18 @@ function calcularTempoAberto(referenceDate: string): { texto: string; cor: strin
 }
 
 async function exportarCSV(queryString: string) {
-  const res = await fetch(`/api/listagem-servicos?${queryString}&pageSize=9999`);
+  const separator = queryString ? '&' : '';
+  const res = await fetch(`/api/listagem-servicos?${queryString}${separator}pageSize=9999&export=1`);
   const json = (await res.json()) as { data: ServiceListing[] };
   const dados = json.data ?? [];
 
-  const headers = ['Data', 'Prioridade', 'Tecnologia', 'Cidade', 'Endereço',
-    'Rede/Caixa', 'Ocorrência', 'Observação', 'Status', 'Técnico', 'Solução', 'Data Conclusão'];
+  const headers = ['Data', 'Prioridade', 'Cidade', 'Endereço',
+    'Rede/Caixa', 'Ocorrência', 'Observação', 'Status', 'Técnico', 'Solicitante', 'Solução', 'Data Conclusão'];
 
   const linhas = dados.map((r) =>
-    [r.referenceDate, r.priority, r.technology, r.cityArea, r.address,
+    [r.referenceDate, r.priority, r.cityArea, r.address,
      r.networkBox, r.tipoOcorrencia, r.observacaoInfra, r.status,
-     r.technician, r.solution, r.resolutionDate]
+     r.technician, r.solicitante, r.solution, r.resolutionDate]
       .map((v) => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
       .join(',')
   );
@@ -209,29 +230,30 @@ function SortIcon({ field, sortField, sortDir }: { field: string; sortField: str
 
 function RecordsTable({
   rows,
-  userRole,
+  moduleAccessLevel,
   queryKey,
+  onViewDetail,
   onFinalize,
   onEdit,
   onDelete,
   sortField,
   sortDir,
   onSort,
-  showTempoAberto,
 }: {
   rows: ServiceListing[];
-  userRole: AppRole;
+  moduleAccessLevel: ModuleAccessLevel;
   queryKey: readonly unknown[];
+  onViewDetail: (record: ServiceListing) => void;
   onFinalize: (record: ServiceListing) => void;
   onEdit: (record: ServiceListing) => void;
   onDelete: (id: number) => void;
   sortField: string | null;
   sortDir: 'asc' | 'desc';
   onSort: (field: string) => void;
-  showTempoAberto: boolean;
 }) {
-  const canEdit = userRole === 'editor' || userRole === 'admin';
-  const isAdmin = userRole === 'admin';
+  const canEdit = moduleAccessLevel === 'editor' || moduleAccessLevel === 'admin';
+  const isAdmin = moduleAccessLevel === 'admin';
+  const canShare = canEdit;
 
   if (rows.length === 0) {
     return (
@@ -243,8 +265,8 @@ function RecordsTable({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="w-full">
+      <Table className="w-full min-w-[1200px] [&_td]:px-2 [&_td]:py-1.5 [&_th]:px-2 [&_th]:py-2 [&_th]:text-xs">
         <TableHeader>
           <TableRow>
             <TableHead
@@ -254,40 +276,45 @@ function RecordsTable({
               P<SortIcon field="priority" sortField={sortField} sortDir={sortDir} />
             </TableHead>
             <TableHead
-              className="group cursor-pointer select-none whitespace-nowrap hover:text-foreground"
+              className="group w-[78px] cursor-pointer select-none whitespace-nowrap hover:text-foreground"
               onClick={() => onSort('referenceDate')}
             >
               Data<SortIcon field="referenceDate" sortField={sortField} sortDir={sortDir} />
             </TableHead>
-            <TableHead>Tec.</TableHead>
             <TableHead
-              className="group cursor-pointer select-none hover:text-foreground"
+              className="group w-[120px] cursor-pointer select-none hover:text-foreground"
               onClick={() => onSort('cityArea')}
             >
-              {'Cidade / \u00C1rea'}<SortIcon field="cityArea" sortField={sortField} sortDir={sortDir} />
+              {'Cidade'}<SortIcon field="cityArea" sortField={sortField} sortDir={sortDir} />
             </TableHead>
-            <TableHead>{'Endere\u00E7o'}</TableHead>
+            <TableHead className="w-[180px]">{'Endere\u00E7o'}</TableHead>
             <TableHead
-              className="group cursor-pointer select-none hover:text-foreground"
+              className="group w-[90px] cursor-pointer select-none hover:text-foreground"
               onClick={() => onSort('networkBox')}
             >
               Rede/Caixa<SortIcon field="networkBox" sortField={sortField} sortDir={sortDir} />
             </TableHead>
-            <TableHead>Ocorrencia</TableHead>
+            <TableHead className="w-[200px]">Ocorrencia</TableHead>
             <TableHead
-              className="group cursor-pointer select-none hover:text-foreground"
+              className="group w-[110px] cursor-pointer select-none hover:text-foreground"
               onClick={() => onSort('status')}
             >
               Status<SortIcon field="status" sortField={sortField} sortDir={sortDir} />
             </TableHead>
-            {showTempoAberto && <TableHead className="whitespace-nowrap">Em aberto</TableHead>}
             <TableHead
-              className="group cursor-pointer select-none hover:text-foreground"
+              className="group w-[80px] cursor-pointer select-none whitespace-nowrap hover:text-foreground"
+              onClick={() => onSort('openAge')}
+            >
+              Aberto<SortIcon field="openAge" sortField={sortField} sortDir={sortDir} />
+            </TableHead>
+            <TableHead
+              className="group w-[130px] cursor-pointer select-none hover:text-foreground"
               onClick={() => onSort('technician')}
             >
               {'T\u00E9cnico'}<SortIcon field="technician" sortField={sortField} sortDir={sortDir} />
             </TableHead>
-            <TableHead className="w-28" />
+            <TableHead className="w-[140px]">Solicitante</TableHead>
+            <TableHead className="w-[110px]" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -295,23 +322,46 @@ function RecordsTable({
             <TableRow key={row.id}>
               <TableCell><PriorityDot priority={row.priority} /></TableCell>
               <TableCell className="whitespace-nowrap text-xs">{formatDate(row.referenceDate)}</TableCell>
-              <TableCell className="text-xs font-medium">{row.technology || '\u2014'}</TableCell>
-              <TableCell className="max-w-[140px] truncate text-xs" title={row.cityArea ?? ''}>{row.cityArea || '\u2014'}</TableCell>
+              <TableCell className="max-w-[120px] text-xs">
+                <span className="block truncate" title={row.cityArea ?? ''}>{row.cityArea || '\u2014'}</span>
+              </TableCell>
               <TableCell className="max-w-[180px] text-xs">
                 <AddressCell row={row} />
               </TableCell>
-              <TableCell className="max-w-[150px] truncate text-xs" title={row.networkBox ?? ''}>{row.networkBox || '\u2014'}</TableCell>
-              <TableCell className="max-w-[240px]">
+              <TableCell className="max-w-[90px] text-xs">
+                <span className="block truncate" title={row.networkBox ?? ''}>{row.networkBox || '\u2014'}</span>
+              </TableCell>
+              <TableCell className="max-w-[200px]">
                 <OccurrenceCell row={row} />
               </TableCell>
-              <TableCell><StatusBadge status={row.status} /></TableCell>
-              {showTempoAberto && (() => {
-                const { texto, cor } = calcularTempoAberto(row.referenceDate);
-                return <TableCell className={`whitespace-nowrap text-xs font-medium ${cor}`}>{texto}</TableCell>;
-              })()}
-              <TableCell className="whitespace-nowrap text-xs">{row.technician || '\u2014'}</TableCell>
+              <TableCell className="max-w-[110px]">
+                <div className="min-w-0 max-w-full overflow-hidden">
+                  <StatusBadge status={row.status} />
+                </div>
+              </TableCell>
+              <TableCell className="w-[80px] text-xs font-medium">
+                {PENDING_STATUSES.has(row.status ?? '') ? (() => {
+                  const { texto, cor } = calcularTempoAberto(row.referenceDate);
+                  return <span className={cor}>{texto}</span>;
+                })() : <span className="text-muted-foreground">—</span>}
+              </TableCell>
+              <TableCell className="max-w-[130px] text-xs">
+                <span className="block truncate" title={row.technician ?? ''}>{row.technician || '\u2014'}</span>
+              </TableCell>
+              <TableCell className="max-w-[140px] text-xs">
+                <span className="block truncate" title={row.solicitante ?? ''}>{row.solicitante || '\u2014'}</span>
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    title="Ver detalhes"
+                    onClick={() => onViewDetail(row)}
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
                   {canEdit && PENDING_STATUSES.has(row.status ?? '') && (
                     <Button
                       size="icon"
@@ -323,6 +373,7 @@ function RecordsTable({
                       <CheckCircle className="h-4 w-4" />
                     </Button>
                   )}
+                  {canShare && <ShareOsMessageButton record={row} />}
                   {isAdmin && (
                     <>
                       <Button
@@ -334,7 +385,6 @@ function RecordsTable({
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <ShareOsMessageButton record={row} />
                       <Button
                         size="icon"
                         variant="ghost"
@@ -359,7 +409,7 @@ function RecordsTable({
 export function ServiceListingsTable({
   data,
   isLoading,
-  userRole,
+  moduleAccessLevel,
   queryKey,
   sortField,
   sortDir,
@@ -372,6 +422,7 @@ export function ServiceListingsTable({
   totalPendentes,
   totalResolvidos,
 }: ServiceListingsTableProps) {
+  const [selectedRecord, setSelectedRecord] = useState<ServiceListing | null>(null);
   const [finalizeRecord, setFinalizeRecord] = useState<ServiceListing | null>(null);
   const [editRecord, setEditRecord] = useState<ServiceListing | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -399,29 +450,32 @@ export function ServiceListingsTable({
   }
 
   if (isLoading) return <TableSkeleton />;
+  const canExport = moduleAccessLevel === 'editor' || moduleAccessLevel === 'admin';
 
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="Buscar por endereço ou CA..."
           value={inputValue}
           onChange={(e) => handleSearchInput(e.target.value)}
-          className="max-w-xs"
+          className="w-full sm:max-w-sm md:min-w-[320px]"
         />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExport}
-          disabled={exporting}
-          className="ml-auto"
-        >
-          <Download className="mr-1.5 h-4 w-4" />
-          {exporting ? 'Exportando...' : 'Exportar CSV'}
-        </Button>
+        {canExport && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting}
+            className="ml-auto"
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            {exporting ? 'Exportando...' : 'Exportar CSV'}
+          </Button>
+        )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as 'pendentes' | 'resolvidos')}>
+      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as 'pendentes' | 'resolvidos')} className="w-full">
         <TabsList>
           <TabsTrigger value="pendentes">
             Pendentes
@@ -442,51 +496,57 @@ export function ServiceListingsTable({
         </TabsList>
 
         <TabsContent value="pendentes" className="mt-4">
-          <Card>
+          <Card className="w-full">
             <CardHeader>
               <CardTitle>Chamados pendentes</CardTitle>
               <CardDescription>{'Registros aguardando atendimento ou resolu\u00E7\u00E3o.'}</CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 sm:px-0">
               <RecordsTable
                 rows={data ?? []}
-                userRole={userRole}
+                moduleAccessLevel={moduleAccessLevel}
                 queryKey={queryKey}
+                onViewDetail={setSelectedRecord}
                 onFinalize={setFinalizeRecord}
                 onEdit={setEditRecord}
                 onDelete={setDeleteId}
                 sortField={sortField}
                 sortDir={sortDir}
                 onSort={onSort}
-                showTempoAberto
               />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="resolvidos" className="mt-4">
-          <Card>
+          <Card className="w-full">
             <CardHeader>
               <CardTitle>Chamados resolvidos</CardTitle>
               <CardDescription>{'Registros finalizados com solu\u00E7\u00E3o registrada.'}</CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 sm:px-0">
               <RecordsTable
                 rows={data ?? []}
-                userRole={userRole}
+                moduleAccessLevel={moduleAccessLevel}
                 queryKey={queryKey}
+                onViewDetail={setSelectedRecord}
                 onFinalize={setFinalizeRecord}
                 onEdit={setEditRecord}
                 onDelete={setDeleteId}
                 sortField={sortField}
                 sortDir={sortDir}
                 onSort={onSort}
-                showTempoAberto={false}
               />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <OsServiceDetailSheet
+        record={selectedRecord}
+        isOpen={!!selectedRecord}
+        onClose={() => setSelectedRecord(null)}
+      />
 
       <FinalizeDialog
         record={finalizeRecord}
@@ -500,6 +560,7 @@ export function ServiceListingsTable({
         onClose={() => setEditRecord(null)}
         queryKey={queryKey}
         editRecord={editRecord}
+        moduleAccessLevel={moduleAccessLevel}
       />
 
       <DeleteConfirmDialog

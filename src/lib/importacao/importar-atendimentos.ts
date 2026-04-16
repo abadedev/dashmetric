@@ -259,6 +259,17 @@ export async function importarAtendimentos(
       }
     }
 
+    // Garante que os técnicos de fallback estejam no cache caso haja OS
+    // resolvidas (com dataFinalizacao) sem técnico atribuído
+    const hasResolvedWithoutTech = linhasValidas.some(({ normalizada }) =>
+      !normalizeTechName(normalizada.tecnico ?? '') &&
+      (normalizada.dataFinalizacao ?? '').trim() !== ''
+    );
+    if (hasResolvedWithoutTech) {
+      nomesTecnicos.add('Marlon');
+      nomesTecnicos.add('Azevedo');
+    }
+
     const tecnicoCache = await resolverTecnicos(workspaceId, nomesTecnicos, loginMap);
 
     const feriados = await carregarFeriados();
@@ -271,6 +282,11 @@ export async function importarAtendimentos(
 
     for (const { idx, normalizada } of linhasValidas) {
       try {
+        // Distribui aleatoriamente OS resolvidas sem técnico entre Marlon e Azevedo
+        if (!normalizeTechName(normalizada.tecnico ?? '') && (normalizada.dataFinalizacao ?? '').trim() !== '') {
+          normalizada.tecnico = Math.random() < 0.5 ? 'Marlon' : 'Azevedo';
+        }
+
         const nomeNorm = normalizeTechName(normalizada.tecnico ?? '');
         const tecnicoId = tecnicoCache.get(nomeNorm) ?? null;
 
