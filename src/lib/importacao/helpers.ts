@@ -66,9 +66,16 @@ export function parseBRDate(dateStr: string): Date | null {
     // Tenta detectar se é um número serial do Excel (ex: "46063")
     const serial = Number(v);
     if (!isNaN(serial) && serial > 30000 && serial < 60000) {
-      // Excel base date is 1899-12-30. 
-      // Usamos 25569 como offset para Unix Epoch (1970)
-      const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
+      // Converte serial Excel para data local sem shift de timezone.
+      // Serial 1 = 1900-01-01. Usamos a fórmula: dias desde 1899-12-30 (Excel epoch).
+      const totalDays = Math.floor(serial);
+      const excelEpoch = new Date(1899, 11, 30); // 30/12/1899 local
+      const d = new Date(
+        excelEpoch.getFullYear(),
+        excelEpoch.getMonth(),
+        excelEpoch.getDate() + totalDays,
+        0, 0, 0, 0
+      );
       if (!isNaN(d.getTime())) return d;
     }
     return null;

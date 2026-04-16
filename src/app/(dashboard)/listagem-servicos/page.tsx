@@ -12,18 +12,33 @@ import { PageSkeleton } from '@/components/ui/state-display';
 import { Card, CardContent } from '@/components/ui/card';
 import { ServiceListingsTable } from '@/components/listagem-servicos/service-listings-table';
 import { ServiceForm } from '@/components/listagem-servicos/service-form';
-import { useSession } from '@/lib/auth-client';
-import type { AppRole } from '@/lib/services/module-service';
 import type { ServiceListing } from '@/lib/db/infra-schema';
 import { INFRA_OCCURRENCE_OPTIONS } from '@/lib/listagem-servicos/infra-occurrences';
+import type { ModuleAccessLevel } from '@/lib/module-access';
+
+const STATUS_OPTIONS = [
+  { value: 'pendente', label: 'Pendente' },
+  { value: 'tecnico_direcionado', label: 'Técnico Direcionado' },
+  { value: 'em_andamento', label: 'Em Andamento' },
+  { value: 'resolvido', label: 'Resolvido' },
+] as const;
+
+function FilterLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      {children}
+    </label>
+  );
+}
 
 function ListagemServicosContent() {
   const [from] = useQueryState('from', parseAsLocalIsoDate);
   const [to] = useQueryState('to', parseAsLocalIsoDate);
   const [city, setCity] = useQueryState('city');
   const [technician, setTechnician] = useQueryState('technician');
-  const [technology, setTechnology] = useQueryState('technology');
   const [tipoOcorrencia, setTipoOcorrencia] = useQueryState('tipoOcorrencia');
+  const [occurrenceCreated, setOccurrenceCreated] = useQueryState('occurrenceCreated');
+  const [statusFilter, setStatusFilter] = useQueryState('statusFilter');
   const [page, setPage] = useQueryState('page', { defaultValue: '1' });
 
   const [activeTab, setActiveTab] = useState<'pendentes' | 'resolvidos'>('pendentes');
@@ -56,9 +71,11 @@ function ListagemServicosContent() {
   if (to) queryParams.set('to', to.toISOString().slice(0, 10));
   if (city && city !== 'all') queryParams.set('city', city);
   if (technician && technician !== 'all') queryParams.set('technician', technician);
-  if (technology && technology !== 'all') queryParams.set('technology', technology);
   if (tipoOcorrencia && tipoOcorrencia !== 'all') queryParams.set('tipoOcorrencia', tipoOcorrencia);
-  queryParams.set('status', activeTab);
+  if (occurrenceCreated && occurrenceCreated !== 'all') queryParams.set('occurrenceCreated', occurrenceCreated);
+  // When a specific status is selected use it directly; otherwise fall back to the active tab grouping.
+  const effectiveStatus = statusFilter && statusFilter !== '' ? statusFilter : activeTab;
+  queryParams.set('status', effectiveStatus);
   queryParams.set('page', page ?? '1');
   queryParams.set('pageSize', '100');
   if (sortField) {
@@ -85,122 +102,163 @@ function ListagemServicosContent() {
         cities: string[];
         technicians: string[];
         occurrenceTypes: string[];
-        userRole?: AppRole;
+        openAgeOptions: string[];
+        moduleAccessLevel: ModuleAccessLevel;
       }>;
     },
   });
 
-  const { data: session } = useSession();
-  const userRole: AppRole = ((session?.user as { role?: AppRole })?.role ?? 'user') as AppRole;
-  const canEdit = userRole === 'editor' || userRole === 'admin';
+  const moduleAccessLevel = data?.moduleAccessLevel ?? 'none';
+  const canEdit = moduleAccessLevel === 'editor' || moduleAccessLevel === 'admin';
   const totalPages = data?.totalPages ?? 1;
   const currentPage = parseInt(page ?? '1', 10);
+  const hasActiveFilters = Boolean(
+    from ||
+    to ||
+    (city && city !== 'all') ||
+    (technician && technician !== 'all') ||
+    (tipoOcorrencia && tipoOcorrencia !== 'all') ||
+    (occurrenceCreated && occurrenceCreated !== 'all') ||
+    (statusFilter && statusFilter !== '') ||
+    searchQuery ||
+    sortField
+  );
+
+  function clearFilters() {
+    setCity(null);
+    setTechnician(null);
+    setTipoOcorrencia(null);
+    setOccurrenceCreated(null);
+    setStatusFilter(null);
+    setSearchQuery('');
+    setSortField(null);
+    setSortDir('asc');
+    setPage('1');
+  }
 
   return (
     <PageLayout
-      title={'Listagem de servi\u00E7os'}
-      description={'Controle operacional di\u00E1rio de chamados de infraestrutura de rede.'}
-      actions={
-        <>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ocorrência</label>
-            <Select
-              value={tipoOcorrencia || 'all'}
-              onValueChange={(value) => {
-                setTipoOcorrencia(value === 'all' ? null : value);
-                setPage('1');
-              }}
-            >
-              <SelectTrigger className="w-[240px]">
-                <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todas as ocorrências' : v}</SelectValue>
-              </SelectTrigger>
-              <SelectContent side="bottom" alignItemWithTrigger={false}>
-                <SelectItem value="all">Todas as ocorrências</SelectItem>
-                {(data?.occurrenceTypes ?? INFRA_OCCURRENCE_OPTIONS).map((item) => (
-                  <SelectItem key={item} value={item}>{item}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tecnologia</label>
-            <Select
-              value={technology || 'all'}
-              onValueChange={(value) => {
-                setTechnology(value === 'all' ? null : value);
-                setPage('1');
-              }}
-            >
-              <SelectTrigger className="w-[130px]">
-                <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todas' : v}</SelectValue>
-              </SelectTrigger>
-              <SelectContent side="bottom" alignItemWithTrigger={false}>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="F">{'F \u2014 Fibra'}</SelectItem>
-                <SelectItem value="C">{'C \u2014 Cabo'}</SelectItem>
-                <SelectItem value="R">{'R \u2014 R\u00E1dio'}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{'T\u00E9cnico'}</label>
-            <Select
-              value={technician || 'all'}
-              onValueChange={(value) => {
-                setTechnician(value === 'all' ? null : value);
-                setPage('1');
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todos os técnicos' : v}</SelectValue>
-              </SelectTrigger>
-              <SelectContent side="bottom" alignItemWithTrigger={false}>
-                <SelectItem value="all">{'Todos os t\u00E9cnicos'}</SelectItem>
-                {(data?.technicians ?? []).map((item) => (
-                  <SelectItem key={item} value={item} className="capitalize">{item?.toLowerCase()}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cidade</label>
-            <Select
-              value={city || 'all'}
-              onValueChange={(value) => {
-                setCity(value === 'all' ? null : value);
-                setPage('1');
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todas as cidades' : v.replace(/_/g, ' ')}</SelectValue>
-              </SelectTrigger>
-              <SelectContent side="bottom" alignItemWithTrigger={false}>
-                <SelectItem value="all">Todas as cidades</SelectItem>
-                {(data?.cities ?? []).map((item) => (
-                  <SelectItem key={item} value={item ?? ''}>{(item ?? '').replace(/_/g, ' ')}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <GlobalDateFilter noDefault />
-
-          <Button variant="outline" size="icon" onClick={() => refetch()} title="Atualizar">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-
-          {canEdit && (
-            <Button onClick={() => setNewFormOpen(true)}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              Novo registro
-            </Button>
-          )}
-        </>
-      }
+      fullWidth
+      title={'Listagem de serviços'}
+      description={'Controle operacional diário de chamados de infraestrutura de rede.'}
     >
+      {/* ── Filtros ── */}
+      <div className="flex flex-wrap items-end gap-3 border-b border-border pb-4 mb-4">
+        <div className="flex flex-col gap-1">
+          <FilterLabel>Ocorrência</FilterLabel>
+          <Select
+            value={tipoOcorrencia || 'all'}
+            onValueChange={(value) => { setTipoOcorrencia(value === 'all' ? null : value); setPage('1'); }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todas' : v}</SelectValue>
+            </SelectTrigger>
+            <SelectContent side="bottom" alignItemWithTrigger={false}>
+              <SelectItem value="all">Todas as ocorrências</SelectItem>
+              {(data?.occurrenceTypes ?? INFRA_OCCURRENCE_OPTIONS).map((item) => (
+                <SelectItem key={item} value={item}>{item}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <FilterLabel>Status</FilterLabel>
+          <Select
+            value={statusFilter || ''}
+            onValueChange={(value) => { setStatusFilter(value === '' ? null : value); setPage('1'); }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Todos">
+                {(v: string | null) => {
+                  if (!v || v === '') return 'Todos';
+                  return STATUS_OPTIONS.find((o) => o.value === v)?.label ?? v;
+                }}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent side="bottom" alignItemWithTrigger={false}>
+              <SelectItem value="">Todos</SelectItem>
+              {STATUS_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <FilterLabel>Técnico</FilterLabel>
+          <Select
+            value={technician || 'all'}
+            onValueChange={(value) => { setTechnician(value === 'all' ? null : value); setPage('1'); }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todos' : v}</SelectValue>
+            </SelectTrigger>
+            <SelectContent side="bottom" alignItemWithTrigger={false}>
+              <SelectItem value="all">Todos os técnicos</SelectItem>
+              {(data?.technicians ?? []).map((item) => (
+                <SelectItem key={item} value={item} className="capitalize">{item?.toLowerCase()}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <FilterLabel>Cidade</FilterLabel>
+          <Select
+            value={city || 'all'}
+            onValueChange={(value) => { setCity(value === 'all' ? null : value); setPage('1'); }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todas' : v?.replace(/_/g, ' ')}</SelectValue>
+            </SelectTrigger>
+            <SelectContent side="bottom" alignItemWithTrigger={false}>
+              <SelectItem value="all">Todas as cidades</SelectItem>
+              {(data?.cities ?? []).map((item) => (
+                <SelectItem key={item} value={item ?? ''}>{(item ?? '').replace(/_/g, ' ')}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <FilterLabel>OC aberta</FilterLabel>
+          <Select
+            value={occurrenceCreated || 'all'}
+            onValueChange={(value) => { setOccurrenceCreated(value === 'all' ? null : value); setPage('1'); }}
+          >
+            <SelectTrigger className="w-[130px]">
+              <SelectValue>{(v: string | null) => v === 'true' ? 'Sim' : v === 'false' ? 'Não' : 'Todos'}</SelectValue>
+            </SelectTrigger>
+            <SelectContent side="bottom" alignItemWithTrigger={false}>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="true">Sim</SelectItem>
+              <SelectItem value="false">Não</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <FilterLabel>Período</FilterLabel>
+          <GlobalDateFilter noDefault />
+        </div>
+
+        <Button variant="outline" size="sm" onClick={clearFilters} disabled={!hasActiveFilters}>
+          Limpar filtros
+        </Button>
+
+        <Button variant="outline" size="icon" onClick={() => refetch()} title="Atualizar">
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+
+        {canEdit && (
+          <Button onClick={() => setNewFormOpen(true)} className="ml-auto">
+            <Plus className="mr-1.5 h-4 w-4" />
+            Novo registro
+          </Button>
+        )}
+      </div>
+
       {data && (
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span>
@@ -208,7 +266,7 @@ function ListagemServicosContent() {
           </span>
           {totalPages > 1 && (
             <span>
-              {'P\u00E1gina'} <strong className="text-foreground">{currentPage}</strong> de{' '}
+              Página <strong className="text-foreground">{currentPage}</strong> de{' '}
               <strong className="text-foreground">{totalPages}</strong>
             </span>
           )}
@@ -218,7 +276,7 @@ function ListagemServicosContent() {
       <ServiceListingsTable
         data={data?.data}
         isLoading={isLoading}
-        userRole={userRole}
+        moduleAccessLevel={moduleAccessLevel}
         queryKey={queryKey}
         sortField={sortField}
         sortDir={sortDir}
@@ -252,7 +310,7 @@ function ListagemServicosContent() {
               disabled={currentPage >= totalPages}
               onClick={() => setPage(String(currentPage + 1))}
             >
-              {'Pr\u00F3xima'}
+              Próxima
             </Button>
           </CardContent>
         </Card>
@@ -262,6 +320,7 @@ function ListagemServicosContent() {
         open={newFormOpen}
         onClose={() => setNewFormOpen(false)}
         queryKey={queryKey}
+        moduleAccessLevel={moduleAccessLevel}
       />
     </PageLayout>
   );

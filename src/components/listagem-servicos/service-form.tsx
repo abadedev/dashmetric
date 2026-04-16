@@ -11,18 +11,19 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ServiceListing } from '@/lib/db/infra-schema';
 import { INFRA_OCCURRENCE_OPTIONS } from '@/lib/listagem-servicos/infra-occurrences';
+import type { ModuleAccessLevel } from '@/lib/module-access';
 
 interface ServiceFormProps {
   open: boolean;
   onClose: () => void;
   queryKey: readonly unknown[];
   editRecord?: ServiceListing | null;
+  moduleAccessLevel?: ModuleAccessLevel;
 }
 
 interface ServiceFormState {
   referenceDate: string;
   priority: string;
-  technology: string;
   cityArea: string;
   address: string;
   locationUrl: string;
@@ -30,9 +31,34 @@ interface ServiceFormState {
   tipoOcorrencia: string;
   observacaoInfra: string;
   status: string;
+  solicitante: string;
 }
 
-const LAST_TECHNOLOGY_KEY = 'listagem-servicos:last-technology';
+const SOLICITANTE_OPTIONS = [
+  'Juscelino - Itamaraju',
+  'Robson Lima - Itamaraju',
+  'Anilson - Teixeira de Freitas',
+  'Diego - Teixeira de Freitas',
+  'Elvis - Teixeira de Freitas',
+  'Ian - Teixeira de Freitas',
+  'Jhonata - Teixeira de Freitas',
+  'José Antônio - Teixeira de Freitas',
+  'Levi - Teixeira de Freitas',
+  'Mateus Figueira - Teixeira de Freitas',
+  'Matheus - Teixeira de Freitas',
+  'Romário - Teixeira de Freitas',
+  'Robson Lopes - Teixeira de Freitas',
+  'Rogério - Teixeira de Freitas',
+  'Mauro - Alcobaça',
+  'Franklin - Alcobaça',
+  'Bruno - Caravelas',
+  'Anthony - Caravelas',
+  'Samuel - Cumuruxatiba',
+  'Jonatas Chaves - Posto da Mata',
+  'Lucas - Prado',
+  'Outros',
+] as const;
+
 const LAST_CITY_KEY = 'listagem-servicos:last-city-area';
 const RECENT_ADDRESSES_KEY = 'listagem-servicos:recent-addresses';
 const RECENT_NETWORK_BOXES_KEY = 'listagem-servicos:recent-network-boxes';
@@ -66,12 +92,6 @@ const PRIORITY_LABELS: Record<string, string> = {
   '1': '1 (Alta)',
   '2': '2 (Média)',
   '-': '- (Baixa)',
-};
-
-const TECHNOLOGY_LABELS: Record<string, string> = {
-  F: 'F (Fibra)',
-  C: 'C (Cabo)',
-  R: 'R (Rádio)',
 };
 
 const STATUSES = [
@@ -145,7 +165,6 @@ function getInitialState(editRecord?: ServiceListing | null): ServiceFormState {
     return {
       referenceDate: editRecord.referenceDate ?? todayIso(),
       priority: editRecord.priority ?? '',
-      technology: editRecord.technology ?? '',
       cityArea: editRecord.cityArea ?? '',
       address: editRecord.address ?? '',
       locationUrl: editRecord.locationUrl ?? '',
@@ -153,13 +172,13 @@ function getInitialState(editRecord?: ServiceListing | null): ServiceFormState {
       tipoOcorrencia: editRecord.tipoOcorrencia ?? '',
       observacaoInfra: editRecord.observacaoInfra ?? editRecord.problem ?? '',
       status: editRecord.status ?? 'pendente',
+      solicitante: editRecord.solicitante ?? '',
     };
   }
 
   return {
     referenceDate: todayIso(),
     priority: '',
-    technology: readStorage(LAST_TECHNOLOGY_KEY),
     cityArea: readStorage(LAST_CITY_KEY),
     address: '',
     locationUrl: '',
@@ -167,15 +186,17 @@ function getInitialState(editRecord?: ServiceListing | null): ServiceFormState {
     tipoOcorrencia: '',
     observacaoInfra: '',
     status: 'pendente',
+    solicitante: '',
   };
 }
 
-export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceFormProps) {
+export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessLevel = 'none' }: ServiceFormProps) {
   const queryClient = useQueryClient();
   const isEdit = !!editRecord;
 
   const [form, setForm] = useState<ServiceFormState>(() => getInitialState(editRecord));
   const [fotoUrl, setFotoUrl] = useState<string | null>(editRecord?.fotoUrl ?? null);
+  const [solicitanteOutros, setSolicitanteOutros] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [conflito, setConflito] = useState<string | null>(null);
 
@@ -187,6 +208,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
 
     setForm(getInitialState(editRecord));
     setFotoUrl(editRecord?.fotoUrl ?? null);
+    setSolicitanteOutros('');
     setSubmitError(null);
     setConflito(null);
   }, [editRecord, open]);
@@ -196,7 +218,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
       const payload = {
         referenceDate: form.referenceDate,
         priority: form.priority || null,
-        technology: form.technology || null,
+        technology: null,
         cityArea: normalizeSingleLine(form.cityArea) || null,
         address: normalizeSingleLine(form.address) || null,
         locationUrl: form.locationUrl.trim() || null,
@@ -206,6 +228,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
         observacaoInfra: normalizeMultiline(form.observacaoInfra) || null,
         status: form.status,
         fotoUrl: fotoUrl || null,
+        solicitante: (form.solicitante === 'Outros' ? solicitanteOutros.trim() : form.solicitante) || null,
       };
 
       if (!payload.referenceDate) {
@@ -251,7 +274,6 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
       const normalizedNetworkBox = normalizeSingleLine(form.networkBox);
 
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(LAST_TECHNOLOGY_KEY, form.technology);
         window.localStorage.setItem(LAST_CITY_KEY, normalizedCity);
         writeRecentValue(RECENT_ADDRESSES_KEY, normalizedAddress);
         writeRecentValue(RECENT_NETWORK_BOXES_KEY, normalizedNetworkBox);
@@ -296,6 +318,8 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
   }
 
   const canOpenLocation = form.locationUrl.trim().length > 0;
+  const canManage = moduleAccessLevel === 'admin';
+  const isEditLocked = isEdit && !canManage;
 
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
@@ -333,13 +357,14 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                     value={form.referenceDate}
                     onChange={(event) => updateField('referenceDate', event.target.value)}
                     className="h-10"
+                    disabled={isEditLocked}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="sf-prio" className="text-sm font-medium">Prioridade</Label>
-                  <Select value={form.priority || 'none'} onValueChange={(value) => updateField('priority', value === 'none' ? '' : value ?? '')}>
-                    <SelectTrigger id="sf-prio" className="h-10 w-full">
+                  <Select value={form.priority || 'none'} onValueChange={(value) => { if (!isEditLocked) updateField('priority', value === 'none' ? '' : value ?? ''); }}>
+                    <SelectTrigger id="sf-prio" className="h-10 w-full" disabled={isEditLocked}>
                       <SelectValue placeholder={'\u2014'}>
                         {(value: string | null) => (value && value !== 'none' ? (PRIORITY_LABELS[value] ?? value) : '\u2014')}
                       </SelectValue>
@@ -354,26 +379,9 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="sf-tech" className="text-sm font-medium">Tecnologia</Label>
-                  <Select value={form.technology || 'none'} onValueChange={(value) => updateField('technology', value === 'none' ? '' : value ?? '')}>
-                    <SelectTrigger id="sf-tech" className="h-10 w-full">
-                      <SelectValue placeholder={'\u2014'}>
-                        {(value: string | null) => (value && value !== 'none' ? (TECHNOLOGY_LABELS[value] ?? value) : '\u2014')}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[140px]">
-                      <SelectItem value="none">{'\u2014'}</SelectItem>
-                      <SelectItem value="F">F (Fibra)</SelectItem>
-                      <SelectItem value="C">C (Cabo)</SelectItem>
-                      <SelectItem value="R">{'R (R\u00E1dio)'}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
                   <Label htmlFor="sf-status" className="text-sm font-medium">Status</Label>
-                  <Select value={form.status} onValueChange={(value) => updateField('status', value ?? 'pendente')}>
-                    <SelectTrigger id="sf-status" className="h-10 w-full">
+                  <Select value={form.status} onValueChange={(value) => { if (!isEditLocked) updateField('status', value ?? 'pendente'); }}>
+                    <SelectTrigger id="sf-status" className="h-10 w-full" disabled={isEditLocked}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[190px]">
@@ -387,8 +395,8 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
 
               <div className="space-y-2">
                 <Label htmlFor="sf-city" className="text-sm font-medium">Cidade</Label>
-                <Select value={form.cityArea || 'none'} onValueChange={(value) => updateField('cityArea', value === 'none' ? '' : value ?? '')}>
-                  <SelectTrigger id="sf-city" className="h-10 w-full">
+                <Select value={form.cityArea || 'none'} onValueChange={(value) => { if (!isEditLocked) updateField('cityArea', value === 'none' ? '' : value ?? ''); }}>
+                  <SelectTrigger id="sf-city" className="h-10 w-full" disabled={isEditLocked}>
                     <SelectValue placeholder={'\u2014'} />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[280px]">
@@ -410,6 +418,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                   list="service-address-options"
                   autoComplete="off"
                   className="h-10"
+                  disabled={isEditLocked}
                 />
                 <datalist id="service-address-options">
                   {recentAddresses.map((item) => (
@@ -428,6 +437,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                     placeholder="https://maps.google.com/..."
                     autoComplete="off"
                     className="h-10"
+                    disabled={isEditLocked}
                   />
                   <Button
                     type="button"
@@ -453,6 +463,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                   list="service-network-box-options"
                   autoComplete="off"
                   className="h-10"
+                  disabled={isEditLocked}
                 />
                 <datalist id="service-network-box-options">
                   {recentNetworkBoxes.map((item) => (
@@ -464,8 +475,8 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
               <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)]">
                 <div className="space-y-2">
                   <Label htmlFor="sf-occurrence" className="text-sm font-medium">Tipo de ocorrencia</Label>
-                  <Select value={form.tipoOcorrencia} onValueChange={(value) => updateField('tipoOcorrencia', value ?? '')}>
-                    <SelectTrigger id="sf-occurrence" className="h-10 w-full">
+                  <Select value={form.tipoOcorrencia} onValueChange={(value) => { if (!isEditLocked) updateField('tipoOcorrencia', value ?? ''); }}>
+                    <SelectTrigger id="sf-occurrence" className="h-10 w-full" disabled={isEditLocked}>
                       <SelectValue placeholder="Selecione a ocorrencia" />
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[var(--anchor-width)]">
@@ -501,7 +512,36 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                   rows={4}
                   placeholder="Observacao complementar opcional..."
                   className="min-h-[110px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+                  disabled={isEditLocked}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="sf-solicitante" className="text-sm font-medium">Solicitante</Label>
+                <Select
+                  value={form.solicitante || 'none'}
+                  onValueChange={(value) => { if (!isEditLocked) updateField('solicitante', value === 'none' ? '' : value ?? ''); }}
+                >
+                  <SelectTrigger id="sf-solicitante" className="h-10 w-full" disabled={isEditLocked}>
+                    <SelectValue placeholder="Selecione o solicitante" />
+                  </SelectTrigger>
+                  <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[var(--anchor-width)]">
+                    <SelectItem value="none">—</SelectItem>
+                    {SOLICITANTE_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={option}>{option}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.solicitante === 'Outros' && (
+                  <Input
+                    value={solicitanteOutros}
+                    onChange={(e) => setSolicitanteOutros(e.target.value)}
+                    placeholder="Nome do solicitante"
+                    className="h-10"
+                    disabled={isEditLocked}
+                    autoFocus
+                  />
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -509,9 +549,15 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                 <ImageUpload
                   value={fotoUrl}
                   onChange={setFotoUrl}
-                  disabled={mutation.isPending}
+                  disabled={mutation.isPending || isEditLocked}
                 />
               </div>
+
+              {isEditLocked && (
+                <p className="text-sm text-muted-foreground">
+                  Apenas administradores podem editar os campos gerais deste registro.
+                </p>
+              )}
 
               {submitError && (
                 <p className="text-sm text-destructive">{submitError}</p>
@@ -533,7 +579,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord }: ServiceForm
                   Cadastrar mesmo assim
                 </Button>
               )}
-              <Button type="submit" className="min-w-[160px]" disabled={mutation.isPending}>
+              <Button type="submit" className="min-w-[160px]" disabled={mutation.isPending || isEditLocked}>
                 {mutation.isPending ? 'Salvando...' : isEdit ? 'Salvar altera\u00E7\u00F5es' : 'Criar registro'}
               </Button>
             </div>

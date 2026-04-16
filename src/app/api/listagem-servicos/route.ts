@@ -1,28 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, asc, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
-import { requireAuth } from '@/lib/require-auth';
+import { requireWorkspacePermission } from '@/lib/require-auth';
 import { getInfraDb } from '@/lib/db/infra';
 import { serviceListings } from '@/lib/db/infra-schema';
-import type { AppRole } from '@/lib/services/module-service';
 import {
   INFRA_OCCURRENCE_OPTIONS,
   normalizeNullableText,
   serviceListingPayloadSchema,
 } from '@/lib/listagem-servicos/infra-occurrences';
 import { ensureServiceListingsTable } from '@/lib/listagem-servicos/service-listings-schema';
+import { getModuleAccessLevel } from '@/lib/authorization';
 
 export const runtime = 'nodejs';
 
 const RESOLVED_STATUSES = ['resolvido', 'nao_resolvido'];
+const PENDING_STATUSES = ['pendente', 'em_andamento', 'tecnico_direcionado'];
+const openAgeLabelExpr = sql<string>`case
+  when greatest(0, current_date - ${serviceListings.referenceDate}) = 0 then 'Hoje'
+  else greatest(0, current_date - ${serviceListings.referenceDate})::text || 'd'
+end`;
+
+function sortOpenAgeOptions(values: string[]) {
+  const uniqueValues = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+  return uniqueValues.sort((left, right) => {
+    if (left === 'Hoje') return -1;
+    if (right === 'Hoje') return 1;
+    return Number.parseInt(left.replace('d', ''), 10) - Number.parseInt(right.replace('d', ''), 10);
+  });
+}
 
 export async function GET(req: NextRequest) {
-  const result = await requireAuth(req);
+  const result = await requireWorkspacePermission(req, 'listagem-servicos.view', {
+    moduleSlug: 'listagem-servicos',
+    action: 'view',
+    requiredRole: 'user',
+  });
   if (result.response) return result.response;
 
   try {
     await ensureServiceListingsTable();
 
     const { searchParams } = new URL(req.url);
+    const exportMode = searchParams.get('export') === '1';
+    if (exportMode) {
+      const exportPermission = await requireWorkspacePermission(req, 'listagem-servicos.export', {
+        moduleSlug: 'listagem-servicos',
+        action: 'export',
+        requiredRole: 'user',
+      });
+      if (exportPermission.response) return exportPermission.response;
+    }
+
     const statusFilter = searchParams.get('status');
     const from = searchParams.get('from');
     const to = searchParams.get('to');
@@ -30,6 +58,8 @@ export async function GET(req: NextRequest) {
     const technician = searchParams.get('technician');
     const technology = searchParams.get('technology');
     const tipoOcorrencia = searchParams.get('tipoOcorrencia');
+    const occurrenceCreated = searchParams.get('occurrenceCreated');
+    const openAge = searchParams.get('openAge');
     const search = searchParams.get('search');
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const pageSize = Math.min(9999, Math.max(1, parseInt(searchParams.get('pageSize') ?? '100', 10)));
@@ -44,6 +74,7 @@ export async function GET(req: NextRequest) {
       networkBox: serviceListings.networkBox,
       status: serviceListings.status,
       technician: serviceListings.technician,
+      openAge: sql<number>`greatest(0, current_date - ${serviceListings.referenceDate})`,
     } as const;
 
     const sortColumn =
@@ -63,6 +94,12 @@ export async function GET(req: NextRequest) {
     if (technician && technician !== 'all') baseFilters.push(ilike(serviceListings.technician, `%${technician}%`));
     if (technology && technology !== 'all') baseFilters.push(eq(serviceListings.technology, technology));
     if (tipoOcorrencia && tipoOcorrencia !== 'all') baseFilters.push(eq(serviceListings.tipoOcorrencia, tipoOcorrencia));
+    if (occurrenceCreated === 'true') baseFilters.push(eq(serviceListings.occurrenceCreated, true));
+    if (occurrenceCreated === 'false') {
+      baseFilters.push(
+        or(eq(serviceListings.occurrenceCreated, false), sql`${serviceListings.occurrenceCreated} IS NULL`)!
+      );
+    }
     if (search) {
       baseFilters.push(
         or(
@@ -71,11 +108,13 @@ export async function GET(req: NextRequest) {
         )!
       );
     }
+    const baseFiltersWithoutOpenAge = [...baseFilters];
+    if (openAge && openAge !== 'all') baseFilters.push(sql`${openAgeLabelExpr} = ${openAge}`);
 
     // Status filter — applied on top of base filters for the main query
     const statusFilters = [];
     if (statusFilter === 'pendentes') {
-      statusFilters.push(or(...['pendente', 'em_andamento', 'tecnico_direcionado'].map((s) => eq(serviceListings.status, s)))!);
+      statusFilters.push(or(...PENDING_STATUSES.map((s) => eq(serviceListings.status, s)))!);
     } else if (statusFilter === 'resolvidos') {
       statusFilters.push(or(...RESOLVED_STATUSES.map((s) => eq(serviceListings.status, s)))!);
     } else if (statusFilter && statusFilter !== 'all') {
@@ -85,11 +124,12 @@ export async function GET(req: NextRequest) {
     const allFilters = [...baseFilters, ...statusFilters];
     const condition = allFilters.length ? and(...allFilters) : undefined;
     const baseCondition = baseFilters.length ? and(...baseFilters) : undefined;
+    const baseConditionWithoutOpenAge = baseFiltersWithoutOpenAge.length ? and(...baseFiltersWithoutOpenAge) : undefined;
 
-    const pendingStatusOr = or(...['pendente', 'em_andamento', 'tecnico_direcionado'].map((s) => eq(serviceListings.status, s)))!;
+    const pendingStatusOr = or(...PENDING_STATUSES.map((s) => eq(serviceListings.status, s)))!;
     const resolvedStatusOr = or(...RESOLVED_STATUSES.map((s) => eq(serviceListings.status, s)))!;
 
-    const [countResult, countPendentes, countResolvidos, rows, citiesRaw, techniciansRaw] = await Promise.all([
+    const [countResult, countPendentes, countResolvidos, rows, citiesRaw, techniciansRaw, openAgeRaw] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(serviceListings).where(condition),
       db.select({ count: sql<number>`count(*)::int` }).from(serviceListings).where(
         baseCondition ? and(baseCondition, pendingStatusOr) : pendingStatusOr
@@ -114,9 +154,14 @@ export async function GET(req: NextRequest) {
         .from(serviceListings)
         .where(sql`${serviceListings.technician} IS NOT NULL AND ${serviceListings.technician} != ''`)
         .orderBy(asc(serviceListings.technician)),
+      db
+        .selectDistinct({ openAge: openAgeLabelExpr })
+        .from(serviceListings)
+        .where(baseConditionWithoutOpenAge ? and(baseConditionWithoutOpenAge, pendingStatusOr) : pendingStatusOr),
     ]);
 
     const total = countResult[0]?.count ?? 0;
+    const openAgeOptions = sortOpenAgeOptions(openAgeRaw.map((row) => row.openAge).filter(Boolean));
 
     return NextResponse.json({
       data: rows,
@@ -129,6 +174,8 @@ export async function GET(req: NextRequest) {
       cities: citiesRaw.map((row) => row.cityArea).filter(Boolean),
       technicians: techniciansRaw.map((row) => row.technician).filter(Boolean),
       occurrenceTypes: INFRA_OCCURRENCE_OPTIONS,
+      openAgeOptions,
+      moduleAccessLevel: getModuleAccessLevel(result.context, 'listagem-servicos', 'user'),
     });
   } catch (error) {
     console.error('[listagem-servicos GET]', error);
@@ -137,13 +184,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const result = await requireAuth(req);
+  const result = await requireWorkspacePermission(req, 'listagem-servicos.create', {
+    moduleSlug: 'listagem-servicos',
+    action: 'create',
+    requiredRole: 'user',
+  });
   if (result.response) return result.response;
-
-  const userRole = ((result.session.user as { role?: AppRole }).role ?? 'user') as AppRole;
-  if (userRole === 'user') {
-    return NextResponse.json({ error: 'Sem permiss\u00E3o para criar registros.' }, { status: 403 });
-  }
 
   try {
     await ensureServiceListingsTable();
@@ -158,7 +204,7 @@ export async function POST(req: NextRequest) {
     }
 
     const db = getInfraDb();
-    const userEmail = result.session.user.email ?? result.session.user.name ?? 'unknown';
+    const userEmail = result.context.session.user.email ?? result.context.session.user.name ?? 'unknown';
     const payload = parsed.data;
 
     if (!force && payload.networkBox && payload.cityArea) {
@@ -202,6 +248,7 @@ export async function POST(req: NextRequest) {
         observacaoInfra: normalizeNullableText(payload.observacaoInfra),
         status: payload.status ?? 'pendente',
         occurrenceCreated: payload.occurrenceCreated ?? false,
+        solicitante: normalizeNullableText(payload.solicitante),
         createdBy: userEmail,
       })
       .returning();

@@ -8,31 +8,6 @@ import { ensureServiceListingsTable } from '@/lib/listagem-servicos/service-list
 
 export const runtime = 'nodejs';
 
-function aplicarFallbackVisualNoRankingTecnicos(
-  rows: Array<{ technician: string | null; total: number }>,
-  resolvedWithoutTechnician: number
-) {
-  const ranking = new Map<string, number>();
-
-  for (const row of rows) {
-    const technician = row.technician?.trim();
-    if (!technician) continue;
-    ranking.set(technician, (ranking.get(technician) ?? 0) + row.total);
-  }
-
-  if (resolvedWithoutTechnician > 0) {
-    const marlon = Math.round(resolvedWithoutTechnician * 0.55);
-    const azevedo = resolvedWithoutTechnician - marlon;
-
-    ranking.set('Marlon', (ranking.get('Marlon') ?? 0) + marlon);
-    ranking.set('Azevedo', (ranking.get('Azevedo') ?? 0) + azevedo);
-  }
-
-  return Array.from(ranking.entries())
-    .map(([technician, total]) => ({ technician, total }))
-    .sort((a, b) => (b.total !== a.total ? b.total - a.total : a.technician.localeCompare(b.technician)))
-    .slice(0, 10);
-}
 
 export async function GET(req: NextRequest) {
   const result = await requireAuth(req);
@@ -66,7 +41,6 @@ export async function GET(req: NextRequest) {
       byCityResult,
       byNetworkBoxResult,
       byTechnicianResult,
-      resolvedWithoutTechnicianResult,
       recurringIssuesResult,
       topOccurrenceResult,
       citiesRaw,
@@ -150,20 +124,6 @@ export async function GET(req: NextRequest) {
 
       db
         .select({
-          total: sql<number>`count(*)::int`,
-        })
-        .from(serviceListings)
-        .where(
-          condition
-            ? and(
-                condition,
-                sql`${serviceListings.technician} IS NULL AND ${serviceListings.status} in ('resolvido','nao_resolvido')`
-              )
-            : sql`${serviceListings.technician} IS NULL AND ${serviceListings.status} in ('resolvido','nao_resolvido')`
-        ),
-
-      db
-        .select({
           tipoOcorrencia: serviceListings.tipoOcorrencia,
           city: serviceListings.cityArea,
           networkBox: serviceListings.networkBox,
@@ -209,8 +169,8 @@ export async function GET(req: NextRequest) {
     const kpi = kpiResult[0] ?? { total: 0, pending: 0, resolved: 0, recurring: 0, avgResolutionDays: null };
     const resolutionRate = kpi.total > 0 ? Math.round(((kpi.resolved ?? 0) / kpi.total) * 100) : 0;
     const topOccurrence = topOccurrenceResult[0];
-    const resolvedWithoutTechnician = resolvedWithoutTechnicianResult[0]?.total ?? 0;
-    const byTechnician = aplicarFallbackVisualNoRankingTecnicos(byTechnicianResult, resolvedWithoutTechnician);
+    const byTechnician = byTechnicianResult
+      .map((row) => ({ technician: row.technician?.trim() || 'Não informado', total: row.total }));
 
     return NextResponse.json({
       kpi: {

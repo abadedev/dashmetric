@@ -7,14 +7,25 @@ import {
   getModuleRegistryEntry,
   isSystemModuleKey,
 } from '@/lib/modules/module-registry';
-import { requireAuth } from '@/lib/require-auth';
+import { canPerformAction } from '@/lib/authorization';
+import { requireWorkspaceAccess } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
+import type { SystemModuleKey } from '@/lib/modules/module-registry';
 
 export const runtime = 'nodejs';
 
+function resolveImportModuleSlug(moduleKey: SystemModuleKey) {
+  if (moduleKey === 'crm' || moduleKey === 'omnichannel_omni_vendas') return 'vendas';
+  if (moduleKey === 'canceladas_mudanca_plano') return 'atendimentos';
+  if (moduleKey === 'inviabilidade_ict') return 'qualidade';
+  if (moduleKey === 'omnichannel_matrix_go') return 'omnichannel';
+  if (moduleKey === 'lista_servicos') return 'listagem-servicos';
+  return moduleKey;
+}
+
 export async function POST(req: NextRequest) {
-  const { response } = await requireAuth(req);
-  if (response) return response;
+  const access = await requireWorkspaceAccess(req);
+  if (access.response) return access.response;
 
   return runWithWorkspace(req, async (ctx) => {
     try {
@@ -62,6 +73,11 @@ export async function POST(req: NextRequest) {
       const tipoPlanilha = isSystemModuleKey(tipoPlanilhaManual)
         ? tipoPlanilhaManual
         : detectarTipoPlanilha(headers, file.name);
+      const moduleSlug = resolveImportModuleSlug(tipoPlanilha);
+
+      if (!canPerformAction(access.context, moduleSlug, 'import', 'user')) {
+        return NextResponse.json({ error: 'Sem permissao para importar neste modulo.' }, { status: 403 });
+      }
 
       const moduleEntry = getModuleRegistryEntry(tipoPlanilha);
       const result = await moduleEntry.importHandler({

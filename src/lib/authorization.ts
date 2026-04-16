@@ -3,9 +3,10 @@ import { auth } from '@/lib/auth';
 import { globalDb } from '@/lib/db';
 import { workspaceMembers } from '@/lib/db/schemas/global';
 import { resolveWorkspaceId } from '@/lib/db/workspace-context';
-import { getUserEffectivePermissions } from '@/lib/services/permission-service';
+import { getUserEffectiveModuleAccess, getUserEffectivePermissions } from '@/lib/services/permission-service';
 import type { AppRole } from '@/lib/services/module-service';
 import type { SystemModule } from '@/lib/db/schema';
+import { accessLevelAllows, resolveUserModulePermission, type ModuleAccessLevel } from '@/lib/module-access';
 
 export type GlobalRole = AppRole;
 export type WorkspaceRole = 'ADMIN' | 'MEMBER' | 'VIEWER' | null;
@@ -18,6 +19,7 @@ export type AuthorizationContext = {
   workspaceId: string;
   workspaceRole: WorkspaceRole;
   effectivePermissions: Set<string>;
+  moduleAccess: Record<string, ModuleAccessLevel>;
 };
 
 const GLOBAL_BYPASS_ROLES = new Set<GlobalRole>(['admin']);
@@ -46,7 +48,22 @@ export function getEffectivePermissions(context: AuthorizationContext) {
 
 export function hasPermission(context: AuthorizationContext, permission: string) {
   if (hasGlobalRole(context, Array.from(GLOBAL_BYPASS_ROLES))) return true;
-  if (hasWorkspaceRole(context, 'ADMIN')) return true;
+
+  if (permission.startsWith('admin.')) {
+    if (hasWorkspaceRole(context, 'ADMIN')) return true;
+    return context.effectivePermissions.has(permission);
+  }
+
+  const permissionSegments = permission.split('.');
+  if (permissionSegments.length > 1) {
+    const action = permissionSegments[permissionSegments.length - 1] ?? '';
+    const moduleSlug = permissionSegments.slice(0, -1).join('.');
+
+    if (context.moduleAccess[moduleSlug]) {
+      return accessLevelAllows(context.moduleAccess[moduleSlug], action);
+    }
+  }
+
   return context.effectivePermissions.has(permission);
 }
 
@@ -60,12 +77,48 @@ export function hasAllPermissions(context: AuthorizationContext, permissions: st
 
 function fallbackModuleAccessByRole(context: AuthorizationContext, requiredRole: AppRole) {
   if (hasGlobalRole(context, Array.from(GLOBAL_BYPASS_ROLES))) return true;
-  if (hasWorkspaceRole(context, 'ADMIN')) return true;
   return requiredRole === 'user' && context.workspaceRole !== null;
 }
 
 export function canAccessModule(context: AuthorizationContext, module: Pick<SystemModule, 'slug' | 'requiredRole'>) {
   return canPerformAction(context, module.slug, 'view', module.requiredRole);
+}
+
+export function getModuleAccessLevel(
+  context: AuthorizationContext,
+  moduleSlug: string,
+  requiredRole?: AppRole
+): ModuleAccessLevel {
+  if (hasGlobalRole(context, Array.from(GLOBAL_BYPASS_ROLES))) return 'admin';
+
+  const explicitLevel = context.moduleAccess[moduleSlug];
+  if (explicitLevel) return explicitLevel;
+
+  if (requiredRole && fallbackModuleAccessByRole(context, requiredRole)) {
+    return 'viewer';
+  }
+
+  return 'none';
+}
+
+export function resolveUserModulePermissionFromContext(
+  context: AuthorizationContext,
+  moduleSlug: string,
+  requiredRole?: AppRole
+) {
+  return resolveUserModulePermission(
+    context.moduleAccess[moduleSlug],
+    requiredRole && fallbackModuleAccessByRole(context, requiredRole) ? 'viewer' : 'none'
+  );
+}
+
+export function can(
+  context: AuthorizationContext,
+  moduleSlug: string,
+  action: string,
+  requiredRole?: AppRole
+) {
+  return canPerformAction(context, moduleSlug, action, requiredRole);
 }
 
 export function canPerformAction(
@@ -74,7 +127,14 @@ export function canPerformAction(
   action: string,
   requiredRole?: AppRole
 ) {
-  if (hasPermission(context, `${moduleSlug}.${action}`)) return true;
+  if (hasGlobalRole(context, Array.from(GLOBAL_BYPASS_ROLES))) return true;
+
+  const explicitLevel = context.moduleAccess[moduleSlug];
+  if (explicitLevel) {
+    return accessLevelAllows(explicitLevel, action);
+  }
+
+  if (context.effectivePermissions.has(`${moduleSlug}.${action}`)) return true;
 
   if (action === 'view' && requiredRole) {
     return fallbackModuleAccessByRole(context, requiredRole);
@@ -111,10 +171,14 @@ export async function buildAuthorizationContext(
       workspaceId,
       workspaceRole: null,
       effectivePermissions: new Set<string>(),
+      moduleAccess: {},
     };
   }
 
-  const effectivePermissions = await getUserEffectivePermissions(userId, workspaceId);
+  const [effectivePermissions, moduleAccess] = await Promise.all([
+    getUserEffectivePermissions(userId, workspaceId),
+    getUserEffectiveModuleAccess(userId, workspaceId),
+  ]);
 
   return {
     session,
@@ -124,5 +188,6 @@ export async function buildAuthorizationContext(
     workspaceId,
     workspaceRole: membership?.role ?? null,
     effectivePermissions,
+    moduleAccess,
   };
 }

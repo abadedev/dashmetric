@@ -105,37 +105,35 @@ export function CityBarChart({ data }: { data: Array<{ city: string; total: numb
   );
 }
 
-export function NetworkBoxTable({ data }: { data: Array<{ networkBox: string; total: number }> }) {
-  const visibleData = data.filter((row) => !HIDDEN_NETWORK_BOXES.has(row.networkBox));
+export function OccurrenceByTypeTable({ data }: { data: Array<{ name: string; value: number }> }) {
+  const sorted = [...data].sort((a, b) => b.value - a.value);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ocorrencias por Caixa/Rede</CardTitle>
-        <CardDescription>Caixas e redes com maior volume no periodo</CardDescription>
+        <CardTitle>Ocorrencias por Tipo</CardTitle>
+        <CardDescription>Tipos com maior volume no periodo</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Caixa / Rede</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead className="text-right">Ocorrencias</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visibleData.length === 0 ? (
+            {sorted.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={2} className="h-16 text-center text-muted-foreground">
                   Nenhum dado disponivel.
                 </TableCell>
               </TableRow>
             ) : (
-              visibleData.map((row) => (
-                <TableRow key={`${row.networkBox}-${row.total}`}>
-                  <TableCell className="max-w-[320px] truncate font-medium" title={row.networkBox}>
-                    {row.networkBox}
-                  </TableCell>
-                  <TableCell className="text-right font-bold">{row.total}</TableCell>
+              sorted.map((row) => (
+                <TableRow key={row.name}>
+                  <TableCell className="font-medium">{row.name}</TableCell>
+                  <TableCell className="text-right font-bold">{row.value}</TableCell>
                 </TableRow>
               ))
             )}
@@ -196,11 +194,6 @@ export function RecurringIssuesTable({
 }
 
 export function TechnicianRankingTable({ data }: { data: Array<{ technician: string; total: number }> }) {
-  const rankingVisual = [
-    { technician: 'Marlon', total: 67 },
-    { technician: 'Azevedo', total: 55 },
-  ];
-
   return (
     <Card>
       <CardHeader>
@@ -217,13 +210,21 @@ export function TechnicianRankingTable({ data }: { data: Array<{ technician: str
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rankingVisual.map((row, index) => (
-              <TableRow key={row.technician}>
-                <TableCell className="font-mono text-xs text-muted-foreground">{index + 1}</TableCell>
-                <TableCell className="font-medium">{row.technician}</TableCell>
-                <TableCell className="text-right font-bold">{row.total}</TableCell>
+            {data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={3} className="h-16 text-center text-muted-foreground">
+                  Nenhum dado disponivel.
+                </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              data.map((row, index) => (
+                <TableRow key={row.technician}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{index + 1}</TableCell>
+                  <TableCell className="font-medium">{row.technician}</TableCell>
+                  <TableCell className="text-right font-bold">{row.total}</TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </CardContent>
