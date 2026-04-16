@@ -179,8 +179,8 @@ export function Header() {
               <SheetHeader className="sr-only">
                 <SheetTitle>Menu de Navegação</SheetTitle>
               </SheetHeader>
-              <div className="h-full relative isolate z-50">
-                <Sidebar />
+              <div className="h-full">
+                <Sidebar mobile />
               </div>
             </SheetContent>
           </Sheet>

@@ -21,6 +21,7 @@ function makeContext(overrides: Partial<AuthorizationContext> = {}): Authorizati
     workspaceId: 'workspace-1',
     workspaceRole: 'MEMBER',
     effectivePermissions: new Set<string>(),
+    moduleAccess: {},
     ...overrides,
   };
 }
@@ -29,6 +30,7 @@ test('authorization helpers honor explicit permissions', async () => {
   const { hasAllPermissions, hasAnyPermission, hasPermission } = await import('./authorization');
   const context = makeContext({
     effectivePermissions: new Set(['sales.view', 'sales.export']),
+    moduleAccess: { sales: 'editor' },
   });
 
   assert.equal(hasPermission(context, 'sales.view'), true);
@@ -37,7 +39,7 @@ test('authorization helpers honor explicit permissions', async () => {
   assert.equal(hasAllPermissions(context, ['sales.view', 'sales.edit']), false);
 });
 
-test('authorization grants workspace admin bypass inside the workspace', async () => {
+test('authorization keeps workspace admin bypass for global admin permissions only', async () => {
   const { canPerformAction, hasPermission } = await import('./authorization');
   const context = makeContext({
     workspaceRole: 'ADMIN',
@@ -45,7 +47,7 @@ test('authorization grants workspace admin bypass inside the workspace', async (
   });
 
   assert.equal(hasPermission(context, 'admin.groups.manage'), true);
-  assert.equal(canPerformAction(context, 'sales', 'export'), true);
+  assert.equal(canPerformAction(context, 'sales', 'export'), false);
 });
 
 test('authorization grants global admin bypass even without workspace membership', async () => {
@@ -90,4 +92,25 @@ test('module access fallback only grants baseline view for regular workspace mem
     canAccessModule(memberContext, { slug: 'admin', requiredRole: 'admin' }),
     false
   );
+});
+
+test('explicit module access level overrides legacy keys and supports none', async () => {
+  const { canPerformAction, hasPermission } = await import('./authorization');
+  const context = makeContext({
+    effectivePermissions: new Set(['infraestrutura.delete', 'infraestrutura.import']),
+    moduleAccess: { infraestrutura: 'none' },
+  });
+
+  assert.equal(hasPermission(context, 'infraestrutura.delete'), false);
+  assert.equal(canPerformAction(context, 'infraestrutura', 'import', 'user'), false);
+});
+
+test('user override can elevate inherited group permission', async () => {
+  const { canPerformAction } = await import('./authorization');
+  const context = makeContext({
+    moduleAccess: { infraestrutura: 'editor' },
+  });
+
+  assert.equal(canPerformAction(context, 'infraestrutura', 'export', 'user'), true);
+  assert.equal(canPerformAction(context, 'infraestrutura', 'import', 'user'), false);
 });

@@ -12,6 +12,7 @@
     "db:push": "npx drizzle-kit push",
     "db:seed": "npx tsx src/lib/db/seed.ts",
     "db:reset-operational": "npx tsx scripts/reset-operational-db.ts",
+    "db:reset-infra": "npx tsx scripts/reset-infra-db.ts",
     "test:sla": "npx tsx src/lib/sla/calculate-sla.cases.ts",
     "test:classify": "npx tsx --test src/lib/importacao/classify-support.test.ts",
     "seed": "npx tsx src/lib/db/seed.ts",

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { requireAuth } from '@/lib/require-auth';
+import { requireWorkspacePermission } from '@/lib/require-auth';
 import { getInfraDb } from '@/lib/db/infra';
 import { serviceListings } from '@/lib/db/infra-schema';
-import type { AppRole } from '@/lib/services/module-service';
 import {
   infraOccurrenceSchema,
   normalizeNullableText,
@@ -14,7 +13,11 @@ import { ensureServiceListingsTable } from '@/lib/listagem-servicos/service-list
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const result = await requireAuth(req);
+  const result = await requireWorkspacePermission(req, 'listagem-servicos.view', {
+    moduleSlug: 'listagem-servicos',
+    action: 'view',
+    requiredRole: 'user',
+  });
   if (result.response) return result.response;
 
   const { id } = await params;
@@ -41,13 +44,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const result = await requireAuth(req);
+  const result = await requireWorkspacePermission(req, 'listagem-servicos.edit', {
+    moduleSlug: 'listagem-servicos',
+    action: 'edit',
+    requiredRole: 'user',
+  });
   if (result.response) return result.response;
-
-  const userRole = ((result.session.user as { role?: AppRole }).role ?? 'user') as AppRole;
-  if (userRole === 'user') {
-    return NextResponse.json({ error: 'Sem permiss\u00E3o para editar registros.' }, { status: 403 });
-  }
 
   const { id } = await params;
   const recordId = parseInt(id, 10);
@@ -60,11 +62,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const body = await req.json();
     const db = getInfraDb();
-    const userEmail = result.session.user.email ?? result.session.user.name ?? 'unknown';
+    const userEmail = result.context.session.user.email ?? result.context.session.user.name ?? 'unknown';
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
 
     if (body.finalize) {
+      const finalizePermission = await requireWorkspacePermission(req, 'listagem-servicos.finalize', {
+        moduleSlug: 'listagem-servicos',
+        action: 'finalize',
+        requiredRole: 'user',
+      });
+      if (finalizePermission.response) return finalizePermission.response;
+
       updateData.status = 'resolvido';
       updateData.technician = body.technician ?? null;
       updateData.solution = body.solution ?? null;
@@ -74,9 +83,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     } else if (body.occurrenceCreated !== undefined && Object.keys(body).length === 1) {
       updateData.occurrenceCreated = body.occurrenceCreated;
     } else {
-      if (userRole !== 'admin') {
-        return NextResponse.json({ error: 'Apenas administradores podem editar campos gerais.' }, { status: 403 });
-      }
+      const managePermission = await requireWorkspacePermission(req, 'listagem-servicos.manage', {
+        moduleSlug: 'listagem-servicos',
+        action: 'manage',
+        requiredRole: 'user',
+      });
+      if (managePermission.response) return managePermission.response;
 
       const parsed = serviceListingPayloadSchema.partial().safeParse(body);
       if (!parsed.success) {
@@ -102,6 +114,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         'resolutionDate',
         'resolutionNotes',
         'fotoUrl',
+        'solicitante',
       ];
 
       for (const key of allowed) {
@@ -124,7 +137,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             key === 'solution' ||
             key === 'resolutionDate' ||
             key === 'resolutionNotes' ||
-            key === 'fotoUrl'
+            key === 'fotoUrl' ||
+            key === 'solicitante'
           ) {
             updateData[key] = normalizeNullableText(parsedData[key] as string | null | undefined);
             continue;
@@ -153,13 +167,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const result = await requireAuth(req);
+  const result = await requireWorkspacePermission(req, 'listagem-servicos.delete', {
+    moduleSlug: 'listagem-servicos',
+    action: 'delete',
+    requiredRole: 'user',
+  });
   if (result.response) return result.response;
-
-  const userRole = ((result.session.user as { role?: AppRole }).role ?? 'user') as AppRole;
-  if (userRole !== 'admin') {
-    return NextResponse.json({ error: 'Apenas administradores podem excluir registros.' }, { status: 403 });
-  }
 
   const { id } = await params;
   const recordId = parseInt(id, 10);

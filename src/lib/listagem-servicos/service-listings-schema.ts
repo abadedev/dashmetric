@@ -60,4 +60,9 @@ export async function ensureServiceListingsTable() {
     ALTER TABLE service_listings
     ADD COLUMN IF NOT EXISTS foto_url TEXT
   `);
+
+  await db.execute(sql`
+    ALTER TABLE service_listings
+    ADD COLUMN IF NOT EXISTS solicitante VARCHAR(255)
+  `);
 }

@@ -3,7 +3,8 @@ import { headers, cookies } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getUserWorkspaces, resolveActiveWorkspace } from '@/lib/workspace';
 import { Sidebar } from '@/components/layout/sidebar';
-import { Header } from '@/components/layout/header';
+import { SidebarProvider } from '@/components/layout/sidebar-context';
+import { SidebarAwareContent } from '@/components/layout/sidebar-aware-content';
 import { DashielWidget } from '@/components/ai/dashiel-widget';
 
 export default async function DashboardLayout({
@@ -27,19 +28,15 @@ export default async function DashboardLayout({
   const activeWorkspace = await resolveActiveWorkspace(session.user.id, preferredSlug);
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
-      <div className="hidden md:flex">
-        <Sidebar />
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
+        <SidebarAwareContent widget={<DashielWidget workspaceSlug={activeWorkspace?.slug} />}>
+          {children}
+        </SidebarAwareContent>
       </div>
-      <div className="relative flex min-h-screen w-full flex-1 flex-col bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_92%,white_8%),var(--background))] md:pl-64">
-        <Header />
-        <main className="w-full flex-1 overflow-auto">
-          <div className="mx-auto w-full max-w-[1440px] px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
-            {children}
-          </div>
-        </main>
-        <DashielWidget workspaceSlug={activeWorkspace?.slug} />
-      </div>
-    </div>
+    </SidebarProvider>
   );
 }

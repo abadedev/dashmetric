@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { KpiCards } from '@/components/dashboard/kpi-cards';
 import { QualitySummary } from '@/components/dashboard/quality-summary';
-import { SlaByTypeTable } from '@/components/dashboard/sla-by-type-table';
+import { OcorrenciasPorTipo } from '@/components/dashboard/ocorrencias-por-tipo';
 import { Top5Ranking } from '@/components/dashboard/top5-ranking';
 import { VolumePieChart } from '@/components/dashboard/volume-pie-chart';
 import { PageLayout } from '@/components/layout/page-layout';
@@ -71,7 +71,7 @@ function DashboardPageContent() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.9fr)]">
         <div className="min-w-0">
-          <SlaByTypeTable data={dashboardData?.slaByType || []} />
+          <OcorrenciasPorTipo data={dashboardData?.slaByType || []} />
         </div>
         <div className="min-w-0">
           <VolumePieChart data={dashboardData?.slaByType || []} />

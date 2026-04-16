@@ -216,6 +216,47 @@ export const userPermissions = pgTable(
   ]
 );
 
+export const groupModuleAccess = pgTable(
+  'group_module_access',
+  {
+    id: serial('id').primaryKey(),
+    groupId: integer('group_id')
+      .notNull()
+      .references(() => accessGroups.id, { onDelete: 'cascade' }),
+    moduleSlug: varchar('module_slug', { length: 120 }).notNull(),
+    accessLevel: varchar('access_level', { length: 20 }).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('group_module_access_unique_idx').on(table.groupId, table.moduleSlug),
+    index('group_module_access_group_idx').on(table.groupId),
+    index('group_module_access_module_idx').on(table.moduleSlug),
+  ]
+);
+
+export const userModuleAccess = pgTable(
+  'user_module_access',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    moduleSlug: varchar('module_slug', { length: 120 }).notNull(),
+    accessLevel: varchar('access_level', { length: 20 }).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('user_module_access_unique_idx').on(table.workspaceId, table.userId, table.moduleSlug),
+    index('user_module_access_workspace_user_idx').on(table.workspaceId, table.userId),
+    index('user_module_access_module_idx').on(table.moduleSlug),
+  ]
+);
+
 // ── Types ──
 
 export type User = typeof user.$inferSelect;
@@ -227,3 +268,5 @@ export type NewWorkspaceMember = typeof workspaceMembers.$inferInsert;
 export type WorkspaceMemberRole = typeof workspaceMemberRoleEnum.enumValues[number];
 export type AccessGroup = typeof accessGroups.$inferSelect;
 export type Permission = typeof permissions.$inferSelect;
+export type GroupModuleAccess = typeof groupModuleAccess.$inferSelect;
+export type UserModuleAccess = typeof userModuleAccess.$inferSelect;
