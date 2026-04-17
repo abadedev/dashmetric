@@ -4,7 +4,7 @@ import { requireWorkspaceAccess } from '@/lib/require-auth';
 import { db } from '@/lib/db';
 import { systemModules } from '@/lib/db/schema';
 import { ensureDefaultModules, type SidebarModuleItem } from '@/lib/services/module-service';
-import { canAccessModule } from '@/lib/authorization';
+import { hasGlobalRole } from '@/lib/authorization';
 
 export const runtime = 'nodejs';
 
@@ -20,8 +20,16 @@ export async function GET(req: NextRequest) {
       .where(eq(systemModules.workspaceId, result.context.workspaceId))
       .orderBy(asc(systemModules.sortOrder), asc(systemModules.name));
 
+    const ctx = result.context;
     const data: SidebarModuleItem[] = modules
-      .filter((module) => module.isActive && module.showInSidebar && canAccessModule(result.context, module))
+      .filter((module) => {
+        if (!module.isActive || !module.showInSidebar) return false;
+        if (hasGlobalRole(ctx, 'admin')) return true;
+        if (ctx.workspaceRole === null) return false;
+        // Use group-based module access — hide only when explicitly denied ('none')
+        const level = ctx.moduleAccess[module.slug];
+        return level !== 'none';
+      })
       .map((module) => ({
         id: module.id,
         name: module.name,
