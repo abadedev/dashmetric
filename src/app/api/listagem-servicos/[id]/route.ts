@@ -82,6 +82,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       updateData.resolvedBy = userEmail;
     } else if (body.occurrenceCreated !== undefined && Object.keys(body).length === 1) {
       updateData.occurrenceCreated = body.occurrenceCreated;
+    } else if (body.status !== undefined && Object.keys(body).length === 1) {
+      const VALID_STATUSES = ['pendente', 'tecnico_direcionado', 'em_andamento', 'resolvido', 'nao_resolvido'];
+      if (!VALID_STATUSES.includes(body.status)) {
+        return NextResponse.json({ error: 'Status inválido.' }, { status: 400 });
+      }
+      updateData.status = body.status;
     } else {
       const managePermission = await requireWorkspacePermission(req, 'listagem-servicos.manage', {
         moduleSlug: 'listagem-servicos',

@@ -28,7 +28,7 @@ import { FinalizeDialog } from './finalize-dialog';
 import { OsServiceDetailSheet } from './os-detail-sheet';
 import { ServiceForm } from './service-form';
 import { ShareOsMessageButton } from './share-os-message-button';
-import { PriorityDot, StatusBadge } from './status-badge';
+import { PriorityDot, StatusSelectBadge } from './status-badge';
 import type { ServiceListing } from '@/lib/db/infra-schema';
 import type { ModuleAccessLevel } from '@/lib/module-access';
 
@@ -336,7 +336,12 @@ function RecordsTable({
               </TableCell>
               <TableCell className="max-w-[110px]">
                 <div className="min-w-0 max-w-full overflow-hidden">
-                  <StatusBadge status={row.status} />
+                  <StatusSelectBadge
+                    status={row.status}
+                    recordId={row.id}
+                    queryKey={queryKey}
+                    canEdit={canEdit}
+                  />
                 </div>
               </TableCell>
               <TableCell className="w-[80px] text-xs font-medium">
