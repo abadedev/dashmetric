@@ -189,10 +189,10 @@ export function Sidebar({ mobile = false }: SidebarProps) {
           effectiveCollapsed && !mobile && 'px-1.5'
         )}
       >
-        {!effectiveCollapsed && (
+        {false && !effectiveCollapsed && (
           <div className="mb-3 px-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/45">
-              NavegaÃ§Ã£o operacional
+              Navegação operacional
             </p>
           </div>
         )}
