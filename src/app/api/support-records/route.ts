@@ -4,6 +4,20 @@ import { getSupportTypeSummary } from '@/lib/services/support-summary-service';
 
 export const runtime = 'nodejs';
 
+function parseDateParam(value: string, mode: 'start' | 'end') {
+  const trimmed = value.trim();
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
+  const candidate = dateOnly
+    ? new Date(`${trimmed}T${mode === 'start' ? '00:00:00.000' : '23:59:59.999'}Z`)
+    : new Date(trimmed);
+
+  if (Number.isNaN(candidate.getTime())) {
+    throw new Error(`Invalid ${mode} date.`);
+  }
+
+  return candidate;
+}
+
 export async function GET(req: NextRequest) {
   const result = await requireWorkspacePermission(req, 'suporte.view', {
     moduleSlug: 'suporte',
@@ -16,8 +30,8 @@ export async function GET(req: NextRequest) {
     const fromStr = searchParams.get('from');
     const toStr = searchParams.get('to');
 
-    const from = fromStr ? new Date(fromStr) : null;
-    const to = toStr ? new Date(toStr) : null;
+    const from = fromStr ? parseDateParam(fromStr, 'start') : null;
+    const to = toStr ? parseDateParam(toStr, 'end') : null;
 
     const data = await getSupportTypeSummary({ from, to, workspaceId: result.context.workspaceId });
 

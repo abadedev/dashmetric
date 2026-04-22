@@ -28,9 +28,9 @@ export async function GET(req: NextRequest) {
 
     const filters: SQL[] = [eq(atendimentos.workspaceId, ctx.workspaceId)];
 
-    // Filtro de data: COALESCE(aberturaAt, finalizacaoAt, createdAt) equivalente ao $or do Mongo
+    // Filtro de data: prioriza finalizacaoAt; fallback para aberturaAt e createdAt
     if (fromStr || toStr) {
-      const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
+      const dataRef = sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
       const parts: SQL[] = [];
       if (fromStr) parts.push(sql`${dataRef} >= ${new Date(fromStr)}`);
       if (toStr)   parts.push(sql`${dataRef} <= ${new Date(toStr)}`);

@@ -28,9 +28,9 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   experimental: {
-    proxyClientMaxBodySize: '50mb',
+    proxyClientMaxBodySize: '100mb',
     serverActions: {
-      bodySizeLimit: '50mb',
+      bodySizeLimit: '100mb',
     },
   },
   async headers() {

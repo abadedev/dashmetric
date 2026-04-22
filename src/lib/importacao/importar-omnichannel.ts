@@ -67,6 +67,41 @@ const AGENTES_NAO_HUMANOS = AGENTES_EXCLUIDOS;
 
 // ─── Extração de período a partir do nome do arquivo ──────────────────────────
 
+// Mapa de meses em português normalizados (sem acento)
+const MESES_PT: Record<string, number> = {
+  janeiro: 1, fevereiro: 2, marco: 3, abril: 4, maio: 5, junho: 6,
+  julho: 7, agosto: 8, setembro: 9, outubro: 10, novembro: 11, dezembro: 12,
+};
+
+/**
+ * Extrai mês e ano de referência pelo nome do arquivo buscando nomes de meses em português.
+ * Ex: "Omini - Janeiro.xlsx" → { month: 1, year: 2026 }
+ *     "Omini - Fevereiro 2025.xlsx" → { month: 2, year: 2025 }
+ * Retorna null se nenhum mês for identificado.
+ */
+export function extrairMesAnoDoNome(fileName: string): { month: number; year: number } | null {
+  const name = fileName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove acentos (março → marco)
+    .replace(/[^a-z0-9]/g, ' ');    // não-alfanuméricos → espaço
+
+  let month: number | null = null;
+  for (const [mesNome, mesNum] of Object.entries(MESES_PT)) {
+    if (name.includes(mesNome)) {
+      month = mesNum;
+      break;
+    }
+  }
+
+  if (month === null) return null;
+
+  const yearMatch = name.match(/\b(20\d{2})\b/);
+  const year = yearMatch ? parseInt(yearMatch[1], 10) : new Date().getFullYear();
+
+  return { month, year };
+}
+
 /**
  * Extrai os componentes de uma parte de data em formato BR compacto.
  *
@@ -249,13 +284,32 @@ export async function importarOmnichannel(
 
   const colIndex = buildColIndex(rows[0]);
 
-  // Período: extraído do nome do arquivo; fallback para mês/ano corrente
-  const periodo = fileName ? extrairPeriodoDoNomeArquivo(fileName) : null;
-  const now = new Date();
-  const periodMonth  = periodo?.periodMonth  ?? (now.getMonth() + 1);
-  const periodYear   = periodo?.periodYear   ?? now.getFullYear();
-  const periodStartDate = periodo?.startDate ?? null;
-  const periodEndDate   = periodo?.endDate   ?? null;
+  // Período: extraído exclusivamente do nome do arquivo.
+  // Tenta primeiro por nome de mês ("Omini - Janeiro.xlsx"),
+  // depois pelo padrão de range analítico ("01/03 a 31/03/2026").
+  // Rejeita se não conseguir identificar o mês.
+  let periodMonth: number;
+  let periodYear: number;
+  let periodStartDate: string | null = null;
+  let periodEndDate: string | null = null;
+
+  const mesAno = fileName ? extrairMesAnoDoNome(fileName) : null;
+  if (mesAno) {
+    periodMonth = mesAno.month;
+    periodYear  = mesAno.year;
+  } else {
+    const periodo = fileName ? extrairPeriodoDoNomeArquivo(fileName) : null;
+    if (periodo) {
+      periodMonth     = periodo.periodMonth;
+      periodYear      = periodo.periodYear;
+      periodStartDate = periodo.startDate;
+      periodEndDate   = periodo.endDate;
+    } else {
+      throw new Error(
+        'Não foi possível identificar o mês de referência pelo nome do arquivo. Renomeie para o formato: "Omini - Janeiro.xlsx"'
+      );
+    }
+  }
 
   const erros: { linha: number; erro: string }[] = [];
   const registros: (typeof omnichannelRecords.$inferInsert)[] = [];

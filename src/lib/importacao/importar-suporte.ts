@@ -16,10 +16,10 @@ const ALIASES: Record<string, string[]> = {
   total:              ['total', 'total_atendimentos', 'qtd_total'],
   mes:                ['mes', 'month', 'periodo', 'competencia'],
   ano:                ['ano', 'year'],
-  dataAbertura:       ['data_abertura', 'datapedido', 'data_pedido', 'abertura', 'data', 'data_chamado'],
-  horaAbertura:       ['hora_abertura', 'hora_inicio'],
-  dataFinalizacao:    ['data_finalizacao', 'data_final', 'fechamento', 'finalizacao', 'data_fechamento'],
-  horaFinalizacao:    ['hora_finalizacao', 'hora_saida', 'hora_fechamento'],
+  dataAbertura:       ['dataAbertura', 'data_abertura', 'datapedido', 'data_pedido', 'abertura', 'data', 'data_chamado'],
+  horaAbertura:       ['horaAbertura', 'hora_abertura', 'horaInicio', 'hora_inicio'],
+  dataFinalizacao:    ['dataFechamento', 'dataFinalizacao', 'data_finalizacao', 'data_final', 'fechamento', 'finalizacao', 'data_fechamento'],
+  horaFinalizacao:    ['horaFinalizacao', 'hora_finalizacao', 'horaSaida', 'hora_saida', 'hora_fechamento'],
   problemaReclamado:  ['problemareclamado', 'problema_reclamado', 'problema', 'reclamacao',
                        'motivo', 'descricao', 'assunto'],
 };
@@ -67,6 +67,29 @@ export function resolveSupportAttendantName(row: Record<string, string>): string
   return null;
 }
 
+export function resolveSupportPeriod(
+  row: Record<string, string>,
+  fallbackMonth: number,
+  fallbackYear: number
+) {
+  const mesLinha = get(row, 'mes');
+  const anoLinha = get(row, 'ano');
+  const openedAt = parseSupportDateTime(get(row, 'dataAbertura'), get(row, 'horaAbertura'));
+  const closedAt = parseSupportDateTime(get(row, 'dataFinalizacao'), get(row, 'horaFinalizacao'));
+  const periodDate = closedAt ?? openedAt;
+
+  return {
+    openedAt,
+    closedAt,
+    month: periodDate
+      ? periodDate.getMonth() + 1
+      : mesLinha ? toInt(mesLinha) || fallbackMonth : fallbackMonth,
+    year: periodDate
+      ? periodDate.getFullYear()
+      : anoLinha ? toInt(anoLinha) || fallbackYear : fallbackYear,
+  };
+}
+
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
 export interface ResumoSuporte {
@@ -110,17 +133,7 @@ export async function importarSuporte(
       }
 
       // Respeita mês/ano da linha se existir, senão usa o do lote
-      const mesLinha = get(row, 'mes');
-      const anoLinha = get(row, 'ano');
-      const openedAt = parseSupportDateTime(get(row, 'dataAbertura'), get(row, 'horaAbertura'));
-      const closedAt = parseSupportDateTime(get(row, 'dataFinalizacao'), get(row, 'horaFinalizacao'));
-      const periodDate = openedAt ?? closedAt;
-      const month = periodDate
-        ? periodDate.getMonth() + 1
-        : mesLinha ? toInt(mesLinha) || periodMonth : periodMonth;
-      const year  = periodDate
-        ? periodDate.getFullYear()
-        : anoLinha ? toInt(anoLinha) || periodYear : periodYear;
+      const { openedAt, closedAt, month, year } = resolveSupportPeriod(row, periodMonth, periodYear);
       const supportCategory = classifySupportRecord(get(row, 'problemaReclamado'));
 
       registros.push({

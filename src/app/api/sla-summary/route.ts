@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
 
     const filters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
     if (fromStr || toStr) {
-      const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
+      // Filtro de data: prioriza finalizacaoAt; fallback para aberturaAt e createdAt
+      const dataRef = sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
       if (fromStr) filters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
       if (toStr) filters.push(sql`${dataRef} <= ${new Date(toStr)}`);
     }
