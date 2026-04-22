@@ -4,8 +4,9 @@ import type { ExternalApiFilters, ExternalGroupBy } from '@/lib/api/filters';
 
 export const INSTALLATION_TYPES = ['Instalação (Nova)', 'Instalação (Reativação)'] as const;
 
+// Filtro de data: prioriza finalizacaoAt; fallback para aberturaAt e createdAt
 export function buildAttendanceDateReference() {
-  return sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
+  return sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
 }
 
 export function buildAttendanceBaseFilters(filters: ExternalApiFilters): SQL[] {

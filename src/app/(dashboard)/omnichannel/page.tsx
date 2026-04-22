@@ -96,7 +96,7 @@ function OmnichannelPageContent() {
             className="w-[180px]"
           />
 
-          <Select value={year || 'all'} onValueChange={(v: string | null) => { setYear((v ?? '') === 'all' ? '' : (v ?? '')); setMonth(''); }}>
+          <Select key={year || 'all'} value={year || 'all'} onValueChange={(v) => { setYear(!v || v === 'all' ? '' : v); setMonth(''); }}>
             <SelectTrigger className="w-[110px]">
               <SelectValue placeholder="Ano" />
             </SelectTrigger>
@@ -108,7 +108,7 @@ function OmnichannelPageContent() {
             </SelectContent>
           </Select>
 
-          <Select value={month || 'all'} onValueChange={(v: string | null) => setMonth((v ?? '') === 'all' ? '' : (v ?? ''))}>
+          <Select key={month || 'all'} value={month || 'all'} onValueChange={(v) => setMonth(!v || v === 'all' ? '' : v)}>
             <SelectTrigger className="w-[130px]">
               <SelectValue placeholder="Mês" />
             </SelectTrigger>

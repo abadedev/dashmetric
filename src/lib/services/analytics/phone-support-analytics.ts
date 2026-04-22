@@ -10,23 +10,38 @@ function getSupportRowVolume(row: {
   return explicitTotal > 0 ? explicitTotal : 1;
 }
 
-function buildSupportDateReference() {
-  return sql`COALESCE(${supportRecords.openedAt}, ${supportRecords.closedAt})`;
+function toPeriodValue(date: Date) {
+  return date.getUTCFullYear() * 100 + (date.getUTCMonth() + 1);
 }
 
-function toPeriodValue(date: Date) {
-  return date.getFullYear() * 100 + (date.getMonth() + 1);
+function buildSupportDateReference() {
+  return sql`COALESCE(${supportRecords.closedAt}, ${supportRecords.openedAt}, make_timestamp(${supportRecords.periodYear}, ${supportRecords.periodMonth}, 1, 0, 0, 0))`;
+}
+
+function toUtcDayStart(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0));
+}
+
+function toUtcDayEnd(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
+}
+
+function buildSupportFilters(filters: ExternalApiFilters) {
+  const supportFilters = [];
+  const supportDateRef = buildSupportDateReference();
+
+  if (filters.workspaceId) supportFilters.push(eq(supportRecords.workspaceId, filters.workspaceId));
+  if (filters.startDate) supportFilters.push(gte(supportDateRef, toUtcDayStart(filters.startDate)));
+  if (filters.endDate) supportFilters.push(lte(supportDateRef, toUtcDayEnd(filters.endDate)));
+
+  return supportFilters;
 }
 
 export async function getPhoneSupportAnalytics(filters: ExternalApiFilters) {
-  const supportFilters = [];
-  const supportDateRef = buildSupportDateReference();
+  const supportFilters = buildSupportFilters(filters);
   const legacyCategoryFilters = [];
 
-  if (filters.workspaceId) supportFilters.push(eq(supportRecords.workspaceId, filters.workspaceId));
   if (filters.workspaceId) legacyCategoryFilters.push(eq(supportCallCategories.workspaceId, filters.workspaceId));
-  if (filters.startDate) supportFilters.push(gte(supportDateRef, filters.startDate));
-  if (filters.endDate) supportFilters.push(lte(supportDateRef, filters.endDate));
   if (filters.startDate) {
     legacyCategoryFilters.push(
       gte(
@@ -62,7 +77,7 @@ export async function getPhoneSupportAnalytics(filters: ExternalApiFilters) {
       })
       .from(supportRecords)
       .where(supportWhere)
-      .orderBy(desc(supportRecords.periodYear), desc(supportRecords.periodMonth))
+      .orderBy(desc(supportRecords.closedAt), desc(supportRecords.openedAt), desc(supportRecords.periodYear), desc(supportRecords.periodMonth))
       .limit(Math.min(filters.limit, 100)),
 
     db
@@ -154,13 +169,7 @@ export async function getPhoneSupportAnalytics(filters: ExternalApiFilters) {
 }
 
 export async function getPhoneSupportCounts(filters: ExternalApiFilters) {
-  const supportFilters = [];
-  const supportDateRef = buildSupportDateReference();
-
-  if (filters.workspaceId) supportFilters.push(eq(supportRecords.workspaceId, filters.workspaceId));
-  if (filters.startDate) supportFilters.push(gte(supportDateRef, filters.startDate));
-  if (filters.endDate) supportFilters.push(lte(supportDateRef, filters.endDate));
-
+  const supportFilters = buildSupportFilters(filters);
   const whereClause = supportFilters.length ? and(...supportFilters) : undefined;
 
   const [row] = await db
