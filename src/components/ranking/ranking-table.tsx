@@ -54,7 +54,7 @@ export function RankingTable({ ranking }: { ranking: any[] }) {
               <TableBody>
                 {ranking.map((tech) => (
                   <TableRow
-                    key={tech.technicianId}
+                    key={tech.technicianKey ?? tech.technicianId ?? tech.technicianName}
                     className="cursor-pointer"
                     onClick={() => setSelectedTech(tech)}
                   >
