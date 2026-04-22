@@ -33,10 +33,18 @@ function canonicalizeTechnicianName(name: string | null | undefined) {
     .toLowerCase();
 }
 
+function resolveTechnicianAlias(canonical: string) {
+  if (!canonical) return '';
+  if (canonical === 'lucas mendona a') return 'lucas mendonca';
+  if (canonical === 'juscelino cruz') return 'juscelino da cruz';
+  return canonical;
+}
+
 function toDisplayTechnicianName(name: string | null | undefined) {
-  const canonical = canonicalizeTechnicianName(name);
+  const canonical = resolveTechnicianAlias(canonicalizeTechnicianName(name));
   if (!canonical) return '';
   if (canonical === 'lucas mendonca') return 'Lucas Mendonca';
+  if (canonical === 'juscelino da cruz') return 'Juscelino Da Cruz';
 
   return canonical
     .split(' ')
@@ -113,8 +121,9 @@ export async function GET(req: NextRequest) {
 
     const rankingMerged = Array.from(
       rankingRaw.reduce<
-        Map<number, {
-          technicianId: number;
+        Map<string, {
+          technicianId: number | null;
+          technicianKey: string;
           technicianName: string;
           totalOS: number;
           instNova: number;
@@ -129,14 +138,15 @@ export async function GET(req: NextRequest) {
           avgSlaUtilWeightedTotal: number;
         }>
       >((acc, row) => {
-        const technicianId = Number(row.tecnicoId ?? 0);
-        if (!technicianId) return acc;
-
         const technicianName = toDisplayTechnicianName(row.tecnico);
         if (!technicianName || isExcludedTechnicianName(technicianName)) return acc;
+        const technicianKey = resolveTechnicianAlias(canonicalizeTechnicianName(technicianName));
+        if (!technicianKey) return acc;
+        const technicianId = row.tecnicoId != null ? Number(row.tecnicoId) : null;
 
-        const current = acc.get(technicianId) ?? {
+        const current = acc.get(technicianKey) ?? {
           technicianId,
+          technicianKey,
           technicianName,
           totalOS: 0,
           instNova: 0,
@@ -151,6 +161,9 @@ export async function GET(req: NextRequest) {
           avgSlaUtilWeightedTotal: 0,
         };
 
+        if (current.technicianId == null && technicianId != null) {
+          current.technicianId = technicianId;
+        }
         current.technicianName = current.technicianName.length >= technicianName.length
           ? current.technicianName
           : technicianName;
@@ -165,7 +178,7 @@ export async function GET(req: NextRequest) {
         current.withinSlaUtil += Number(row.withinSlaUtil ?? 0);
         current.concluded += Number(row.concluded ?? 0);
         current.avgSlaUtilWeightedTotal += (Number(row.avgSlaUtilSeg) || 0) * Number(row.concluded ?? 0);
-        acc.set(technicianId, current);
+        acc.set(technicianKey, current);
         return acc;
       }, new Map()).values()
     )
@@ -174,6 +187,7 @@ export async function GET(req: NextRequest) {
     const ranking = rankingMerged.map((r, i) => ({
       position: i + 1,
       technicianId: r.technicianId,
+      technicianKey: r.technicianKey,
       technicianName: r.technicianName,
       totalOS: r.totalOS,
       instNova: r.instNova,
