@@ -11,13 +11,20 @@ import { useQueryState } from 'nuqs';
 import { PageLayout } from '@/components/layout/page-layout';
 import { Button } from '@/components/ui/button';
 
+function formatLocalDateParam(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function SuportePageContent() {
   const [from] = useQueryState("from", parseAsLocalIsoDate);
   const [to] = useQueryState("to", parseAsLocalIsoDate);
 
   const queryParams = new URLSearchParams();
-  if (from) queryParams.set('from', from.toISOString());
-  if (to) queryParams.set('to', to.toISOString());
+  if (from) queryParams.set('from', formatLocalDateParam(from));
+  if (to) queryParams.set('to', formatLocalDateParam(to));
   const qs = queryParams.toString();
 
   const { data, isLoading, isError, refetch } = useQuery({

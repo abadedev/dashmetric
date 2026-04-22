@@ -34,7 +34,15 @@ function getSupportRowVolume(row: {
 }
 
 function buildSupportDateReference() {
-  return sql`COALESCE(${supportRecords.openedAt}, ${supportRecords.closedAt})`;
+  return sql`COALESCE(${supportRecords.closedAt}, ${supportRecords.openedAt}, make_timestamp(${supportRecords.periodYear}, ${supportRecords.periodMonth}, 1, 0, 0, 0))`;
+}
+
+function toUtcDayStart(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0));
+}
+
+function toUtcDayEnd(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
 }
 
 export async function getSupportTypeSummary(
@@ -48,11 +56,11 @@ export async function getSupportTypeSummary(
   }
 
   if (filters.from) {
-    supportWhere.push(gte(supportDateRef, filters.from));
+    supportWhere.push(gte(supportDateRef, toUtcDayStart(filters.from)));
   }
 
   if (filters.to) {
-    supportWhere.push(lte(supportDateRef, filters.to));
+    supportWhere.push(lte(supportDateRef, toUtcDayEnd(filters.to)));
   }
 
   const supportRows = await db
@@ -69,7 +77,7 @@ export async function getSupportTypeSummary(
     })
     .from(supportRecords)
     .where(supportWhere.length ? and(...supportWhere) : undefined)
-    .orderBy(desc(supportRecords.openedAt), desc(supportRecords.closedAt), desc(supportRecords.periodYear), desc(supportRecords.periodMonth));
+    .orderBy(desc(supportRecords.closedAt), desc(supportRecords.openedAt), desc(supportRecords.periodYear), desc(supportRecords.periodMonth));
 
   const summaryFromRows = Array.from(
     supportRows.reduce<Map<string, number>>((acc, row) => {
@@ -91,7 +99,6 @@ export async function getSupportTypeSummary(
     }))
     .sort((left, right) => right.quantidade - left.quantidade || left.tipo.localeCompare(right.tipo));
 
-  // Legacy fallback: older imports only stored monthly category aggregates.
   if (summary.length === 0) {
     const legacyWhere = [];
 
@@ -103,7 +110,7 @@ export async function getSupportTypeSummary(
       legacyWhere.push(
         gte(
           sql<number>`${supportCallCategories.periodYear} * 100 + ${supportCallCategories.periodMonth}`,
-          filters.from.getFullYear() * 100 + (filters.from.getMonth() + 1)
+          filters.from.getUTCFullYear() * 100 + (filters.from.getUTCMonth() + 1)
         )
       );
     }
@@ -112,7 +119,7 @@ export async function getSupportTypeSummary(
       legacyWhere.push(
         lte(
           sql<number>`${supportCallCategories.periodYear} * 100 + ${supportCallCategories.periodMonth}`,
-          filters.to.getFullYear() * 100 + (filters.to.getMonth() + 1)
+          filters.to.getUTCFullYear() * 100 + (filters.to.getUTCMonth() + 1)
         )
       );
     }

@@ -20,10 +20,10 @@ export async function GET(req: NextRequest) {
     const toStr   = searchParams.get('to');
     const city    = searchParams.get('city');
 
-    // Filtro de data para atendimentos: COALESCE(aberturaAt, finalizacaoAt, createdAt)
+    // Filtro de data: prioriza finalizacaoAt; fallback para aberturaAt e createdAt
     const atendFilters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
     if (fromStr || toStr) {
-      const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
+      const dataRef = sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
       if (fromStr) atendFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
       if (toStr)   atendFilters.push(sql`${dataRef} <= ${new Date(toStr)}`);
     }
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     // Cidades distintas para o filtro (escopo: workspace + data, sem filtro de cidade)
     const baseCityFilters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
     if (fromStr || toStr) {
-      const dataRef = sql`COALESCE(${atendimentos.aberturaAt}, ${atendimentos.finalizacaoAt}, ${atendimentos.createdAt})`;
+      const dataRef = sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
       if (fromStr) baseCityFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
       if (toStr)   baseCityFilters.push(sql`${dataRef} <= ${new Date(toStr)}`);
     }
