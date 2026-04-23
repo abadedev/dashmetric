@@ -1,75 +1,127 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import {
   BarChart,
-  BarChart3,
+  Briefcase,
   CheckCircle,
+  ChevronDown,
+  ClipboardList,
   HeadphonesIcon,
   LayoutDashboard,
   ListTodo,
+  MessageSquare,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
+  Receipt,
   Settings,
   TrendingUp,
   Trophy,
   Upload,
   UserMinus,
+  Wrench,
 } from 'lucide-react';
-import { WorkspaceBrand } from '@/components/brand/workspace-brand';
+import { DstechLogo } from '@/components/brand/dstech-logo';
 import { useSidebar } from '@/components/layout/sidebar-context';
+import { useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 import { getWorkspaceSlugFromPathname, resolveWorkspaceHref } from '@/lib/workspace-navigation';
 
-function WhatsAppIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-    </svg>
-  );
-}
+type NavItem = {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
 
-const fallbackNavItems = [
-  { name: 'Dashboard Executivo', href: '/', icon: LayoutDashboard },
-  { name: 'Atendimentos', href: '/atendimentos', icon: ListTodo },
-  { name: 'Ranking TÃ©cnicos', href: '/ranking', icon: Trophy },
-  { name: 'Qualidade & Reclam.', href: '/qualidade', icon: CheckCircle },
-  { name: 'Suporte TÃ©cnico', href: '/suporte', icon: HeadphonesIcon },
-  { name: 'Vendas', href: '/vendas', icon: TrendingUp },
-  { name: 'Cancelamentos', href: '/cancelamentos', icon: UserMinus },
-  { name: 'Infraestrutura', href: '/infraestrutura', icon: Network },
+type NavGroup = {
+  key: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  items: NavItem[];
+};
+
+type GroupState = Record<string, boolean>;
+
+const TOP_ITEMS: NavItem[] = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Resumo SLA', href: '/resumo-sla', icon: BarChart },
-  { name: 'Importar Dados', href: '/upload', icon: Upload },
 ];
 
-const iconMap = {
-  LayoutDashboard,
-  ListTodo,
-  Trophy,
-  CheckCircle,
-  HeadphonesIcon,
-  BarChart,
-  BarChart3,
-  Upload,
-  TrendingUp,
-  UserMinus,
-  Network,
-  WhatsAppIcon,
-} as const;
+const NAV_GROUPS: NavGroup[] = [
+  {
+    key: 'tecnico',
+    label: 'Técnico',
+    icon: Wrench,
+    items: [
+      { name: 'Atividades', href: '/atendimentos', icon: ListTodo },
+      { name: 'Ranking Técnicos', href: '/ranking', icon: Trophy },
+      { name: 'Qualidade & Reclamações', href: '/qualidade', icon: CheckCircle },
+      { name: 'Suporte Técnico', href: '/suporte', icon: HeadphonesIcon },
+      { name: 'Omnichannel', href: '/omnichannel', icon: MessageSquare },
+    ],
+  },
+  {
+    key: 'comercial',
+    label: 'Comercial',
+    icon: Briefcase,
+    items: [
+      { name: 'Cancelamentos', href: '/cancelamentos', icon: UserMinus },
+      { name: 'Cobrança', href: '/cobranca', icon: Receipt },
+    ],
+  },
+  {
+    key: 'vendas',
+    label: 'Vendas',
+    icon: TrendingUp,
+    items: [
+      { name: 'Vendas', href: '/vendas', icon: TrendingUp },
+    ],
+  },
+  {
+    key: 'infraestrutura',
+    label: 'Infraestrutura',
+    icon: Network,
+    items: [
+      { name: 'Infraestrutura', href: '/infraestrutura', icon: Network },
+      { name: 'Listagem de Serviços', href: '/listagem-servicos', icon: ClipboardList },
+    ],
+  },
+];
 
-type WorkspaceEntry = {
-  id: string;
-  name: string;
-  slug: string;
-  logoUrl: string | null;
-  logoDarkUrl: string | null;
-  logoLightUrl: string | null;
+const DEFAULT_GROUP_STATE: GroupState = {
+  tecnico: true,
+  comercial: true,
+  vendas: true,
+  infraestrutura: true,
 };
+
+function loadGroupState(): GroupState {
+  if (typeof window === 'undefined') return DEFAULT_GROUP_STATE;
+  try {
+    const raw = window.localStorage.getItem('sidebar-groups');
+    if (!raw) return DEFAULT_GROUP_STATE;
+    return { ...DEFAULT_GROUP_STATE, ...(JSON.parse(raw) as GroupState) };
+  } catch {
+    return DEFAULT_GROUP_STATE;
+  }
+}
+
+function saveGroupState(state: GroupState) {
+  try {
+    window.localStorage.setItem('sidebar-groups', JSON.stringify(state));
+  } catch {}
+}
+
+function resolvedIsActive(href: string, pathname: string, workspaceSlug: string | null): boolean {
+  const resolved = resolveWorkspaceHref(href, workspaceSlug);
+  if (href === '/dashboard') {
+    return pathname === resolved || pathname.endsWith('/dashboard');
+  }
+  return pathname === resolved || pathname.startsWith(`${resolved}/`);
+}
 
 interface SidebarProps {
   mobile?: boolean;
@@ -79,75 +131,78 @@ export function Sidebar({ mobile = false }: SidebarProps) {
   const { collapsed, toggle } = useSidebar();
   const pathname = usePathname();
   const workspaceSlug = getWorkspaceSlugFromPathname(pathname);
-  const [cookieSlug, setCookieSlug] = useState<string | null>(null);
-
-  useEffect(() => {
-    const match = document.cookie.split('; ').find((c) => c.startsWith('dwm_active_workspace='));
-    setCookieSlug(match ? decodeURIComponent(match.split('=')[1] ?? '') : null);
-  }, [pathname]);
-
-  const effectiveSlug = workspaceSlug ?? cookieSlug;
   const effectiveCollapsed = mobile ? false : collapsed;
 
-  const { data: wsData } = useQuery({
-    queryKey: ['my-workspaces'],
-    queryFn: async () => {
-      const res = await fetch('/api/workspaces/my');
-      if (!res.ok) return { data: [] as WorkspaceEntry[] };
-      return res.json() as Promise<{ data: WorkspaceEntry[] }>;
-    },
-    staleTime: 30_000,
-  });
-  const workspaces = wsData?.data ?? [];
+  const { data: sessionData } = useSession();
+  const sessionUser = sessionData?.user as { role?: string } | undefined;
+  const isPlatformAdmin = sessionUser?.role === 'admin';
 
-  const activeWorkspace = effectiveSlug
-    ? workspaces.find((workspace) => workspace.slug === effectiveSlug)
-    : workspaces[0];
+  const [groupState, setGroupState] = useState<GroupState>(DEFAULT_GROUP_STATE);
 
-  const { data } = useQuery({
-    queryKey: ['sidebar-modules', workspaceSlug],
-    queryFn: async () => {
-      const response = await fetch('/api/modules/sidebar');
-      if (!response.ok) {
-        throw new Error('Falha ao carregar mÃ³dulos');
-      }
-      return response.json() as Promise<{
-        data: Array<{ id: number; name: string; href: string; icon: keyof typeof iconMap }>;
-      }>;
-    },
-    retry: false,
-  });
+  useEffect(() => {
+    setGroupState(loadGroupState());
+  }, []);
 
-  const { data: moduleAccessData } = useQuery({
-    queryKey: ['me-module-access', 'sidebar'],
-    queryFn: async () => {
-      const res = await fetch('/api/me/module-access');
-      if (!res.ok) return null;
-      return res.json() as Promise<{
-        data: { globalRole: string; workspaceRole: string | null; moduleAccess: Record<string, string> };
-      }>;
-    },
-    staleTime: 60_000,
-  });
+  function isGroupOpen(group: NavGroup): boolean {
+    const savedOpen = groupState[group.key] ?? true;
+    const hasActiveChild = group.items.some((item) =>
+      resolvedIsActive(item.href, pathname, workspaceSlug)
+    );
+    return savedOpen || hasActiveChild;
+  }
 
-  const moduleAccess = moduleAccessData?.data?.moduleAccess ?? {};
-  const globalRole = moduleAccessData?.data?.globalRole;
-  const showAdminLink =
-    globalRole === 'admin' ||
-    moduleAccessData?.data?.workspaceRole === 'ADMIN' ||
-    moduleAccess['infraestrutura'] === 'admin' ||
-    moduleAccess['listagem-servicos'] === 'admin';
+  function toggleGroup(key: string) {
+    const next = { ...groupState, [key]: !(groupState[key] ?? true) };
+    setGroupState(next);
+    saveGroupState(next);
+  }
 
-  const navItems =
-    data?.data?.map((item) => ({
-      ...item,
-      href: resolveWorkspaceHref(item.href, workspaceSlug),
-      icon: iconMap[item.icon] ?? LayoutDashboard,
-    })) ??
-    fallbackNavItems.map((item) => ({
-      ...item,
-      href: resolveWorkspaceHref(item.href, workspaceSlug),
-    }));
+  function NavLink({ item, indent = false }: { item: NavItem; indent?: boolean }) {
+    const isActive = resolvedIsActive(item.href, pathname, workspaceSlug);
+    const Icon = item.icon;
+    return (
+      <Link
+        href={resolveWorkspaceHref(item.href, workspaceSlug)}
+        title={effectiveCollapsed ? item.name : undefined}
+        className={cn(
+          'group relative flex items-center rounded-xl text-sm font-medium transition-all duration-200 ease-out motion-reduce:transition-none',
+          effectiveCollapsed
+            ? 'mx-auto h-10 w-10 justify-center px-0 py-0'
+            : cn('gap-3 px-3 py-2.5', indent && 'pl-6'),
+          isActive
+            ? 'border border-sidebar-border/80 bg-sidebar-accent/75 text-sidebar-foreground shadow-[0_14px_28px_-24px_rgba(15,23,42,0.32)]'
+            : 'border border-transparent text-sidebar-foreground/72 hover:border-sidebar-border/70 hover:bg-sidebar-accent/75 hover:text-sidebar-foreground'
+        )}
+      >
+        {!effectiveCollapsed && (
+          <span
+            className={cn(
+              'absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-transparent transition-all',
+              isActive && 'bg-sidebar-foreground/40'
+            )}
+          />
+        )}
+        <Icon
+          className={cn(
+            'h-4 w-4 shrink-0 transition-colors',
+            isActive
+              ? 'text-sidebar-foreground'
+              : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground'
+          )}
+        />
+        {!effectiveCollapsed && <span className="truncate">{item.name}</span>}
+      </Link>
+    );
+  }
+
+  const allFlatItems: NavItem[] = [
+    ...TOP_ITEMS,
+    ...NAV_GROUPS.flatMap((g) => g.items),
+    { name: 'Importar Dados', href: '/upload', icon: Upload },
+    ...(isPlatformAdmin
+      ? [{ name: 'Configurações', href: '/admin', icon: Settings }]
+      : []),
+  ];
 
   return (
     <aside
@@ -170,20 +225,10 @@ export function Sidebar({ mobile = false }: SidebarProps) {
       >
         {!effectiveCollapsed && (
           <Link
-            href={resolveWorkspaceHref('/', workspaceSlug)}
-            className="flex min-w-0 flex-1 items-center opacity-85 transition-opacity hover:opacity-100"
+            href={resolveWorkspaceHref('/dashboard', workspaceSlug)}
+            className="flex min-w-0 flex-1 items-center px-1 opacity-85 transition-opacity hover:opacity-100"
           >
-            {activeWorkspace ? (
-              <WorkspaceBrand
-                name={activeWorkspace.name}
-                logoUrl={activeWorkspace.logoUrl}
-                logoDarkUrl={activeWorkspace.logoDarkUrl}
-                logoLightUrl={activeWorkspace.logoLightUrl}
-                size="sidebar"
-              />
-            ) : (
-              <WorkspaceBrand name="Dashmetric" size="sidebar" />
-            )}
+            <DstechLogo className="h-5 w-auto" />
           </Link>
         )}
 
@@ -198,7 +243,11 @@ export function Sidebar({ mobile = false }: SidebarProps) {
               effectiveCollapsed && 'mx-auto'
             )}
           >
-            {effectiveCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            {effectiveCollapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
           </button>
         )}
       </div>
@@ -210,110 +259,78 @@ export function Sidebar({ mobile = false }: SidebarProps) {
           effectiveCollapsed && !mobile && 'px-1.5'
         )}
       >
-        {false && !effectiveCollapsed && (
-          <div className="mb-3 px-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/45">
-              Navegação operacional
-            </p>
-          </div>
-        )}
-
         <nav className="flex flex-col gap-1">
-          {navItems.map((item) => {
-            const isDashboardLink = item.href.endsWith('/dashboard') || item.href === '/';
-            const isActive = isDashboardLink
-              ? pathname === item.href || pathname === '/' || pathname.endsWith('/dashboard')
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          {effectiveCollapsed ? (
+            allFlatItems.map((item) => (
+              <NavLink key={item.href} item={item} />
+            ))
+          ) : (
+            <>
+              {TOP_ITEMS.map((item) => (
+                <NavLink key={item.href} item={item} />
+              ))}
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={effectiveCollapsed ? item.name : undefined}
-                className={cn(
-                  'group relative flex items-center rounded-xl text-sm font-medium transition-all duration-200 ease-out motion-reduce:transition-none',
-                  effectiveCollapsed ? 'mx-auto h-10 w-10 justify-center px-0 py-0' : 'gap-3 px-3 py-2.5',
-                  isActive
-                    ? 'border border-sidebar-border/80 bg-sidebar-accent/75 text-sidebar-foreground shadow-[0_14px_28px_-24px_rgba(15,23,42,0.32)]'
-                    : 'border border-transparent text-sidebar-foreground/72 hover:border-sidebar-border/70 hover:bg-sidebar-accent/75 hover:text-sidebar-foreground'
-                )}
-              >
-                {!effectiveCollapsed && (
-                  <span
-                    className={cn(
-                      'absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-transparent transition-all',
-                      isActive && 'bg-sidebar-foreground/40'
-                    )}
-                  />
-                )}
-                <item.icon
-                  className={cn(
-                    'h-4 w-4 shrink-0 transition-colors',
-                    isActive ? 'text-sidebar-foreground' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground'
-                  )}
-                />
-                {!effectiveCollapsed && <span className="truncate">{item.name}</span>}
-              </Link>
-            );
-          })}
+              {NAV_GROUPS.map((group) => {
+                const open = isGroupOpen(group);
+                const GroupIcon = group.icon;
+                const hasActiveChild = group.items.some((item) =>
+                  resolvedIsActive(item.href, pathname, workspaceSlug)
+                );
 
-          {showAdminLink && (() => {
-            const adminHref = resolveWorkspaceHref('/admin', workspaceSlug);
-            const isActive = pathname === adminHref || pathname.startsWith(`${adminHref}/`);
-            return (
-              <Link
-                href={adminHref}
-                title={effectiveCollapsed ? 'Configurações' : undefined}
-                className={cn(
-                  'group relative flex items-center rounded-xl text-sm font-medium transition-all duration-200 ease-out motion-reduce:transition-none',
-                  effectiveCollapsed ? 'mx-auto h-10 w-10 justify-center px-0 py-0' : 'gap-3 px-3 py-2.5',
-                  isActive
-                    ? 'border border-sidebar-border/80 bg-sidebar-accent/75 text-sidebar-foreground shadow-[0_14px_28px_-24px_rgba(15,23,42,0.32)]'
-                    : 'border border-transparent text-sidebar-foreground/72 hover:border-sidebar-border/70 hover:bg-sidebar-accent/75 hover:text-sidebar-foreground'
+                return (
+                  <div key={group.key} className="mt-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.key)}
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-widest transition-colors',
+                        hasActiveChild
+                          ? 'text-sidebar-foreground/70'
+                          : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/60'
+                      )}
+                    >
+                      <GroupIcon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="flex-1 text-left">{group.label}</span>
+                      <ChevronDown
+                        className={cn(
+                          'h-3.5 w-3.5 shrink-0 transition-transform duration-200',
+                          open && 'rotate-180'
+                        )}
+                      />
+                    </button>
+
+                    <div
+                      className={cn(
+                        'overflow-hidden transition-all duration-200',
+                        open ? 'max-h-96' : 'max-h-0'
+                      )}
+                    >
+                      <div className="flex flex-col gap-0.5 pb-1">
+                        {group.items.map((item) => (
+                          <NavLink key={item.href} item={item} indent />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className="mt-2 flex flex-col gap-1 border-t border-sidebar-border/50 pt-2">
+                <NavLink item={{ name: 'Importar Dados', href: '/upload', icon: Upload }} />
+                {isPlatformAdmin && (
+                  <NavLink item={{ name: 'Configurações', href: '/admin', icon: Settings }} />
                 )}
-              >
-                {!effectiveCollapsed && (
-                  <span
-                    className={cn(
-                      'absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-transparent transition-all',
-                      isActive && 'bg-sidebar-foreground/40'
-                    )}
-                  />
-                )}
-                <Settings
-                  className={cn(
-                    'h-4 w-4 shrink-0 transition-colors',
-                    isActive ? 'text-sidebar-foreground' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground'
-                  )}
-                />
-                {!effectiveCollapsed && <span className="truncate">Configurações</span>}
-              </Link>
-            );
-          })()}
+              </div>
+            </>
+          )}
         </nav>
       </div>
 
       {!effectiveCollapsed && (
-        <div
-          onClick={() => window.location.href = 'https://www.linkedin.com/in/rafael-abade/'}
-          className="cursor-pointer shrink-0 border-t border-sidebar-border/80 px-4 py-3"
-        >
-          <div className="flex items-center gap-3">
-            <Image
-              src="https://lh3.googleusercontent.com/a/ACg8ocJOhWkGNQHE-zbn2F7bopSptXBrEh9nCAZKyTCUv2lp2eZWynFS=s288-c-no"
-              alt="Rafael de S Abade Junior"
-              width={36}
-              height={36}
-              className="shrink-0 rounded-full ring-1 ring-sidebar-border/60"
-              unoptimized
-            />
-            <div className="min-w-0 flex flex-col">
-              <span className="truncate text-xs font-medium leading-tight text-sidebar-foreground/90">
-                Rafael de S Abade Junior
-              </span>
-              <span className="text-[10px] leading-tight text-sidebar-foreground/45">Criador/Desenvolvedor</span>
-            </div>
-          </div>
+        <div className="shrink-0 border-t border-sidebar-border/80 px-4 py-3">
+          <p className="text-[10px] text-sidebar-foreground/30 leading-tight">
+            NOC Performance Manager v1.0.0
+          </p>
         </div>
       )}
     </aside>

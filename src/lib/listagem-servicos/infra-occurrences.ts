@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { ServiceListing } from '@/lib/db/infra-schema';
 
 export const INFRA_OCCURRENCE_OPTIONS = [
+  'CA com Abelhas | Marimbondos',
   'CA com formigas',
   'Extensão de rede necessária',
   'CA com tampa solta',
