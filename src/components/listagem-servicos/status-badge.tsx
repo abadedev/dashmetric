@@ -14,14 +14,17 @@ const STATUS_CONFIG: Record<string, { label: string; className: string; dotClass
   resolvido: { label: 'Resolvido', className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', dotClass: 'bg-emerald-400' },
   nao_resolvido: { label: 'Não resolvido', className: 'bg-red-500/15 text-red-400 border-red-500/30', dotClass: 'bg-red-400' },
   tecnico_direcionado: { label: 'Técnico direcionado', className: 'bg-purple-500/15 text-purple-400 border-purple-500/30', dotClass: 'bg-purple-400' },
+  em_monitoramento: { label: 'Em monitoramento', className: 'bg-amber-500/15 text-amber-400 border-amber-500/30', dotClass: 'bg-amber-400' },
 };
 
 const FALLBACK_CONFIG = { label: '—', className: 'bg-muted text-muted-foreground border-border', dotClass: 'bg-muted-foreground' };
 
 const STATUS_OPTIONS = [
   { value: 'pendente', label: 'Pendente' },
-  { value: 'tecnico_direcionado', label: 'Técnico Direcionado' },
   { value: 'em_andamento', label: 'Em Andamento' },
+  { value: 'tecnico_direcionado', label: 'Técnico Direcionado' },
+  { value: 'em_monitoramento', label: 'Em Monitoramento' },
+  { value: 'nao_resolvido', label: 'Não Resolvido' },
   { value: 'resolvido', label: 'Resolvido' },
 ];
 
@@ -89,7 +92,7 @@ export function StatusSelectBadge({
     <SelectPrimitive.Root value={status} onValueChange={handleValueChange}>
       <SelectPrimitive.Trigger
         className={cn(
-          'inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5',
+          'inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-0.5',
           'text-xs font-medium whitespace-nowrap outline-none transition-opacity',
           'focus-visible:ring-2 focus-visible:ring-ring/50',
           'disabled:cursor-not-allowed',
@@ -102,10 +105,10 @@ export function StatusSelectBadge({
         <ChevronDownIcon className="h-3 w-3 shrink-0 opacity-60" />
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
-        <SelectPrimitive.Positioner side="bottom" sideOffset={4} align="start" alignItemWithTrigger={false}>
+        <SelectPrimitive.Positioner side="bottom" sideOffset={6} align="start" alignItemWithTrigger={false} collisionPadding={8}>
           <SelectPrimitive.Popup
             className={cn(
-              'isolate z-50 min-w-44 overflow-hidden rounded-xl border border-border/70',
+              'isolate z-50 min-w-[180px] overflow-hidden rounded-xl border border-border/70',
               'bg-popover/98 text-popover-foreground shadow-lg backdrop-blur-xl',
               'origin-(--transform-origin)',
               'data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95',
@@ -120,10 +123,10 @@ export function StatusSelectBadge({
                   <SelectPrimitive.Item
                     key={opt.value}
                     value={opt.value}
-                    className="relative flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
+                    className="relative flex cursor-default items-center gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap outline-none select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
                   >
                     <span className={cn('inline-block h-2 w-2 shrink-0 rounded-full', optConfig.dotClass)} />
-                    <SelectPrimitive.ItemText className="flex-1">{opt.label}</SelectPrimitive.ItemText>
+                    <SelectPrimitive.ItemText className="flex-1 whitespace-nowrap">{opt.label}</SelectPrimitive.ItemText>
                     <SelectPrimitive.ItemIndicator
                       render={<span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center" />}
                     >

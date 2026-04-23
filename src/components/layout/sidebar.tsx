@@ -15,6 +15,7 @@ import {
   Network,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
   TrendingUp,
   Trophy,
   Upload,
@@ -116,6 +117,26 @@ export function Sidebar({ mobile = false }: SidebarProps) {
     },
     retry: false,
   });
+
+  const { data: moduleAccessData } = useQuery({
+    queryKey: ['me-module-access', 'sidebar'],
+    queryFn: async () => {
+      const res = await fetch('/api/me/module-access');
+      if (!res.ok) return null;
+      return res.json() as Promise<{
+        data: { globalRole: string; workspaceRole: string | null; moduleAccess: Record<string, string> };
+      }>;
+    },
+    staleTime: 60_000,
+  });
+
+  const moduleAccess = moduleAccessData?.data?.moduleAccess ?? {};
+  const globalRole = moduleAccessData?.data?.globalRole;
+  const showAdminLink =
+    globalRole === 'admin' ||
+    moduleAccessData?.data?.workspaceRole === 'ADMIN' ||
+    moduleAccess['infraestrutura'] === 'admin' ||
+    moduleAccess['listagem-servicos'] === 'admin';
 
   const navItems =
     data?.data?.map((item) => ({
@@ -235,6 +256,40 @@ export function Sidebar({ mobile = false }: SidebarProps) {
               </Link>
             );
           })}
+
+          {showAdminLink && (() => {
+            const adminHref = resolveWorkspaceHref('/admin', workspaceSlug);
+            const isActive = pathname === adminHref || pathname.startsWith(`${adminHref}/`);
+            return (
+              <Link
+                href={adminHref}
+                title={effectiveCollapsed ? 'Configurações' : undefined}
+                className={cn(
+                  'group relative flex items-center rounded-xl text-sm font-medium transition-all duration-200 ease-out motion-reduce:transition-none',
+                  effectiveCollapsed ? 'mx-auto h-10 w-10 justify-center px-0 py-0' : 'gap-3 px-3 py-2.5',
+                  isActive
+                    ? 'border border-sidebar-border/80 bg-sidebar-accent/75 text-sidebar-foreground shadow-[0_14px_28px_-24px_rgba(15,23,42,0.32)]'
+                    : 'border border-transparent text-sidebar-foreground/72 hover:border-sidebar-border/70 hover:bg-sidebar-accent/75 hover:text-sidebar-foreground'
+                )}
+              >
+                {!effectiveCollapsed && (
+                  <span
+                    className={cn(
+                      'absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-transparent transition-all',
+                      isActive && 'bg-sidebar-foreground/40'
+                    )}
+                  />
+                )}
+                <Settings
+                  className={cn(
+                    'h-4 w-4 shrink-0 transition-colors',
+                    isActive ? 'text-sidebar-foreground' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground'
+                  )}
+                />
+                {!effectiveCollapsed && <span className="truncate">Configurações</span>}
+              </Link>
+            );
+          })()}
         </nav>
       </div>
 

@@ -13,16 +13,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
 import {
   humanizeModuleAccessLevel,
   MODULE_ACCESS_LEVELS,
@@ -126,43 +120,48 @@ function ModuleAccessSelector({
   );
 }
 
-function GroupSheet({
+function GroupDialog({
   group,
+  open,
+  onClose,
   modules,
   globalPermissions,
 }: {
-  group: GroupItem;
+  group: GroupItem | null;
+  open: boolean;
+  onClose: () => void;
   modules: ModuleCatalogItem[];
   globalPermissions: PermissionItem[];
 }) {
   const queryClient = useQueryClient();
 
-  const [name, setName] = useState(group.name);
-  const [description, setDescription] = useState(group.description ?? '');
+  const [name, setName] = useState(group?.name ?? '');
+  const [description, setDescription] = useState(group?.description ?? '');
   const presets = useMemo(() => buildRolePresets(modules, globalPermissions), [modules, globalPermissions]);
   const [selectedPresetKey, setSelectedPresetKey] = useState<string>('custom');
 
   const initialModuleAccess = useMemo(() => {
+    if (!group) return {} as Record<string, ModuleAccessLevel>;
     const fromLegacy = resolveModuleAccessMapFromKeys(
       group.permissions.map((permission) => permission.key).filter((key) => !key.startsWith('admin.'))
     );
-
     return Object.fromEntries(
       modules.map((module) => [
         module.slug,
         group.moduleAccess?.[module.slug] ?? fromLegacy[module.slug] ?? 'none',
       ])
     ) as Record<string, ModuleAccessLevel>;
-  }, [group.moduleAccess, group.permissions, modules]);
+  }, [group, modules]);
 
   const [moduleAccess, setModuleAccess] = useState<Record<string, ModuleAccessLevel>>(initialModuleAccess);
   const initialGlobalPermIds = new Set(
-    group.permissions.filter((permission) => isGlobalPermission(permission)).map((permission) => permission.permissionId)
+    (group?.permissions ?? []).filter((p) => isGlobalPermission(p)).map((p) => p.permissionId)
   );
   const [selectedGlobalPermIds, setSelectedGlobalPermIds] = useState<Set<number>>(initialGlobalPermIds);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      if (!group) return;
       const res = await fetch(`/api/admin/groups/${group.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -171,13 +170,12 @@ function GroupSheet({
       if (!res.ok) throw new Error('Falha ao atualizar grupo');
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-groups'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-groups'] }),
   });
 
   const accessMutation = useMutation({
     mutationFn: async () => {
+      if (!group) return;
       const res = await fetch(`/api/admin/groups/${group.id}/permissions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -189,170 +187,172 @@ function GroupSheet({
       if (!res.ok) throw new Error('Falha ao salvar acessos');
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-groups'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-groups'] }),
   });
 
   const isSaving = updateMutation.isPending || accessMutation.isPending;
 
+  if (!group) return null;
+
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <SheetHeader className="border-b px-4 pb-4">
-        <div className="flex items-center gap-2 text-primary">
-          <Shield className="h-5 w-5" />
-          <SheetTitle>Configurar grupo</SheetTitle>
-        </div>
-        <SheetDescription>
-          Defina o nome do grupo, o nível de acesso por módulo e as permissões globais administrativas.
-        </SheetDescription>
-      </SheetHeader>
-
-      <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4">
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold">Informações do grupo</h3>
-          <div className="space-y-2">
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Nome</span>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex.: Coordenadores de Infraestrutura"
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Descrição</span>
-              <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Opcional"
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold">Acesso por módulo</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              `Viewer` só visualiza. `Editor` cria, edita, compartilha, finaliza e exporta. `Admin` também importa e exclui.
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-border bg-muted/20 px-3 py-3">
-            <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)_auto] md:items-end">
-              <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Aplicar preset</span>
-                <Select value={selectedPresetKey} onValueChange={(value) => setSelectedPresetKey(value ?? 'custom')}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {presets.map((preset) => (
-                      <SelectItem key={preset.key} value={preset.key}>
-                        {preset.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
-              <p className="text-xs text-muted-foreground">
-                {getRolePresetByKey(presets, selectedPresetKey)?.description}
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  const preset = getRolePresetByKey(presets, selectedPresetKey);
-                  if (!preset) return;
-                  setModuleAccess({ ...preset.moduleAccess });
-                  setSelectedGlobalPermIds(new Set(preset.globalPermissionIds));
-                }}
-              >
-                Aplicar preset
-              </Button>
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent showCloseButton className="max-h-[92vh] max-w-[calc(100%-1.5rem)] overflow-hidden rounded-3xl border border-border/80 bg-background p-0 sm:max-w-4xl xl:max-w-5xl">
+        <div className="flex max-h-[92vh] flex-col">
+          <DialogHeader className="border-b border-border/80 px-6 py-5">
+            <div className="flex items-center gap-2 text-primary pr-10">
+              <Shield className="h-5 w-5" />
+              <DialogTitle className="text-xl">{group.name}</DialogTitle>
             </div>
-          </div>
+            <DialogDescription>
+              Defina o nome do grupo, o nível de acesso por módulo e as permissões globais administrativas.
+            </DialogDescription>
+          </DialogHeader>
 
-          <div className="space-y-3">
-            {modules.map((module) => (
-              <div key={module.slug} className="rounded-lg border border-border bg-muted/30 px-3 py-3">
-                <div className="mb-3">
-                  <p className="text-sm font-semibold text-foreground">{module.name}</p>
-                  {module.description ? (
-                    <p className="text-xs text-muted-foreground">{module.description}</p>
-                  ) : null}
-                </div>
-
-                <ModuleAccessSelector
-                  value={moduleAccess[module.slug] ?? 'none'}
-                  onChange={(value) =>
-                    setModuleAccess((current) => ({
-                      ...current,
-                      [module.slug]: value,
-                    }))
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold">Permissões globais</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Essas permissões administrativas continuam separadas do nível de acesso dos módulos.
-            </p>
-          </div>
-
-          {globalPermissions.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhuma permissão global disponível.</p>
-          ) : (
-            <div className="space-y-2">
-              {globalPermissions.map((permission) => (
-                <label
-                  key={permission.id}
-                  className="flex cursor-pointer items-start gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/30"
-                >
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <section className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
+              <h3 className="text-sm font-semibold">Informações do grupo</h3>
+              <div className="space-y-2">
+                <label className="block space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Nome</span>
                   <input
-                    type="checkbox"
-                    className="mt-0.5"
-                    checked={selectedGlobalPermIds.has(permission.id)}
-                    onChange={(event) => {
-                      const checked = event.target.checked;
-                      setSelectedGlobalPermIds((current) => {
-                        const next = new Set(current);
-                        if (checked) next.add(permission.id);
-                        else next.delete(permission.id);
-                        return next;
-                      });
-                    }}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ex.: Coordenadores de Infraestrutura"
                   />
-                  <div>
-                    <span className="font-medium">{permission.key}</span>
-                    <p className="text-xs text-muted-foreground">{describeGlobalPermission(permission)}</p>
-                  </div>
                 </label>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+                <label className="block space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Descrição</span>
+                  <input
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Opcional"
+                  />
+                </label>
+              </div>
+            </section>
 
-      <div className="border-t px-4 py-4">
-        <Button
-          className="w-full"
-          disabled={isSaving}
-          onClick={async () => {
-            await updateMutation.mutateAsync();
-            await accessMutation.mutateAsync();
-          }}
-        >
-          {isSaving ? 'Salvando...' : 'Salvar configurações do grupo'}
-        </Button>
-      </div>
-    </div>
+            <section className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Acesso por módulo</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  `Viewer` só visualiza. `Editor` cria, edita, compartilha, finaliza e exporta. `Admin` também importa e exclui.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-background/70 px-4 py-3">
+                <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)_auto] md:items-end">
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Aplicar preset</span>
+                    <Select value={selectedPresetKey} onValueChange={(value) => setSelectedPresetKey(value ?? 'custom')}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {presets.map((preset) => (
+                          <SelectItem key={preset.key} value={preset.key}>
+                            {preset.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    {getRolePresetByKey(presets, selectedPresetKey)?.description}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const preset = getRolePresetByKey(presets, selectedPresetKey);
+                      if (!preset) return;
+                      setModuleAccess({ ...preset.moduleAccess });
+                      setSelectedGlobalPermIds(new Set(preset.globalPermissionIds));
+                    }}
+                  >
+                    Aplicar preset
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {modules.map((module) => (
+                  <div key={module.slug} className="rounded-xl border border-border bg-background/70 px-4 py-4">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold">{module.name}</p>
+                      {module.description ? (
+                        <p className="text-xs text-muted-foreground">{module.description}</p>
+                      ) : null}
+                    </div>
+                    <ModuleAccessSelector
+                      value={moduleAccess[module.slug] ?? 'none'}
+                      onChange={(value) =>
+                        setModuleAccess((current) => ({ ...current, [module.slug]: value }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Permissões globais</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Permissões administrativas separadas do nível de acesso dos módulos.
+                </p>
+              </div>
+              {globalPermissions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nenhuma permissão global disponível.</p>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {globalPermissions.map((permission) => (
+                    <label
+                      key={permission.id}
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/80 bg-background/70 px-4 py-3 transition-colors hover:bg-muted/30"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={selectedGlobalPermIds.has(permission.id)}
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          setSelectedGlobalPermIds((current) => {
+                            const next = new Set(current);
+                            if (checked) next.add(permission.id);
+                            else next.delete(permission.id);
+                            return next;
+                          });
+                        }}
+                      />
+                      <div>
+                        <p className="text-sm font-medium">{permission.key}</p>
+                        <p className="text-xs text-muted-foreground">{describeGlobalPermission(permission)}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+
+          <DialogFooter className="mt-0 border-t border-border/80 bg-background/95 px-6 py-4 backdrop-blur">
+            <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancelar</Button>
+            <Button
+              disabled={isSaving}
+              onClick={async () => {
+                await updateMutation.mutateAsync();
+                await accessMutation.mutateAsync();
+                onClose();
+              }}
+            >
+              {isSaving ? 'Salvando...' : 'Salvar configurações'}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -608,20 +608,13 @@ export function RolesManager() {
         </DialogContent>
       </Dialog>
 
-      <Sheet
+      <GroupDialog
+        group={configuringGroup}
         open={!!configuringGroup}
-        onOpenChange={(open) => { if (!open) setConfiguringGroup(null); }}
-      >
-        <SheetContent side="right" showCloseButton className="w-full p-0 sm:max-w-2xl">
-          {configuringGroup ? (
-            <GroupSheet
-              group={configuringGroup}
-              modules={modules}
-              globalPermissions={globalPermissions}
-            />
-          ) : null}
-        </SheetContent>
-      </Sheet>
+        onClose={() => setConfiguringGroup(null)}
+        modules={modules}
+        globalPermissions={globalPermissions}
+      />
     </>
   );
 }
