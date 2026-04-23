@@ -1,22 +1,83 @@
 'use client';
 
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from 'next-themes';
-import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { useTheme } from 'next-themes';
+
+type AppTheme = 'dark' | 'light';
+
+type ThemeContextValue = {
+  theme: AppTheme;
+  resolvedTheme: AppTheme;
+  setTheme: (theme: AppTheme) => void;
+};
+
+const ThemeContext = createContext<ThemeContextValue>({
+  theme: 'dark',
+  resolvedTheme: 'dark',
+  setTheme: () => {},
+});
 
 /**
- * Precedência de tema:
- * 1. Preferência manual do usuário por workspace (localStorage `dwm_theme_{slug}`)
- * 2. defaultTheme do workspace (aplicado apenas na primeira visita ou se preferência limpa)
- * 3. Tema padrão do sistema ('dark')
- *
- * O WorkspaceThemeSync só sobrescreve o tema se o usuário NÃO tiver uma preferência
- * manual salva para o workspace ativo. Isso garante que o toggle do usuário seja sempre
- * respeitado sem ser revertido ao navegar entre páginas.
+ * Precedencia de tema:
+ * 1. Preferencia manual do usuario por workspace (localStorage `dwm_theme_{slug}`)
+ * 2. defaultTheme do workspace (aplicado apenas na primeira visita ou se preferencia limpa)
+ * 3. Tema padrao do sistema ('dark')
  */
 export const THEME_PREF_KEY = (slug: string) => `dwm_theme_${slug}`;
+
+export function useTheme() {
+  return useContext(ThemeContext);
+}
+
+function AppThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setThemeState] = useState<AppTheme>('dark');
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const storedTheme = localStorage.getItem('theme');
+    const rootTheme = root.classList.contains('light')
+      ? 'light'
+      : root.classList.contains('dark')
+        ? 'dark'
+        : null;
+
+    if (storedTheme === 'light' || storedTheme === 'dark') {
+      setThemeState(storedTheme);
+      return;
+    }
+
+    if (rootTheme === 'light' || rootTheme === 'dark') {
+      setThemeState(rootTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+    root.style.colorScheme = theme;
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const value = useMemo<ThemeContextValue>(
+    () => ({
+      theme,
+      resolvedTheme: theme,
+      setTheme: setThemeState,
+    }),
+    [theme]
+  );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
 
 function WorkspaceThemeSync() {
   const pathname = usePathname();
@@ -37,8 +98,7 @@ function WorkspaceThemeSync() {
 
       if (!workspaceSlug) return;
 
-      // If the user has already manually set a theme for this workspace, respect it.
-      const userPref = localStorage.getItem(THEME_PREF_KEY(workspaceSlug)) as 'dark' | 'light' | null;
+      const userPref = localStorage.getItem(THEME_PREF_KEY(workspaceSlug)) as AppTheme | null;
       if (userPref === 'dark' || userPref === 'light') {
         if (!cancelled && userPref !== resolvedTheme) {
           setTheme(userPref);
@@ -46,12 +106,11 @@ function WorkspaceThemeSync() {
         return;
       }
 
-      // No user preference: apply the workspace's defaultTheme.
       try {
         const response = await fetch('/api/workspaces/my', { credentials: 'same-origin' });
         if (!response.ok) return;
         const payload = await response.json() as {
-          data?: Array<{ slug: string; defaultTheme?: 'dark' | 'light' }>;
+          data?: Array<{ slug: string; defaultTheme?: AppTheme }>;
         };
         const activeWorkspace = payload.data?.find((workspace) => workspace.slug === workspaceSlug);
         const defaultTheme = activeWorkspace?.defaultTheme;
@@ -69,33 +128,34 @@ function WorkspaceThemeSync() {
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, resolvedTheme, setTheme]);
 
   return null;
 }
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 60 * 1000,
-        gcTime: 2 * 60 * 1000,
-        retry: (failureCount, error) => {
-          // Não tenta novamente em erros de autenticação/autorização
-          if (error instanceof Error && /\b(401|403)\b/.test(error.message)) return false;
-          return failureCount < 2;
+export function Providers({ children }: { children: ReactNode }) {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000,
+            gcTime: 2 * 60 * 1000,
+            retry: (failureCount, error) => {
+              if (error instanceof Error && /\b(401|403)\b/.test(error.message)) return false;
+              return failureCount < 2;
+            },
+          },
         },
-      },
-    },
-  }));
+      })
+  );
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange={false}>
+      <AppThemeProvider>
         <WorkspaceThemeSync />
         {children}
-      </ThemeProvider>
+      </AppThemeProvider>
     </QueryClientProvider>
   );
 }

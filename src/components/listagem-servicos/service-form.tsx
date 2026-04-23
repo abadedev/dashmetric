@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ImageUpload } from '@/components/ui/image-upload';
@@ -204,6 +204,56 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
   const recentAddresses = useMemo(() => readRecentValues(RECENT_ADDRESSES_KEY), [open]);
   const recentNetworkBoxes = useMemo(() => readRecentValues(RECENT_NETWORK_BOXES_KEY), [open]);
 
+  // Fetch all options
+  const { data: dropdownOptionsData } = useQuery({
+    queryKey: ['dropdown-options', 'service-form-all'],
+    queryFn: async () => {
+      const res = await fetch('/api/dropdown-options');
+      if (!res.ok) return { data: [] };
+      return res.json() as Promise<{ data: { category: string; value: string; label: string; sortOrder: number }[] }>;
+    },
+    enabled: open,
+    staleTime: 1000 * 60 * 5, // 5 min
+  });
+
+  const occurrenceOptionsPairs = useMemo(() => {
+    const map = new Map<string, { value: string; label: string; isStandard: boolean }>();
+    INFRA_OCCURRENCE_OPTIONS.forEach(opt => map.set(opt, { value: opt, label: opt, isStandard: true }));
+    if (dropdownOptionsData?.data) {
+      dropdownOptionsData.data.filter(o => o.category === 'occurrence_types').forEach(opt => {
+        map.set(opt.value, { value: opt.value, label: opt.label, isStandard: false });
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [dropdownOptionsData]);
+
+  const cityOptionsPairs = useMemo(() => {
+    const map = new Map<string, { value: string; label: string; isStandard: boolean }>();
+    CITY_OPTIONS.forEach(opt => map.set(opt, { value: opt, label: opt, isStandard: true }));
+    if (dropdownOptionsData?.data) {
+      dropdownOptionsData.data.filter(o => o.category === 'city_areas').forEach(opt => {
+        map.set(opt.value, { value: opt.value, label: opt.label, isStandard: false });
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [dropdownOptionsData]);
+
+  const solicitanteOptionsPairs = useMemo(() => {
+    const map = new Map<string, { value: string; label: string; isStandard: boolean }>();
+    SOLICITANTE_OPTIONS.forEach(opt => map.set(opt, { value: opt, label: opt, isStandard: true }));
+    if (dropdownOptionsData?.data) {
+      dropdownOptionsData.data.filter(o => o.category === 'solicitantes').forEach(opt => {
+        map.set(opt.value, { value: opt.value, label: opt.label, isStandard: false });
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      // Keep "Outros" at the bottom
+      if (a.value === 'Outros') return 1;
+      if (b.value === 'Outros') return -1;
+      return a.label.localeCompare(b.label);
+    });
+  }, [dropdownOptionsData]);
+
   useEffect(() => {
     if (!open) return;
 
@@ -400,10 +450,10 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
                   <SelectTrigger id="sf-city" className="h-10 w-full" disabled={isEditLocked}>
                     <SelectValue placeholder={'\u2014'} />
                   </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[280px]">
+                  <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[280px] max-h-[40vh] overflow-y-auto">
                     <SelectItem value="none">{'\u2014'}</SelectItem>
-                    {CITY_OPTIONS.map((city) => (
-                      <SelectItem key={city} value={city} className="whitespace-nowrap">{city}</SelectItem>
+                    {cityOptionsPairs.map((city) => (
+                      <SelectItem key={city.value} value={city.value} className="whitespace-nowrap">{city.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -480,10 +530,10 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
                     <SelectTrigger id="sf-occurrence" className="h-10 w-full" disabled={isEditLocked}>
                       <SelectValue placeholder="Selecione a ocorrencia" />
                     </SelectTrigger>
-                    <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[var(--anchor-width)]">
-                      {INFRA_OCCURRENCE_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option} className="whitespace-normal break-words pr-8">
-                          {option}
+                    <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[var(--anchor-width)] max-h-[40vh] overflow-y-auto">
+                      {occurrenceOptionsPairs.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value} className="whitespace-normal break-words pr-8">
+                          {opt.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -526,10 +576,12 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
                   <SelectTrigger id="sf-solicitante" className="h-10 w-full" disabled={isEditLocked}>
                     <SelectValue placeholder="Selecione o solicitante" />
                   </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[var(--anchor-width)]">
+                  <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[250px] max-h-[40vh] overflow-y-auto">
                     <SelectItem value="none">—</SelectItem>
-                    {SOLICITANTE_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
+                    {solicitanteOptionsPairs.map((sol) => (
+                      <SelectItem key={sol.value} value={sol.value} className="whitespace-normal break-words pr-8">
+                        {sol.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
