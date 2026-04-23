@@ -168,7 +168,7 @@ function ListagemServicosContent() {
             value={statusFilter || ''}
             onValueChange={(value) => { setStatusFilter(value === '' ? null : value); setPage('1'); }}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-max min-w-[200px] max-w-full">
               <SelectValue placeholder="Todos">
                 {(v: string | null) => {
                   if (!v || v === '') return 'Todos';
@@ -176,7 +176,7 @@ function ListagemServicosContent() {
                 }}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent side="bottom" alignItemWithTrigger={false}>
+            <SelectContent side="bottom" alignItemWithTrigger={false} className="min-w-[200px]">
               <SelectItem value="">Todos</SelectItem>
               {STATUS_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>

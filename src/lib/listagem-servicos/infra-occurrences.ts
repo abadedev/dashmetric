@@ -56,6 +56,41 @@ export function normalizeNullableText(value: string | null | undefined) {
   return trimmed ? trimmed : null;
 }
 
+/**
+ * Mapa de aliases de cidades.
+ * Chave: valor normalizado (lowercase, sem acento).
+ * Valor: nome canônico (lowercase, sem acento) para armazenar.
+ */
+export const CITY_ALIASES: Record<string, string> = {
+  'po to da mata': 'posto da mata',
+  'posto da matta': 'posto da mata',
+  'taquari - alcobaca': 'taquari',
+  'ao jo e': 'sao jose',
+  'ao jose': 'sao jose',
+  'ao jo': 'sao jose',
+};
+
+/**
+ * Normaliza o nome da cidade para a chave canônica armazenada no banco.
+ * - trim + colapso de múltiplos espaços → 1 espaço
+ * - lowercase + remoção de acentos
+ * - aplica aliases de cidades conhecidas
+ * Para exibição no gráfico/UI, use .toUpperCase() sobre o valor retornado.
+ */
+export function normalizeCityArea(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+
+  // trim, colapso de espaços, lowercase
+  let normalized = raw.trim().replace(/\s+/g, ' ').toLowerCase();
+
+  // Remove acentos
+  normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // Aplica mapa de aliases
+  const canonical = CITY_ALIASES[normalized] ?? normalized;
+  return canonical || null;
+}
+
 function formatPriorityLabel(value: string | null | undefined) {
   const priority = normalizeNullableText(value);
 

@@ -98,8 +98,9 @@ const STATUSES = [
   { value: 'pendente', label: 'Pendente' },
   { value: 'em_andamento', label: 'Em andamento' },
   { value: 'tecnico_direcionado', label: 'T\u00E9cnico direcionado' },
-  { value: 'resolvido', label: 'Resolvido' },
+  { value: 'em_monitoramento', label: 'Em monitoramento' },
   { value: 'nao_resolvido', label: 'N\u00E3o resolvido' },
+  { value: 'resolvido', label: 'Resolvido' },
 ];
 
 function todayIso() {

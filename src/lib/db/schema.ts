@@ -787,3 +787,26 @@ export type NewWorkspace = typeof workspaces.$inferInsert;
 export type WorkspaceMember = typeof workspaceMembers.$inferSelect;
 export type NewWorkspaceMember = typeof workspaceMembers.$inferInsert;
 export type WorkspaceMemberRole = typeof workspaceMemberRoleEnum.enumValues[number];
+
+// ========== DROPDOWN OPTIONS ==========
+
+export const dropdownOptions = pgTable(
+  'dropdown_options',
+  {
+    id: serial('id').primaryKey(),
+    category: varchar('category', { length: 100 }).notNull(),
+    value: varchar('value', { length: 255 }).notNull(),
+    label: varchar('label', { length: 255 }).notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('dropdown_options_category_idx').on(table.category),
+    uniqueIndex('dropdown_options_category_value_idx').on(table.category, table.value),
+  ]
+);
+
+export type DropdownOption = typeof dropdownOptions.$inferSelect;
+export type NewDropdownOption = typeof dropdownOptions.$inferInsert;

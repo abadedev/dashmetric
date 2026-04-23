@@ -510,10 +510,12 @@ function UserCard({
   const isAdminCard = user.globalRole === 'admin' || user.workspaceRole === 'ADMIN';
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onOpen}
-      className="group w-full rounded-3xl border border-border/80 bg-card/80 p-0 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}
+      className="group w-full cursor-pointer rounded-3xl border border-border/80 bg-card/80 p-0 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="flex h-full flex-col gap-5 p-5">
         <div className="flex items-start gap-4">
@@ -572,7 +574,7 @@ function UserCard({
           </Button>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 

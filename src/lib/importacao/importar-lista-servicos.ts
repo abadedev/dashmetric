@@ -3,6 +3,7 @@ import { getInfraDb } from '@/lib/db/infra';
 import { serviceListings } from '@/lib/db/infra-schema';
 import type { NewServiceListing } from '@/lib/db/infra-schema';
 import { ensureServiceListingsTable } from '@/lib/listagem-servicos/service-listings-schema';
+import { normalizeCityArea } from '@/lib/listagem-servicos/infra-occurrences';
 
 export type ResumoListaServicos = {
   totalLidas: number;
@@ -129,9 +130,7 @@ function inferirTipoOcorrencia(problem: string): string {
   return 'Sinal fora dos padrões';
 }
 
-function normalizarCidade(raw: string): string {
-  return (raw ?? '').replace(/^\([A-Z]\)\s+/, '').trim();
-}
+
 
 const MARCADORES_SEM_TECNICO = new Set(['não', 'nao', '-', 'n/a', 'nenhum', 'sem tecnico', 'sem técnico']);
 
@@ -183,7 +182,7 @@ function extrairRegistroAbaAtual(
     referenceDate:    extrairDataColA(getCellRaw(row, 0)),
     priority:         getCellStr(row, 1) || null,
     technology:       getCellStr(row, 2) || null,
-    cityArea:         normalizarCidade(getCellStr(row, 3)) || null,
+    cityArea:         normalizeCityArea(getCellStr(row, 3)),
     address:          getCellStr(row, 4) || null,
     locationUrl:      getCellHyperlink(ws, rowIdx, 4),
     networkBox:       networkBox || null,
@@ -222,7 +221,7 @@ function extrairRegistroAbaData(
     referenceDate,
     priority:         getCellStr(row, 0) || null,
     technology:       getCellStr(row, 1) || null,
-    cityArea:         normalizarCidade(getCellStr(row, 2)) || null,
+    cityArea:         normalizeCityArea(getCellStr(row, 2)),
     address:          getCellStr(row, 3) || null,
     locationUrl:      getCellHyperlink(ws, rowIdx, 3),
     networkBox:       networkBox || null,
