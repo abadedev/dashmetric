@@ -17,7 +17,8 @@
     "test:sla": "npx tsx src/lib/sla/calculate-sla.cases.ts",
     "test:classify": "npx tsx --test src/lib/importacao/classify-support.test.ts",
     "seed": "npx tsx src/lib/db/seed.ts",
-    "fix:technicians": "npx tsx scripts/fix-technician-links.ts"
+    "fix:technicians": "npx tsx scripts/fix-technician-links.ts",
+    "db:normalize-cities": "npx tsx scripts/normalize-city-area.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

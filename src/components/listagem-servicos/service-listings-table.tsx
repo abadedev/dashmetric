@@ -49,7 +49,7 @@ interface ServiceListingsTableProps {
   totalResolvidos: number;
 }
 
-const PENDING_STATUSES = new Set(['pendente', 'em_andamento', 'tecnico_direcionado']);
+const PENDING_STATUSES = new Set(['pendente', 'em_andamento', 'tecnico_direcionado', 'nao_resolvido', 'em_monitoramento']);
 
 function formatDate(date: string | null | undefined) {
   if (!date) return '\u2014';
@@ -296,7 +296,7 @@ function RecordsTable({
             </TableHead>
             <TableHead className="w-[200px]">Ocorrencia</TableHead>
             <TableHead
-              className="group w-[110px] cursor-pointer select-none hover:text-foreground"
+              className="group w-[160px] cursor-pointer select-none hover:text-foreground"
               onClick={() => onSort('status')}
             >
               Status<SortIcon field="status" sortField={sortField} sortDir={sortDir} />
@@ -308,12 +308,12 @@ function RecordsTable({
               Aberto<SortIcon field="openAge" sortField={sortField} sortDir={sortDir} />
             </TableHead>
             <TableHead
-              className="group w-[130px] cursor-pointer select-none hover:text-foreground"
+              className="group w-[100px] cursor-pointer select-none hover:text-foreground"
               onClick={() => onSort('technician')}
             >
               {'T\u00E9cnico'}<SortIcon field="technician" sortField={sortField} sortDir={sortDir} />
             </TableHead>
-            <TableHead className="w-[140px]">Solicitante</TableHead>
+            <TableHead className="w-[110px]">Solicitante</TableHead>
             <TableHead className="w-[110px]" />
           </TableRow>
         </TableHeader>
@@ -334,7 +334,7 @@ function RecordsTable({
               <TableCell className="max-w-[200px]">
                 <OccurrenceCell row={row} />
               </TableCell>
-              <TableCell className="max-w-[110px]">
+              <TableCell className="max-w-[160px]">
                 <div className="min-w-0 max-w-full overflow-hidden">
                   <StatusSelectBadge
                     status={row.status}
@@ -350,10 +350,10 @@ function RecordsTable({
                   return <span className={cor}>{texto}</span>;
                 })() : <span className="text-muted-foreground">—</span>}
               </TableCell>
-              <TableCell className="max-w-[130px] text-xs">
+              <TableCell className="max-w-[100px] text-xs">
                 <span className="block truncate" title={row.technician ?? ''}>{row.technician || '\u2014'}</span>
               </TableCell>
-              <TableCell className="max-w-[140px] text-xs">
+              <TableCell className="max-w-[110px] text-xs">
                 <span className="block truncate" title={row.solicitante ?? ''}>{row.solicitante || '\u2014'}</span>
               </TableCell>
               <TableCell>

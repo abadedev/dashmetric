@@ -5,6 +5,7 @@ import { getInfraDb } from '@/lib/db/infra';
 import { serviceListings } from '@/lib/db/infra-schema';
 import {
   INFRA_OCCURRENCE_OPTIONS,
+  normalizeCityArea,
   normalizeNullableText,
   serviceListingPayloadSchema,
 } from '@/lib/listagem-servicos/infra-occurrences';
@@ -13,8 +14,8 @@ import { getModuleAccessLevel } from '@/lib/authorization';
 
 export const runtime = 'nodejs';
 
-const RESOLVED_STATUSES = ['resolvido', 'nao_resolvido'];
-const PENDING_STATUSES = ['pendente', 'em_andamento', 'tecnico_direcionado'];
+const RESOLVED_STATUSES = ['resolvido'];
+const OPEN_STATUSES = ['pendente', 'em_andamento', 'tecnico_direcionado', 'em_monitoramento', 'nao_resolvido'];
 const openAgeLabelExpr = sql<string>`case
   when greatest(0, current_date - ${serviceListings.referenceDate}) = 0 then 'Hoje'
   else greatest(0, current_date - ${serviceListings.referenceDate})::text || 'd'
@@ -114,7 +115,7 @@ export async function GET(req: NextRequest) {
     // Status filter — applied on top of base filters for the main query
     const statusFilters = [];
     if (statusFilter === 'pendentes') {
-      statusFilters.push(or(...PENDING_STATUSES.map((s) => eq(serviceListings.status, s)))!);
+      statusFilters.push(or(...OPEN_STATUSES.map((s) => eq(serviceListings.status, s)))!);
     } else if (statusFilter === 'resolvidos') {
       statusFilters.push(or(...RESOLVED_STATUSES.map((s) => eq(serviceListings.status, s)))!);
     } else if (statusFilter && statusFilter !== 'all') {
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
     const baseCondition = baseFilters.length ? and(...baseFilters) : undefined;
     const baseConditionWithoutOpenAge = baseFiltersWithoutOpenAge.length ? and(...baseFiltersWithoutOpenAge) : undefined;
 
-    const pendingStatusOr = or(...PENDING_STATUSES.map((s) => eq(serviceListings.status, s)))!;
+    const pendingStatusOr = or(...OPEN_STATUSES.map((s) => eq(serviceListings.status, s)))!;
     const resolvedStatusOr = or(...RESOLVED_STATUSES.map((s) => eq(serviceListings.status, s)))!;
 
     const [countResult, countPendentes, countResolvidos, rows, citiesRaw, techniciansRaw, openAgeRaw] = await Promise.all([
@@ -157,7 +158,7 @@ export async function GET(req: NextRequest) {
       db
         .selectDistinct({ openAge: openAgeLabelExpr })
         .from(serviceListings)
-        .where(baseConditionWithoutOpenAge ? and(baseConditionWithoutOpenAge, pendingStatusOr) : pendingStatusOr),
+        .where(baseConditionWithoutOpenAge ? and(baseConditionWithoutOpenAge, pendingStatusOr) : pendingStatusOr), // openAge só para registros em aberto
     ]);
 
     const total = countResult[0]?.count ?? 0;
@@ -171,7 +172,15 @@ export async function GET(req: NextRequest) {
       totalPages: Math.ceil(total / pageSize),
       page,
       pageSize,
-      cities: citiesRaw.map((row) => row.cityArea).filter(Boolean),
+      cities: (() => {
+        const seen = new Set<string>();
+        return citiesRaw
+          .map((row) => normalizeCityArea(row.cityArea))
+          .filter(Boolean)
+          .map((c) => c!.toUpperCase())
+          .filter((c) => !seen.has(c) && seen.add(c))
+          .sort();
+      })(),
       technicians: techniciansRaw.map((row) => row.technician).filter(Boolean),
       occurrenceTypes: INFRA_OCCURRENCE_OPTIONS,
       openAgeOptions,
@@ -239,7 +248,7 @@ export async function POST(req: NextRequest) {
         referenceDate: payload.referenceDate,
         priority: normalizeNullableText(payload.priority),
         technology: normalizeNullableText(payload.technology),
-        cityArea: normalizeNullableText(payload.cityArea),
+        cityArea: normalizeCityArea(payload.cityArea),
         address: normalizeNullableText(payload.address),
         locationUrl: normalizeNullableText(payload.locationUrl),
         networkBox: normalizeNullableText(payload.networkBox),

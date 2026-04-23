@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, Clock, Layers3, Shield, ShieldAlert, Trash2, Users } from 'lucide-react';
+import { Building2, Clock, Layers3, Shield, ShieldAlert, SlidersHorizontal, Trash2, Users } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { RolesManager } from '@/components/admin/roles-manager';
 import { WorkspaceManager } from '@/components/admin/workspace-manager';
 import { PendingUsersManager, usePendingUsersCount } from '@/components/admin/pending-users-manager';
 import { DataCleanupManager } from '@/components/admin/data-cleanup-manager';
+import { DropdownOptionsManager } from '@/components/admin/dropdown-options-manager';
 
 function readActiveWorkspaceCookie() {
   if (typeof document === 'undefined') return null;
@@ -48,6 +49,18 @@ export default function AdminPage() {
     enabled: !isPending && Boolean(data?.user),
   });
 
+  const { data: moduleAccessData, isLoading: isModuleAccessLoading } = useQuery({
+    queryKey: ['me-module-access', 'admin-page'],
+    queryFn: async () => {
+      const res = await fetch('/api/me/module-access');
+      if (!res.ok) return null;
+      return res.json() as Promise<{
+        data: { globalRole: string; workspaceRole: string | null; moduleAccess: Record<string, string> };
+      }>;
+    },
+    enabled: !isPending && Boolean(data?.user),
+  });
+
   const activeWorkspace = useMemo(() => {
     const workspaces = workspaceData?.data ?? [];
     if (workspaces.length === 0) return null;
@@ -57,6 +70,11 @@ export default function AdminPage() {
     return workspaces[0] ?? null;
   }, [activeWorkspaceSlug, workspaceData?.data]);
 
+  const moduleAccess = moduleAccessData?.data?.moduleAccess ?? {};
+  const canManageDropdowns = isPlatformAdmin ||
+    activeWorkspace?.role === 'ADMIN' ||
+    moduleAccess['infraestrutura'] === 'admin' ||
+    moduleAccess['listagem-servicos'] === 'admin';
   const canManageCurrentWorkspace = Boolean(isPlatformAdmin || activeWorkspace?.role === 'ADMIN');
   const pendingCount = usePendingUsersCount();
 
@@ -66,11 +84,11 @@ export default function AdminPage() {
     }
   }, [data?.user, isPending, router]);
 
-  if (isPending) {
+  if (isPending || (!canManageCurrentWorkspace && isModuleAccessLoading)) {
     return null;
   }
 
-  if (!canManageCurrentWorkspace) {
+  if (!canManageCurrentWorkspace && !canManageDropdowns) {
     return (
       <div className="mx-auto max-w-3xl">
         <Card>
@@ -101,29 +119,43 @@ export default function AdminPage() {
         </p>
       </div>
 
-      <Tabs defaultValue={pendingCount > 0 ? 'pendentes' : 'usuarios'}>
+      <Tabs defaultValue={isPlatformAdmin ? (pendingCount > 0 ? 'pendentes' : 'usuarios') : canManageDropdowns ? 'campos' : 'usuarios'}>
         <TabsList>
-          <TabsTrigger value="pendentes" className="relative">
-            <Clock className="h-4 w-4" />
-            Pendentes
-            {pendingCount > 0 && (
-              <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                {pendingCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="usuarios">
-            <Users className="h-4 w-4" />
-            Usuarios
-          </TabsTrigger>
-          <TabsTrigger value="grupos">
-            <Shield className="h-4 w-4" />
-            Grupos do Workspace
-          </TabsTrigger>
-          <TabsTrigger value="modulos">
-            <Layers3 className="h-4 w-4" />
-            Modulos
-          </TabsTrigger>
+          {isPlatformAdmin ? (
+            <TabsTrigger value="pendentes" className="relative">
+              <Clock className="h-4 w-4" />
+              Pendentes
+              {pendingCount > 0 && (
+                <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                  {pendingCount}
+                </span>
+              )}
+            </TabsTrigger>
+          ) : null}
+          {isPlatformAdmin ? (
+            <TabsTrigger value="usuarios">
+              <Users className="h-4 w-4" />
+              Usuarios
+            </TabsTrigger>
+          ) : null}
+          {isPlatformAdmin ? (
+            <TabsTrigger value="grupos">
+              <Shield className="h-4 w-4" />
+              Grupos do Workspace
+            </TabsTrigger>
+          ) : null}
+          {isPlatformAdmin ? (
+            <TabsTrigger value="modulos">
+              <Layers3 className="h-4 w-4" />
+              Modulos
+            </TabsTrigger>
+          ) : null}
+          {canManageDropdowns ? (
+            <TabsTrigger value="campos">
+              <SlidersHorizontal className="h-4 w-4" />
+              Campos
+            </TabsTrigger>
+          ) : null}
           {isPlatformAdmin ? (
             <TabsTrigger value="workspaces">
               <Building2 className="h-4 w-4" />
@@ -138,21 +170,35 @@ export default function AdminPage() {
           ) : null}
         </TabsList>
 
-        <TabsContent value="pendentes" className="mt-4">
-          <PendingUsersManager />
-        </TabsContent>
+        {isPlatformAdmin ? (
+          <TabsContent value="pendentes" className="mt-4">
+            <PendingUsersManager />
+          </TabsContent>
+        ) : null}
 
-        <TabsContent value="usuarios" className="mt-4">
-          <UsersManager />
-        </TabsContent>
+        {isPlatformAdmin ? (
+          <TabsContent value="usuarios" className="mt-4">
+            <UsersManager />
+          </TabsContent>
+        ) : null}
 
-        <TabsContent value="grupos" className="mt-4">
-          <RolesManager />
-        </TabsContent>
+        {isPlatformAdmin ? (
+          <TabsContent value="grupos" className="mt-4">
+            <RolesManager />
+          </TabsContent>
+        ) : null}
 
-        <TabsContent value="modulos" className="mt-4">
-          <ModuleManager />
-        </TabsContent>
+        {isPlatformAdmin ? (
+          <TabsContent value="modulos" className="mt-4">
+            <ModuleManager />
+          </TabsContent>
+        ) : null}
+
+        {canManageDropdowns ? (
+          <TabsContent value="campos" className="mt-4">
+            <DropdownOptionsManager />
+          </TabsContent>
+        ) : null}
 
         {isPlatformAdmin ? (
           <TabsContent value="workspaces" className="mt-4">

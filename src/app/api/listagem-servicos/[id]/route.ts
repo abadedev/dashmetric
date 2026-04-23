@@ -5,6 +5,7 @@ import { getInfraDb } from '@/lib/db/infra';
 import { serviceListings } from '@/lib/db/infra-schema';
 import {
   infraOccurrenceSchema,
+  normalizeCityArea,
   normalizeNullableText,
   serviceListingPayloadSchema,
 } from '@/lib/listagem-servicos/infra-occurrences';
@@ -83,7 +84,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     } else if (body.occurrenceCreated !== undefined && Object.keys(body).length === 1) {
       updateData.occurrenceCreated = body.occurrenceCreated;
     } else if (body.status !== undefined && Object.keys(body).length === 1) {
-      const VALID_STATUSES = ['pendente', 'tecnico_direcionado', 'em_andamento', 'resolvido', 'nao_resolvido'];
+      const VALID_STATUSES = ['pendente', 'tecnico_direcionado', 'em_andamento', 'em_monitoramento', 'resolvido', 'nao_resolvido'];
       if (!VALID_STATUSES.includes(body.status)) {
         return NextResponse.json({ error: 'Status inválido.' }, { status: 400 });
       }
@@ -133,7 +134,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           if (
             key === 'priority' ||
             key === 'technology' ||
-            key === 'cityArea' ||
             key === 'address' ||
             key === 'locationUrl' ||
             key === 'networkBox' ||
@@ -147,6 +147,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             key === 'solicitante'
           ) {
             updateData[key] = normalizeNullableText(parsedData[key] as string | null | undefined);
+            continue;
+          }
+
+          if (key === 'cityArea') {
+            updateData[key] = normalizeCityArea(parsedData[key] as string | null | undefined);
             continue;
           }
 

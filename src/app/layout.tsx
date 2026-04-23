@@ -19,6 +19,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <meta charSet="utf-8" />
+      </head>
       <body className={`${inter.className} min-h-screen bg-background antialiased`} suppressHydrationWarning>
         <NuqsAdapter>
           <Providers>
