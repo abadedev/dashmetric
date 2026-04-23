@@ -30,9 +30,8 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { signOut, useSession } from '@/lib/auth-client';
-import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
-import { THEME_PREF_KEY } from '@/components/providers';
+import { THEME_PREF_KEY, useTheme } from '@/components/providers';
 
 const ROLE_LABELS = {
   admin: 'Administrador',
@@ -103,6 +102,11 @@ export function Header() {
   const activeWorkspace = workspaceSlugFromUrl
     ? workspaces.find((w) => w.slug === workspaceSlugFromUrl)
     : workspaces[0];
+  const showResolvedUser = mounted && !isPending;
+  const displayUserName = showResolvedUser ? userName : 'Carregando';
+  const displayRoleLabel = showResolvedUser ? roleLabel : 'Conta';
+  const displayInitials = showResolvedUser ? initials : '--';
+  const displayUserImage = showResolvedUser ? user?.image : null;
 
   function switchWorkspace(slug: string) {
     if (slug === activeWorkspace?.slug) return;
@@ -221,13 +225,13 @@ export function Header() {
               aria-label="Abrir menu da conta"
             >
               <div className="hidden md:flex flex-col text-right">
-                <span className="text-xs text-muted-foreground leading-none mb-0.5">{roleLabel}</span>
-                <span className="text-sm font-semibold truncate max-w-44 leading-none text-foreground">{userName}</span>
+                <span className="text-xs text-muted-foreground leading-none mb-0.5">{displayRoleLabel}</span>
+                <span className="text-sm font-semibold truncate max-w-44 leading-none text-foreground">{displayUserName}</span>
               </div>
               <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-background/90 text-xs font-bold text-foreground">
-                {user?.image ? (
-                  <img src={user.image} alt={userName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                ) : initials}
+                {displayUserImage ? (
+                  <img src={displayUserImage} alt={displayUserName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                ) : displayInitials}
               </div>
               <ChevronDown className="hidden md:block h-3.5 w-3.5 text-muted-foreground" />
             </DropdownMenuTrigger>
@@ -238,13 +242,13 @@ export function Header() {
                 <DropdownMenuLabel className="px-3 py-2.5">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-background/90 text-sm font-bold text-foreground">
-                      {user?.image ? (
-                        <img src={user.image} alt={userName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                      ) : initials}
+                      {displayUserImage ? (
+                        <img src={displayUserImage} alt={displayUserName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : displayInitials}
                     </div>
                     <div className="min-w-0">
-                      <div className="font-semibold truncate text-sm">{userName}</div>
-                      <div className="text-xs text-muted-foreground truncate">{roleLabel}</div>
+                      <div className="font-semibold truncate text-sm">{displayUserName}</div>
+                      <div className="text-xs text-muted-foreground truncate">{displayRoleLabel}</div>
                     </div>
                   </div>
                 </DropdownMenuLabel>
