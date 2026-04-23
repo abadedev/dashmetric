@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -27,9 +27,9 @@ function todayIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const TECHNICIAN_OPTIONS = ['Marlon', 'Azevedo', 'Outros'] as const;
+const TECHNICIAN_OPTIONS = ['Marlon', 'Azevedo', 'Outros'];
 
-type TechnicianOption = (typeof TECHNICIAN_OPTIONS)[number] | '';
+type TechnicianOption = string;
 type MaterialChoice = 'Sim' | 'Não' | '';
 
 function composeResolutionNotes(materialUsed: Exclude<MaterialChoice, ''>, notes: string) {
@@ -49,20 +49,42 @@ export function FinalizeDialog({ record, open, onClose, queryKey }: FinalizeDial
   const technicianTriggerRef = useRef<HTMLButtonElement | null>(null);
   const customTechnicianRef = useRef<HTMLInputElement | null>(null);
 
+  const { data: dropdownOptionsData } = useQuery({
+    queryKey: ['dropdown-options', 'finalize-dialog'],
+    queryFn: async () => {
+      const res = await fetch('/api/dropdown-options');
+      if (!res.ok) return { data: [] };
+      return res.json() as Promise<{ data: { category: string; value: string; label: string; sortOrder: number }[] }>;
+    },
+    enabled: open,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const technicianOptionsPairs = useMemo(() => {
+    const map = new Map<string, { value: string; label: string }>();
+    TECHNICIAN_OPTIONS.forEach(opt => map.set(opt, { value: opt, label: opt }));
+    if (dropdownOptionsData?.data) {
+      dropdownOptionsData.data.filter((o: any) => o.category === 'tecnicos').forEach((opt: any) => {
+        map.set(opt.value, { value: opt.value, label: opt.label });
+      });
+    }
+    const existingTechnician = record?.technician?.trim() ?? '';
+    if (existingTechnician && existingTechnician !== 'Outros' && !map.has(existingTechnician)) {
+      map.set(existingTechnician, { value: existingTechnician, label: existingTechnician });
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.value === 'Outros') return 1;
+      if (b.value === 'Outros') return -1;
+      return a.label.localeCompare(b.label);
+    });
+  }, [dropdownOptionsData, record?.technician]);
+
   useEffect(() => {
     if (!open) return;
 
     const existingTechnician = record?.technician?.trim() ?? '';
-    if (existingTechnician === 'Marlon' || existingTechnician === 'Azevedo') {
-      setTechnicianOption(existingTechnician);
-      setCustomTechnician('');
-    } else if (existingTechnician) {
-      setTechnicianOption('Outros');
-      setCustomTechnician(existingTechnician);
-    } else {
-      setTechnicianOption('');
-      setCustomTechnician('');
-    }
+    setTechnicianOption(existingTechnician);
+    setCustomTechnician('');
 
     setSolution(record?.solution ?? '');
     setResolutionDate(record?.resolutionDate ?? todayIso());
@@ -149,9 +171,9 @@ export function FinalizeDialog({ record, open, onClose, queryKey }: FinalizeDial
               <SelectTrigger id="fin-tech" ref={technicianTriggerRef} className="w-full">
                 <SelectValue placeholder="Selecione o técnico" />
               </SelectTrigger>
-              <SelectContent side="bottom" align="start">
-                {TECHNICIAN_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>{option}</SelectItem>
+              <SelectContent side="bottom" align="start" className="max-h-[40vh] overflow-y-auto">
+                {technicianOptionsPairs.map((opt: { value: string; label: string }) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
