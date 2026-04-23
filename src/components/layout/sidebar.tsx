@@ -137,11 +137,28 @@ export function Sidebar({ mobile = false }: SidebarProps) {
   const sessionUser = sessionData?.user as { role?: string } | undefined;
   const isPlatformAdmin = sessionUser?.role === 'admin';
 
+  const [canSeeConfig, setCanSeeConfig] = useState(false);
   const [groupState, setGroupState] = useState<GroupState>(DEFAULT_GROUP_STATE);
 
   useEffect(() => {
     setGroupState(loadGroupState());
   }, []);
+
+  useEffect(() => {
+    if (isPlatformAdmin) {
+      setCanSeeConfig(true);
+      return;
+    }
+    fetch('/api/me/module-access')
+      .then((r) => r.json())
+      .then((json: { data?: { moduleAccess?: Record<string, string> } }) => {
+        const access = json.data?.moduleAccess ?? {};
+        setCanSeeConfig(
+          access['infraestrutura'] === 'admin' || access['listagem-servicos'] === 'admin'
+        );
+      })
+      .catch(() => {});
+  }, [isPlatformAdmin]);
 
   function isGroupOpen(group: NavGroup): boolean {
     // Retorna explicitamente o estado salvo pelo usuário (que por padrão é true)
@@ -197,7 +214,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
     ...TOP_ITEMS,
     ...NAV_GROUPS.flatMap((g) => g.items),
     { name: 'Importar Dados', href: '/upload', icon: Upload },
-    ...(isPlatformAdmin
+    ...(canSeeConfig
       ? [{ name: 'Configurações', href: '/admin', icon: Settings }]
       : []),
   ];
@@ -319,7 +336,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
 
               <div className="mt-2 flex flex-col gap-1 pt-2">
                 <NavLink item={{ name: 'Importar Dados', href: '/upload', icon: Upload }} />
-                {isPlatformAdmin && (
+                {canSeeConfig && (
                   <NavLink item={{ name: 'Configurações', href: '/admin', icon: Settings }} />
                 )}
               </div>
