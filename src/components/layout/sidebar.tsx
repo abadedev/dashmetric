@@ -144,11 +144,9 @@ export function Sidebar({ mobile = false }: SidebarProps) {
   }, []);
 
   function isGroupOpen(group: NavGroup): boolean {
-    const savedOpen = groupState[group.key] ?? true;
-    const hasActiveChild = group.items.some((item) =>
-      resolvedIsActive(item.href, pathname, workspaceSlug)
-    );
-    return savedOpen || hasActiveChild;
+    // Retorna explicitamente o estado salvo pelo usuário (que por padrão é true)
+    // Permite que o usuário feche a categoria mesmo se estiver na página atual
+    return groupState[group.key] ?? true;
   }
 
   function toggleGroup(key: string) {
@@ -228,7 +226,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
             href={resolveWorkspaceHref('/dashboard', workspaceSlug)}
             className="flex min-w-0 flex-1 items-center px-1 opacity-85 transition-opacity hover:opacity-100"
           >
-            <DstechLogo className="h-5 w-auto" />
+            <DstechLogo className="h-9 w-auto" />
           </Link>
         )}
 
@@ -270,6 +268,8 @@ export function Sidebar({ mobile = false }: SidebarProps) {
                 <NavLink key={item.href} item={item} />
               ))}
 
+              <div className="my-1 h-px bg-border/50" />
+
               {NAV_GROUPS.map((group) => {
                 const open = isGroupOpen(group);
                 const GroupIcon = group.icon;
@@ -283,17 +283,17 @@ export function Sidebar({ mobile = false }: SidebarProps) {
                       type="button"
                       onClick={() => toggleGroup(group.key)}
                       className={cn(
-                        'flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold uppercase tracking-widest transition-colors',
+                        'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
                         hasActiveChild
-                          ? 'text-sidebar-foreground/70'
-                          : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/60'
+                          ? 'text-foreground hover:bg-muted'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       )}
                     >
-                      <GroupIcon className="h-3.5 w-3.5 shrink-0" />
+                      <GroupIcon className="h-4 w-4 shrink-0 text-muted-foreground/70" />
                       <span className="flex-1 text-left">{group.label}</span>
                       <ChevronDown
                         className={cn(
-                          'h-3.5 w-3.5 shrink-0 transition-transform duration-200',
+                          'ml-auto h-3.5 w-3.5 text-muted-foreground/50 transition-transform duration-200',
                           open && 'rotate-180'
                         )}
                       />
@@ -315,7 +315,9 @@ export function Sidebar({ mobile = false }: SidebarProps) {
                 );
               })}
 
-              <div className="mt-2 flex flex-col gap-1 border-t border-sidebar-border/50 pt-2">
+              <div className="my-1 h-px bg-border/50" />
+
+              <div className="mt-2 flex flex-col gap-1 pt-2">
                 <NavLink item={{ name: 'Importar Dados', href: '/upload', icon: Upload }} />
                 {isPlatformAdmin && (
                   <NavLink item={{ name: 'Configurações', href: '/admin', icon: Settings }} />

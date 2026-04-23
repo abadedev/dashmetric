@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useTheme } from 'next-themes';
 import { useQueryState } from 'nuqs';
 import {
   Award,
@@ -29,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageSkeleton } from '@/components/ui/state-display';
+import { useTheme } from '@/components/providers';
 import { ACTIVITY_LABELS } from '@/lib/services/sla-engine';
 
 const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
