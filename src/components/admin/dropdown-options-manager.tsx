@@ -617,6 +617,7 @@ export function DropdownOptionsManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-dropdown-options'] });
+      queryClient.invalidateQueries({ queryKey: ['dropdown-options'] });
       toast.success('Opção adicionada');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -640,6 +641,7 @@ export function DropdownOptionsManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-dropdown-options'] });
+      queryClient.invalidateQueries({ queryKey: ['dropdown-options'] });
       toast.success('Opção atualizada');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -652,6 +654,7 @@ export function DropdownOptionsManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-dropdown-options'] });
+      queryClient.invalidateQueries({ queryKey: ['dropdown-options'] });
       toast.success('Opção removida');
     },
     onError: (err: Error) => toast.error(err.message),
