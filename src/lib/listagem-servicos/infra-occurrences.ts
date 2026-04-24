@@ -25,11 +25,9 @@ export const INFRA_OCCURRENCE_OPTIONS = [
   'Drop baixo',
 ] as const;
 
-export type InfraOccurrenceType = (typeof INFRA_OCCURRENCE_OPTIONS)[number];
+export type InfraOccurrenceType = string;
 
-export const infraOccurrenceSchema = z.enum(INFRA_OCCURRENCE_OPTIONS, {
-  error: 'Selecione um tipo de ocorrência válido.',
-});
+export const infraOccurrenceSchema = z.string().min(1, 'Selecione um tipo de ocorrência válido.');
 
 export const serviceListingPayloadSchema = z.object({
   referenceDate: z.string().min(1, 'Data de referência é obrigatória.'),
