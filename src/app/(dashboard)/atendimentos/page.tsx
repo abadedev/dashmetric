@@ -16,14 +16,17 @@ import { PageLayout } from '@/components/layout/page-layout';
 import { PageSkeleton, StateDisplay, TableSkeleton } from '@/components/ui/state-display';
 import { TablePagination } from '@/components/atendimentos/table-pagination';
 import { cn } from '@/lib/utils';
+import { formatPercent } from '@/lib/utils/format';
 
 function MetricCard({
   label,
   value,
+  subtitle,
   valueClass,
 }: {
   label: string;
   value: number | string;
+  subtitle?: string;
   valueClass?: string;
 }) {
   return (
@@ -34,6 +37,9 @@ function MetricCard({
       <span className={cn('text-2xl font-semibold tabular-nums', valueClass)}>
         {value}
       </span>
+      {subtitle && (
+        <span className="text-xs text-muted-foreground">{subtitle}</span>
+      )}
     </div>
   );
 }
@@ -84,28 +90,6 @@ function AtendimentosPageContent() {
     retry: false,
   });
 
-  const { data: statsIn } = useQuery({
-    queryKey: ['service-orders-stats-in', baseParams],
-    queryFn: async () => {
-      const res = await fetch(`/api/service-orders?${baseParams}&slaStatus=ok&pageSize=1`);
-      if (!res.ok) return { total: 0 };
-      return res.json();
-    },
-    staleTime: 1000 * 60,
-    retry: false,
-  });
-
-  const { data: statsOut } = useQuery({
-    queryKey: ['service-orders-stats-out', baseParams],
-    queryFn: async () => {
-      const res = await fetch(`/api/service-orders?${baseParams}&slaStatus=nok&pageSize=1`);
-      if (!res.ok) return { total: 0 };
-      return res.json();
-    },
-    staleTime: 1000 * 60,
-    retry: false,
-  });
-
   const { data: filterContract } = useQuery({
     queryKey: ['module-filters', 'attendances'],
     queryFn: async () => {
@@ -135,12 +119,14 @@ function AtendimentosPageContent() {
         <MetricCard label="Total de OS" value={data?.total ?? '—'} />
         <MetricCard
           label="Dentro da meta"
-          value={statsIn?.total ?? '—'}
+          value={data?.withinSlaUtil ?? '—'}
+          subtitle={data?.slaUtilPercent != null ? `${formatPercent(data.slaUtilPercent)} dentro da meta` : undefined}
           valueClass="text-emerald-600 dark:text-emerald-400"
         />
         <MetricCard
           label="Fora da meta"
-          value={statsOut?.total ?? '—'}
+          value={data?.outsideSlaUtil ?? '—'}
+          subtitle={data?.total ? `${formatPercent(data.outsideSlaUtil / data.total)} fora da meta` : undefined}
           valueClass="text-red-500 dark:text-red-400"
         />
       </div>

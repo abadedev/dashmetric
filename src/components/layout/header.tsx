@@ -2,7 +2,7 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, Menu, Shield, ChevronDown, Sun, Moon, Building2, Check, Plus, UserPlus, LogOutIcon } from 'lucide-react';
+import { LogOut, Menu, Shield, ChevronDown, Sun, Moon, Building2, Check, Plus, UserPlus, LogOutIcon, MessageSquare } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { buttonVariants } from '@/components/ui/button';
@@ -24,11 +24,14 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { signOut, useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 import { THEME_PREF_KEY, useTheme } from '@/components/providers';
@@ -68,6 +71,9 @@ export function Header() {
   const [wsLogoUrl, setWsLogoUrl] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [sendingFeedback, setSendingFeedback] = useState(false);
 
   const user = data?.user;
   const isAdmin = user?.role === 'admin';
@@ -168,6 +174,26 @@ export function Header() {
     }
   }
 
+  async function handleSendFeedback() {
+    if (!feedbackMsg.trim()) return;
+    setSendingFeedback(true);
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: feedbackMsg.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      setFeedbackOpen(false);
+      setFeedbackMsg('');
+      toast.success('Feedback enviado. Obrigado!');
+    } catch {
+      toast.error('Erro ao enviar. Tente novamente.');
+    } finally {
+      setSendingFeedback(false);
+    }
+  }
+
   const canInvite = isAdmin || activeWorkspace?.role === 'ADMIN';
 
   return (
@@ -213,6 +239,15 @@ export function Header() {
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-all hover:border-border/80 hover:bg-card/80 hover:text-foreground"
           >
             {!mounted ? <span className="h-4 w-4" /> : theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+
+          <button
+            onClick={() => { setFeedbackMsg(''); setFeedbackOpen(true); }}
+            aria-label="Enviar feedback"
+            className="flex h-9 items-center gap-1.5 rounded-xl border border-transparent px-2.5 text-muted-foreground transition-all hover:border-border/80 hover:bg-card/80 hover:text-foreground"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="text-xs font-medium hidden sm:inline">Feedback</span>
           </button>
 
           <div className="mx-1 h-6 w-px bg-border/80" />
@@ -409,6 +444,30 @@ export function Header() {
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreateWorkspace} disabled={!wsName.trim() || !wsSlug.trim() || creating}>
               {creating ? 'Criando...' : 'Criar Workspace'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Feedback dialog */}
+      <Dialog open={feedbackOpen} onOpenChange={(o) => { setFeedbackOpen(o); if (!o) setFeedbackMsg(''); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Enviar feedback</DialogTitle>
+            <DialogDescription>Sua opinião nos ajuda a melhorar o sistema.</DialogDescription>
+          </DialogHeader>
+          <div className="py-1">
+            <Textarea
+              placeholder="Descreva sua sugestão ou problema..."
+              value={feedbackMsg}
+              onChange={(e) => setFeedbackMsg(e.target.value)}
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setFeedbackOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSendFeedback} disabled={!feedbackMsg.trim() || sendingFeedback}>
+              {sendingFeedback ? 'Enviando...' : 'Enviar'}
             </Button>
           </DialogFooter>
         </DialogContent>
