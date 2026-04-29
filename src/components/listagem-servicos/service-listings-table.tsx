@@ -57,6 +57,11 @@ function formatDate(date: string | null | undefined) {
   return `${day}/${month}/${year}`;
 }
 
+function formatDateTime(value: string | Date | null | undefined) {
+  if (!value) return '\u2014';
+  return new Date(value).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 function AddressCell({ row }: { row: ServiceListing }) {
   const address = row.address || '\u2014';
 
@@ -239,6 +244,7 @@ function RecordsTable({
   sortField,
   sortDir,
   onSort,
+  showResolved = false,
 }: {
   rows: ServiceListing[];
   moduleAccessLevel: ModuleAccessLevel;
@@ -250,6 +256,7 @@ function RecordsTable({
   sortField: string | null;
   sortDir: 'asc' | 'desc';
   onSort: (field: string) => void;
+  showResolved?: boolean;
 }) {
   const canEdit = moduleAccessLevel === 'editor' || moduleAccessLevel === 'admin';
   const isAdmin = moduleAccessLevel === 'admin';
@@ -314,6 +321,9 @@ function RecordsTable({
               {'T\u00E9cnico'}<SortIcon field="technician" sortField={sortField} sortDir={sortDir} />
             </TableHead>
             <TableHead className="w-[110px]">Solicitante</TableHead>
+            {showResolved && (
+              <TableHead className="w-[130px] whitespace-nowrap">Concluído em</TableHead>
+            )}
             <TableHead className="w-[110px]" />
           </TableRow>
         </TableHeader>
@@ -356,6 +366,11 @@ function RecordsTable({
               <TableCell className="max-w-[110px] text-xs">
                 <span className="block truncate" title={row.solicitante ?? ''}>{row.solicitante || '\u2014'}</span>
               </TableCell>
+              {showResolved && (
+                <TableCell className="whitespace-nowrap text-xs">
+                  {formatDateTime(row.resolvedAt)}
+                </TableCell>
+              )}
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button
@@ -541,6 +556,7 @@ export function ServiceListingsTable({
                 sortField={sortField}
                 sortDir={sortDir}
                 onSort={onSort}
+                showResolved
               />
             </CardContent>
           </Card>
