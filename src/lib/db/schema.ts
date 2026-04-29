@@ -743,6 +743,7 @@ export const feedback = pgTable('feedback', {
   message: text('message').notNull(),
   userEmail: varchar('user_email', { length: 255 }),
   userName: varchar('user_name', { length: 255 }),
+  status: varchar('status', { length: 20 }).default('pendente'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
