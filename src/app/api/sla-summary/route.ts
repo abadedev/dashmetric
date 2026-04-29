@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, asc, count, eq, sql, SQL } from 'drizzle-orm';
+import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 import { db } from '@/lib/db';
 import { atendimentos } from '@/lib/db/schema';
 import { requireWorkspacePermission } from '@/lib/require-auth';
@@ -23,8 +24,8 @@ export async function GET(req: NextRequest) {
     if (fromStr || toStr) {
       // Filtro de data: prioriza finalizacaoAt; fallback para aberturaAt e createdAt
       const dataRef = sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
-      if (fromStr) filters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
-      if (toStr) filters.push(sql`${dataRef} <= ${new Date(toStr)}`);
+      if (fromStr) filters.push(sql`${dataRef} >= ${parseDateFrom(fromStr)}`);
+      if (toStr) filters.push(sql`${dataRef} <= ${parseDateTo(toStr)}`);
     }
 
     const whereClause = filters.length ? and(...filters) : undefined;

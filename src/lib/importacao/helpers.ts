@@ -43,21 +43,32 @@ const DATAS_RELATIVAS: Record<string, number> = {
   anteontem: -2,
 };
 
+function brDateToISO(year: number, month: number, day: number, h = 0, m = 0, s = 0): Date {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return new Date(`${year}-${pad(month)}-${pad(day)}T${pad(h)}:${pad(m)}:${pad(s)}-03:00`);
+}
+
 /**
  * Converte "DD/MM/YY", "DD/MM/YYYY", "Hoje", "Ontem" ou "Anteontem"
- * para um objeto Date. Retorna null se inválido.
+ * para um objeto Date em horário de Brasília (UTC-3). Retorna null se inválido.
  */
 export function parseBRDate(dateStr: string): Date | null {
   const v = (dateStr ?? '').trim();
   if (!v) return null;
 
-  // Datas relativas
+  // Datas relativas — calcula a data atual em Sao Paulo
   const key = v.toLowerCase();
   if (key in DATAS_RELATIVAS) {
-    const d = new Date();
-    d.setDate(d.getDate() + DATAS_RELATIVAS[key]);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date());
+    const y  = Number(parts.find((p) => p.type === 'year')!.value);
+    const mo = Number(parts.find((p) => p.type === 'month')!.value);
+    const d  = Number(parts.find((p) => p.type === 'day')!.value);
+    const base = brDateToISO(y, mo, d);
+    base.setUTCDate(base.getUTCDate() + DATAS_RELATIVAS[key]);
+    return base;
   }
 
   // Formato DD/MM/YY ou DD/MM/YYYY
@@ -66,17 +77,10 @@ export function parseBRDate(dateStr: string): Date | null {
     // Tenta detectar se é um número serial do Excel (ex: "46063")
     const serial = Number(v);
     if (!isNaN(serial) && serial > 30000 && serial < 60000) {
-      // Converte serial Excel para data local sem shift de timezone.
-      // Serial 1 = 1900-01-01. Usamos a fórmula: dias desde 1899-12-30 (Excel epoch).
-      const totalDays = Math.floor(serial);
-      const excelEpoch = new Date(1899, 11, 30); // 30/12/1899 local
-      const d = new Date(
-        excelEpoch.getFullYear(),
-        excelEpoch.getMonth(),
-        excelEpoch.getDate() + totalDays,
-        0, 0, 0, 0
-      );
-      if (!isNaN(d.getTime())) return d;
+      // Serial 1 = 1900-01-01; epoch Excel = 1899-12-30
+      const utcMs = Date.UTC(1899, 11, 30) + Math.floor(serial) * 86_400_000;
+      const tmp = new Date(utcMs);
+      return brDateToISO(tmp.getUTCFullYear(), tmp.getUTCMonth() + 1, tmp.getUTCDate());
     }
     return null;
   }
@@ -85,23 +89,29 @@ export function parseBRDate(dateStr: string): Date | null {
   const rawYear = Number(parts[2]);
   if (isNaN(day) || isNaN(month) || isNaN(rawYear)) return null;
   const year = rawYear < 100 ? 2000 + rawYear : rawYear;
-  const d = new Date(year, month - 1, day);
+  const d = brDateToISO(year, month, day);
   if (isNaN(d.getTime())) return null;
   return d;
 }
 
 /**
- * Monta um Date a partir de data BR + hora ("HH:MM" ou "HH:MM:SS").
+ * Monta um Date a partir de data BR + hora ("HH:MM" ou "HH:MM:SS") em horário de Brasília.
  */
 export function parseBRDateWithTime(dateStr: string, timeStr: string): Date | null {
   const base = parseBRDate(dateStr);
   if (!base) return null;
-  if (timeStr) {
-    const normalizedTime = normalizeExcelTime(timeStr);
-    const parts = normalizedTime.split(':').map(Number);
-    base.setHours(parts[0] || 0, parts[1] || 0, parts[2] || 0, 0);
-  }
-  return base;
+  if (!timeStr) return base;
+  const normalizedTime = normalizeExcelTime(timeStr);
+  const timeParts = normalizedTime.split(':').map(Number);
+  // Re-extract the Sao Paulo calendar date from base, then rebuild with explicit time
+  const dateParts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(base);
+  const y  = Number(dateParts.find((p) => p.type === 'year')!.value);
+  const mo = Number(dateParts.find((p) => p.type === 'month')!.value);
+  const d  = Number(dateParts.find((p) => p.type === 'day')!.value);
+  return brDateToISO(y, mo, d, timeParts[0] || 0, timeParts[1] || 0, timeParts[2] || 0);
 }
 
 function normalizeExcelTime(timeStr: string): string {

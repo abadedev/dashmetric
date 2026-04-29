@@ -4,6 +4,7 @@ import { atendimentos } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
 import { and, eq, ilike, desc, count, or, sql, SQL } from 'drizzle-orm';
+import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 
 export const runtime = 'nodejs';
 
@@ -48,8 +49,8 @@ export async function GET(req: NextRequest) {
     if (fromStr || toStr) {
       const dataRef = sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
       const parts: SQL[] = [];
-      if (fromStr) parts.push(sql`${dataRef} >= ${new Date(fromStr)}`);
-      if (toStr)   parts.push(sql`${dataRef} <= ${new Date(toStr)}`);
+      if (fromStr) parts.push(sql`${dataRef} >= ${parseDateFrom(fromStr)}`);
+      if (toStr)   parts.push(sql`${dataRef} <= ${parseDateTo(toStr)}`);
       if (parts.length === 2) filters.push(sql`(${parts[0]} AND ${parts[1]})`);
       else if (parts.length === 1) filters.push(parts[0]);
     }

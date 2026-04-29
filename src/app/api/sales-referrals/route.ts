@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { getSalesReferralOverview } from '@/lib/services/sales-referral-service';
+import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 
 export const runtime = 'nodejs';
 
@@ -24,8 +25,8 @@ export async function GET(req: NextRequest) {
 
     const data = await getSalesReferralOverview({
       workspaceId: result.context.workspaceId,
-      from: from ? new Date(from) : null,
-      to: to ? new Date(to) : null,
+      from: from ? parseDateFrom(from) : null,
+      to: to ? parseDateTo(to) : null,
       city,
       search,
       status,

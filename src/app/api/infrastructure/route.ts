@@ -3,6 +3,7 @@ import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { db } from '@/lib/db';
 import { infrastructureRecords } from '@/lib/db/schema';
+import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 
 export const runtime = 'nodejs';
 
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     const filters = [eq(infrastructureRecords.workspaceId, result.context.workspaceId)];
 
     if (from) {
-      const fromDate = new Date(from);
+      const fromDate = parseDateFrom(from);
       const fromVal = fromDate.getFullYear() * 100 + (fromDate.getMonth() + 1);
       filters.push(
         gte(
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (to) {
-      const toDate = new Date(to);
+      const toDate = parseDateTo(to);
       const toVal = toDate.getFullYear() * 100 + (toDate.getMonth() + 1);
       filters.push(
         lte(
