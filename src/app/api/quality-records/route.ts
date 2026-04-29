@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { atendimentos, qualityRecords } from '@/lib/db/schema';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { and, count, desc, eq, gte, ilike, lte, or, SQL } from 'drizzle-orm';
+import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 
 export const runtime = 'nodejs';
 
@@ -25,8 +26,8 @@ export async function GET(req: NextRequest) {
 
     // Filters WITHOUT indicator (for aggregate totals per indicator)
     const baseFilters: SQL[] = [eq(qualityRecords.workspaceId, result.context.workspaceId)];
-    if (fromStr) baseFilters.push(gte(qualityRecords.openedAt, new Date(fromStr)));
-    if (toStr)   baseFilters.push(lte(qualityRecords.openedAt, new Date(toStr)));
+    if (fromStr) baseFilters.push(gte(qualityRecords.openedAt, parseDateFrom(fromStr)));
+    if (toStr)   baseFilters.push(lte(qualityRecords.openedAt, parseDateTo(toStr)));
     if (city) baseFilters.push(ilike(qualityRecords.city, `%${city}%`));
     if (plan) baseFilters.push(ilike(qualityRecords.plan, `%${plan}%`));
     if (technicianId) baseFilters.push(eq(qualityRecords.technicianId, Number(technicianId)));
@@ -66,8 +67,8 @@ export async function GET(req: NextRequest) {
       eq(atendimentos.workspaceId, result.context.workspaceId),
       ilike(atendimentos.tipo, 'reparo'),
     ];
-    if (fromStr) reparoFilters.push(gte(atendimentos.aberturaAt, new Date(fromStr)));
-    if (toStr)   reparoFilters.push(lte(atendimentos.aberturaAt, new Date(toStr)));
+    if (fromStr) reparoFilters.push(gte(atendimentos.aberturaAt, parseDateFrom(fromStr)));
+    if (toStr)   reparoFilters.push(lte(atendimentos.aberturaAt, parseDateTo(toStr)));
 
     const [reparoCount] = await db
       .select({ total: count() })

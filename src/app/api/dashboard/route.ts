@@ -4,6 +4,7 @@ import { atendimentos, qualityRecords } from '@/lib/db/schema';
 import { calculateValidAverage } from '@/lib/utils/average';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { and, count, eq, gte, ilike, lte, sql, SQL } from 'drizzle-orm';
+import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 
 export const runtime = 'nodejs';
 
@@ -24,16 +25,16 @@ export async function GET(req: NextRequest) {
     const atendFilters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
     if (fromStr || toStr) {
       const dataRef = sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
-      if (fromStr) atendFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
-      if (toStr)   atendFilters.push(sql`${dataRef} <= ${new Date(toStr)}`);
+      if (fromStr) atendFilters.push(sql`${dataRef} >= ${parseDateFrom(fromStr)}`);
+      if (toStr)   atendFilters.push(sql`${dataRef} <= ${parseDateTo(toStr)}`);
     }
     if (city && city !== 'all') atendFilters.push(eq(atendimentos.cidade, city));
     const atendWhere = atendFilters.length ? and(...atendFilters) : undefined;
 
     // Filtro de data para qualidade (usa openedAt)
     const qualityFilters: SQL[] = [eq(qualityRecords.workspaceId, result.context.workspaceId)];
-    if (fromStr) qualityFilters.push(gte(qualityRecords.openedAt, new Date(fromStr)));
-    if (toStr)   qualityFilters.push(lte(qualityRecords.openedAt, new Date(toStr)));
+    if (fromStr) qualityFilters.push(gte(qualityRecords.openedAt, parseDateFrom(fromStr)));
+    if (toStr)   qualityFilters.push(lte(qualityRecords.openedAt, parseDateTo(toStr)));
     if (city && city !== 'all') qualityFilters.push(eq(qualityRecords.city, city));
     const qualityWhere = qualityFilters.length ? and(...qualityFilters) : undefined;
 
@@ -42,8 +43,8 @@ export async function GET(req: NextRequest) {
       eq(atendimentos.workspaceId, result.context.workspaceId),
       ilike(atendimentos.tipo, 'reparo'),
     ];
-    if (fromStr) reparoFilters.push(gte(atendimentos.aberturaAt, new Date(fromStr)));
-    if (toStr)   reparoFilters.push(lte(atendimentos.aberturaAt, new Date(toStr)));
+    if (fromStr) reparoFilters.push(gte(atendimentos.aberturaAt, parseDateFrom(fromStr)));
+    if (toStr)   reparoFilters.push(lte(atendimentos.aberturaAt, parseDateTo(toStr)));
     if (city && city !== 'all') reparoFilters.push(eq(atendimentos.cidade, city));
     const reparoWhere = and(...reparoFilters);
 
@@ -51,8 +52,8 @@ export async function GET(req: NextRequest) {
     const baseCityFilters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
     if (fromStr || toStr) {
       const dataRef = sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
-      if (fromStr) baseCityFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
-      if (toStr)   baseCityFilters.push(sql`${dataRef} <= ${new Date(toStr)}`);
+      if (fromStr) baseCityFilters.push(sql`${dataRef} >= ${parseDateFrom(fromStr)}`);
+      if (toStr)   baseCityFilters.push(sql`${dataRef} <= ${parseDateTo(toStr)}`);
     }
     const baseCityWhere = and(...baseCityFilters);
 

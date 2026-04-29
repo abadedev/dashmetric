@@ -82,7 +82,7 @@ export const Columns: ColumnDef<any>[] = [
       const date = new Date(row.getValue('openedAt'));
       return (
         <div className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
-          {date.toLocaleString('pt-BR')}
+          {date.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
         </div>
       );
     },
@@ -95,7 +95,7 @@ export const Columns: ColumnDef<any>[] = [
       if (!raw) return <span className="text-muted-foreground text-sm">—</span>;
       return (
         <div className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
-          {new Date(raw as string).toLocaleString('pt-BR')}
+          {new Date(raw as string).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
         </div>
       );
     },
