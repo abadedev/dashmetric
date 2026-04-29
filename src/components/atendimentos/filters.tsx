@@ -9,7 +9,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ACTIVITY_LABELS } from '@/lib/services/sla-engine';
+const TIPO_OPTIONS = [
+  { value: 'instalacao_nova', label: 'Instalação Nova' },
+  { value: 'instalacao_reativacao', label: 'Instalação Reativação' },
+  { value: 'reparo', label: 'Reparo' },
+  { value: 'mudanca_endereco', label: 'Mudança de Endereço' },
+  { value: 'retirada_kit', label: 'Retirada de Kit' },
+  { value: 'mudanca_plano', label: 'Mudança de Plano' },
+  { value: 'retorno', label: 'Retorno' },
+  { value: 'atendimento_interno', label: 'Atendimento Interno' },
+  { value: 'cancelado_reparo', label: 'Cancelado – Reparo' },
+  { value: 'cancelado_retirada_kit', label: 'Cancelado – Retirada de Kit' },
+  { value: 'cancelado_mudanca_endereco', label: 'Cancelado – Mudança de Endereço' },
+  { value: 'cancelado_retorno', label: 'Cancelado – Retorno' },
+  { value: 'cancelado_reativacao_login', label: 'Cancelado – Reativação de Login' },
+];
 
 interface FiltersProps {
   filters: AtendimentoFilters;
@@ -98,13 +112,13 @@ export function Filters({ filters, onFilterChange, options }: FiltersProps) {
           onValueChange={(value) => handleChange('type', value ?? 'all')}
         >
           <SelectTrigger className="h-9 w-[180px] text-sm">
-            <SelectValue>{(v: string | null) => v === 'all' || !v ? 'Todos os tipos' : (ACTIVITY_LABELS[v as keyof typeof ACTIVITY_LABELS] ?? v)}</SelectValue>
+            <SelectValue placeholder="Todos os tipos" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os tipos</SelectItem>
-            {Object.entries(ACTIVITY_LABELS).map(([key, label]) => (
-              <SelectItem key={key} value={key}>
-                {label}
+            {TIPO_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
               </SelectItem>
             ))}
           </SelectContent>

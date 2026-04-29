@@ -7,6 +7,22 @@ import { and, eq, ilike, desc, count, or, sql, SQL } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
+const SLUG_TO_TIPO: Record<string, string> = {
+  instalacao_nova: 'Instalação (Nova)',
+  instalacao_reativacao: 'Instalação (Reativação)',
+  reparo: 'Reparo',
+  mudanca_endereco: 'Mudança de Endereço',
+  retirada_kit: 'Retirada de Kit',
+  mudanca_plano: 'Mudança de Plano',
+  retorno: 'Retorno',
+  atendimento_interno: 'Atendimento Interno',
+  cancelado_reparo: 'Cancelado – Reparo',
+  cancelado_retirada_kit: 'Cancelado – Retirada de Kit',
+  cancelado_mudanca_endereco: 'Cancelado – Mudança de Endereço',
+  cancelado_retorno: 'Cancelado – Retorno',
+  cancelado_reativacao_login: 'Cancelado – Reativação de Login',
+};
+
 export async function GET(req: NextRequest) {
   const { response } = await requireAuth(req);
   if (response) return response;
@@ -38,7 +54,7 @@ export async function GET(req: NextRequest) {
       else if (parts.length === 1) filters.push(parts[0]);
     }
 
-    if (type)         filters.push(eq(atendimentos.tipo, type));
+    if (type)         filters.push(eq(atendimentos.tipo, SLUG_TO_TIPO[type] ?? type));
     if (technicianId) filters.push(eq(atendimentos.tecnicoId, Number(technicianId)));
     if (city)         filters.push(ilike(atendimentos.cidade, `%${city}%`));
     if (plan)         filters.push(ilike(atendimentos.plano, `%${plan}%`));
@@ -60,7 +76,7 @@ export async function GET(req: NextRequest) {
     const whereClause = filters.length ? and(...filters) : undefined;
     const offset = (page - 1) * pageSize;
 
-    const [rows, [totalRow]] = await Promise.all([
+    const [rows, [totalRow], [slaRow]] = await Promise.all([
       db
         .select({
           id:                atendimentos.id,
@@ -98,9 +114,17 @@ export async function GET(req: NextRequest) {
         .offset(offset),
 
       db.select({ total: count() }).from(atendimentos).where(whereClause),
+
+      db.select({
+        withinSlaUtil: sql<number>`count(*) filter (where ${atendimentos.dentroSlaUtil} = true)`.as('within_sla_util'),
+        outsideSlaUtil: sql<number>`count(*) filter (where ${atendimentos.dentroSlaUtil} = false and ${atendimentos.finalizacaoAt} is not null)`.as('outside_sla_util'),
+      }).from(atendimentos).where(whereClause),
     ]);
 
     const total = totalRow?.total ?? 0;
+    const withinSlaUtil = Number(slaRow?.withinSlaUtil ?? 0);
+    const outsideSlaUtil = Number(slaRow?.outsideSlaUtil ?? 0);
+    const slaUtilPercent = total > 0 ? Math.round((withinSlaUtil / total) * 10000) / 10000 : 0;
 
     const data = rows.map((r) => ({
       id:               String(r.id),
@@ -134,6 +158,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       data,
       total,
+      withinSlaUtil,
+      outsideSlaUtil,
+      slaUtilPercent,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
