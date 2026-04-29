@@ -10,8 +10,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CalendarDays, User, Clock, MapPin, Wifi, FileText } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 interface OsServiceDetailSheetProps {
   record: any;
@@ -23,7 +21,7 @@ function formatDateTime(value: string | Date | null | undefined): string {
   if (!value) return '—';
   try {
     const d = typeof value === 'string' ? new Date(value) : value;
-    return format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+    return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   } catch {
     return String(value);
   }
@@ -163,22 +161,12 @@ export function OsServiceDetailSheet({ record, isOpen, onClose }: OsServiceDetai
               </div>
               <div className="bg-muted/40 p-3 rounded-md">
                 <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> Data de referência
+                  <Clock className="w-3 h-3" /> Concluído em
                 </div>
                 <div className="font-medium">
-                  {record.referenceDate || record.dataReferencia
-                    ? formatDateTime(record.referenceDate || record.dataReferencia)
-                    : '—'}
+                  {formatDateTime(record.resolvedAt)}
                 </div>
               </div>
-              {record.resolutionDate && (
-                <div className="bg-muted/40 p-3 rounded-md col-span-2">
-                  <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> Data de conclusão
-                  </div>
-                  <div className="font-medium">{formatDateTime(record.resolutionDate)}</div>
-                </div>
-              )}
               {(record.createdBy || record.addedByName || record.added_by_name) && (
                 <div className="bg-muted/40 p-3 rounded-md col-span-2">
                   <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
