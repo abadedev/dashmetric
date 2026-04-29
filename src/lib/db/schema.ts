@@ -802,6 +802,36 @@ export type WorkspaceMember = typeof workspaceMembers.$inferSelect;
 export type NewWorkspaceMember = typeof workspaceMembers.$inferInsert;
 export type WorkspaceMemberRole = typeof workspaceMemberRoleEnum.enumValues[number];
 
+// ========== SYSTEM NOTIFICATIONS ==========
+
+export const systemNotifications = pgTable('system_notifications', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  body: text('body').notNull(),
+  feedbackId: integer('feedback_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  createdBy: varchar('created_by', { length: 255 }),
+});
+
+export const systemNotificationReads = pgTable(
+  'system_notification_reads',
+  {
+    id: serial('id').primaryKey(),
+    notificationId: integer('notification_id')
+      .references(() => systemNotifications.id, { onDelete: 'cascade' })
+      .notNull(),
+    userId: varchar('user_id', { length: 255 }).notNull(),
+    readAt: timestamp('read_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('notification_read_unique').on(table.notificationId, table.userId),
+  ]
+);
+
+export type SystemNotification = typeof systemNotifications.$inferSelect;
+export type NewSystemNotification = typeof systemNotifications.$inferInsert;
+export type SystemNotificationRead = typeof systemNotificationReads.$inferSelect;
+
 // ========== DROPDOWN OPTIONS ==========
 
 export const dropdownOptions = pgTable(

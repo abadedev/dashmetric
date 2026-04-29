@@ -67,6 +67,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
 
+    const [currentRecord] = await db
+      .select({ resolvedAt: serviceListings.resolvedAt })
+      .from(serviceListings)
+      .where(eq(serviceListings.id, recordId))
+      .limit(1);
+
+    if (!currentRecord) {
+      return NextResponse.json({ error: 'Registro não encontrado.' }, { status: 404 });
+    }
+
     if (body.finalize) {
       const finalizePermission = await requireWorkspacePermission(req, 'listagem-servicos.finalize', {
         moduleSlug: 'listagem-servicos',
@@ -157,6 +167,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
           updateData[key] = parsedData[key];
         }
+      }
+    }
+
+    if ('status' in updateData) {
+      if (updateData.status === 'resolvido') {
+        if (!currentRecord.resolvedAt) {
+          updateData.resolvedAt = new Date();
+        }
+      } else {
+        updateData.resolvedAt = null;
       }
     }
 

@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { SidebarProvider } from '@/components/layout/sidebar-context';
 import { SidebarAwareContent } from '@/components/layout/sidebar-aware-content';
 import { DashielWidget } from '@/components/ai/dashiel-widget';
+import { UnreadNotificationsDialog } from '@/components/notifications/unread-notifications-dialog';
 
 export default async function DashboardLayout({
   children,
@@ -34,6 +35,7 @@ export default async function DashboardLayout({
           <Sidebar />
         </div>
         <SidebarAwareContent widget={<DashielWidget workspaceSlug={activeWorkspace?.slug} />}>
+          <UnreadNotificationsDialog />
           {children}
         </SidebarAwareContent>
       </div>
