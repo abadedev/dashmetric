@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, Clock, Layers3, Shield, ShieldAlert, SlidersHorizontal, Trash2, Users } from 'lucide-react';
+import { Building2, Clock, Layers3, MessageSquare, Shield, ShieldAlert, SlidersHorizontal, Trash2, Users } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { WorkspaceManager } from '@/components/admin/workspace-manager';
 import { PendingUsersManager, usePendingUsersCount } from '@/components/admin/pending-users-manager';
 import { DataCleanupManager } from '@/components/admin/data-cleanup-manager';
 import { DropdownOptionsManager } from '@/components/admin/dropdown-options-manager';
+import { FeedbackManager } from '@/components/admin/feedback-manager';
 
 function readActiveWorkspaceCookie() {
   if (typeof document === 'undefined') return null;
@@ -163,6 +164,12 @@ export default function AdminPage() {
             </TabsTrigger>
           ) : null}
           {isPlatformAdmin ? (
+            <TabsTrigger value="feedbacks">
+              <MessageSquare className="h-4 w-4" />
+              Feedbacks
+            </TabsTrigger>
+          ) : null}
+          {isPlatformAdmin ? (
             <TabsTrigger value="limpeza">
               <Trash2 className="h-4 w-4" />
               Limpeza de Dados
@@ -203,6 +210,11 @@ export default function AdminPage() {
         {isPlatformAdmin ? (
           <TabsContent value="workspaces" className="mt-4">
             <WorkspaceManager />
+          </TabsContent>
+        ) : null}
+        {isPlatformAdmin ? (
+          <TabsContent value="feedbacks" className="mt-4">
+            <FeedbackManager />
           </TabsContent>
         ) : null}
         {isPlatformAdmin ? (

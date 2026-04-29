@@ -736,6 +736,19 @@ export type GroupPermission = typeof groupPermissions.$inferSelect;
 export type UserGroup = typeof userGroups.$inferSelect;
 export type UserPermission = typeof userPermissions.$inferSelect;
 
+// ========== FEEDBACK ==========
+
+export const feedback = pgTable('feedback', {
+  id: serial('id').primaryKey(),
+  message: text('message').notNull(),
+  userEmail: varchar('user_email', { length: 255 }),
+  userName: varchar('user_name', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export type Feedback = typeof feedback.$inferSelect;
+export type NewFeedback = typeof feedback.$inferInsert;
+
 // ========== MULTI-WORKSPACE ==========
 
 export const workspaceMemberRoleEnum = pgEnum('workspace_member_role', [
