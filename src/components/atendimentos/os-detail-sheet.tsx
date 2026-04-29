@@ -148,7 +148,7 @@ export function OsDetailSheet({ os, isOpen, onClose }: OsDetailSheetProps) {
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Aberto em {new Date(os.openedAt).toLocaleString('pt-BR')}
+              Aberto em {new Date(os.openedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
             </p>
           </div>
           <DialogClose
@@ -195,7 +195,7 @@ export function OsDetailSheet({ os, isOpen, onClose }: OsDetailSheetProps) {
                   <div className="text-[11px] text-muted-foreground mb-1">Fechamento</div>
                   <div className="text-sm font-medium">
                     {os.closedAt ? (
-                      new Date(os.closedAt).toLocaleString('pt-BR')
+                      new Date(os.closedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
                     ) : (
                       <span className="text-muted-foreground font-normal">—</span>
                     )}

@@ -4,6 +4,7 @@ import { atendimentos } from '@/lib/db/schema';
 import { formatSecondsToHHMMSS } from '@/lib/importacao/helpers';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { and, count, eq, isNotNull, sql, SQL } from 'drizzle-orm';
+import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 
 export const runtime = 'nodejs';
 
@@ -74,8 +75,8 @@ export async function GET(req: NextRequest) {
     const dateFilters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
     if (fromStr || toStr) {
       const dataRef = sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
-      if (fromStr) dateFilters.push(sql`${dataRef} >= ${new Date(fromStr)}`);
-      if (toStr)   dateFilters.push(sql`${dataRef} <= ${new Date(toStr)}`);
+      if (fromStr) dateFilters.push(sql`${dataRef} >= ${parseDateFrom(fromStr)}`);
+      if (toStr)   dateFilters.push(sql`${dataRef} <= ${parseDateTo(toStr)}`);
     }
 
     const baseWhere = dateFilters.length ? and(...dateFilters) : undefined;
