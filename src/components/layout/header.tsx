@@ -2,9 +2,9 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, Menu, Shield, ChevronDown, Sun, Moon, Building2, Check, Plus, UserPlus, LogOutIcon, MessageSquare } from 'lucide-react';
+import { LogOut, Menu, Shield, ChevronDown, Sun, Moon, Building2, Check, Plus, UserPlus, LogOutIcon, MessageSquare, Bell, CheckCheck } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { buttonVariants } from '@/components/ui/button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import { signOut, useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
@@ -74,6 +75,9 @@ export function Header() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState('');
   const [sendingFeedback, setSendingFeedback] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  const queryClient = useQueryClient();
 
   const user = data?.user;
   const isAdmin = user?.role === 'admin';
@@ -105,6 +109,33 @@ export function Header() {
     staleTime: 30_000,
   });
   const workspaces = wsData?.data ?? [];
+
+  const { data: notifData, refetch: refetchNotifs } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () => {
+      const res = await fetch('/api/notifications');
+      if (!res.ok) return { data: [], unreadCount: 0 };
+      return res.json() as Promise<{ data: Array<{ id: number; title: string; body: string; feedbackId: number | null; createdAt: string; isRead: boolean }>; unreadCount: number }>;
+    },
+    enabled: !isPending && Boolean(data?.user),
+    refetchInterval: 300_000,
+    staleTime: 60_000,
+  });
+
+  const notifications = notifData?.data ?? [];
+  const unreadCount = notifData?.unreadCount ?? 0;
+
+  async function markAsRead(id: number) {
+    await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+    refetchNotifs();
+  }
+
+  async function markAllAsRead() {
+    await fetch('/api/notifications/read-all', { method: 'POST' });
+    refetchNotifs();
+    setNotifOpen(false);
+  }
+
   const activeWorkspace = workspaceSlugFromUrl
     ? workspaces.find((w) => w.slug === workspaceSlugFromUrl)
     : workspaces[0];
@@ -249,6 +280,71 @@ export function Header() {
             <MessageSquare className="h-4 w-4" />
             <span className="text-xs font-medium hidden sm:inline">Feedback</span>
           </button>
+
+          {/* Notification Bell */}
+          <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+            <PopoverTrigger
+              aria-label="Notificações"
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-all hover:border-border/80 hover:bg-card/80 hover:text-foreground"
+            >
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[10px] font-bold text-destructive-foreground">
+                  {unreadCount >= 10 ? '9+' : unreadCount}
+                </span>
+              )}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)] p-0 overflow-hidden">
+              <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+                <span className="text-sm font-semibold">Notificações</span>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    Marcar todas como lidas
+                  </button>
+                )}
+              </div>
+              <div className="max-h-[400px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-muted-foreground">Nenhuma notificação.</div>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={cn('border-b px-4 py-3 last:border-0 transition-colors', !n.isRead && 'bg-primary/5')}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium leading-snug">{n.title}</p>
+                          <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">{n.body}</p>
+                          {n.feedbackId && (
+                            <span className="mt-1.5 inline-block text-[10px] text-muted-foreground/70 font-medium">
+                              Em resposta ao feedback #{n.feedbackId}
+                            </span>
+                          )}
+                          <p className="mt-1 text-[10px] text-muted-foreground/50">
+                            {new Date(n.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                          </p>
+                        </div>
+                        {!n.isRead && (
+                          <button
+                            onClick={() => markAsRead(n.id)}
+                            className="shrink-0 rounded p-1 text-muted-foreground/60 transition-colors hover:text-foreground"
+                            aria-label="Marcar como lida"
+                          >
+                            <CheckCheck className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
 
           <div className="mx-1 h-6 w-px bg-border/80" />
 
