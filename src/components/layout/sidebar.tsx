@@ -348,7 +348,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
       {!effectiveCollapsed && (
         <div className="shrink-0 border-t border-sidebar-border/80 px-4 py-3">
           <p className="text-[10px] text-sidebar-foreground/30 leading-tight">
-            NOC Performance Manager v1.0.0
+            NOC Performance Manager v1.1.0
           </p>
         </div>
       )}
