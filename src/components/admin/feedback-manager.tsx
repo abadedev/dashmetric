@@ -13,6 +13,7 @@ interface FeedbackItem {
   userEmail: string | null;
   userName: string | null;
   status: string | null;
+  imageUrl: string | null;
   createdAt: string | null;
 }
 
@@ -118,6 +119,11 @@ export function FeedbackManager() {
                     <p className="text-xs text-muted-foreground">{formatDate(fb.createdAt)}</p>
                   )}
                   <p className="text-sm whitespace-pre-wrap">{fb.message}</p>
+                  {fb.imageUrl && (
+                    <a href={fb.imageUrl} target="_blank" rel="noopener noreferrer">
+                      <img src={fb.imageUrl} alt="Anexo" className="mt-2 max-h-48 rounded-lg border object-contain" />
+                    </a>
+                  )}
 
                   <div className="flex items-center gap-1.5 pt-1">
                     {(Object.entries(STATUS_CONFIG) as [keyof typeof STATUS_CONFIG, typeof STATUS_CONFIG[keyof typeof STATUS_CONFIG]][]).map(([key, cfg]) => {

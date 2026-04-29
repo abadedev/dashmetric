@@ -32,6 +32,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { toast } from 'sonner';
 import { signOut, useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
@@ -74,6 +75,7 @@ export function Header() {
   const [createError, setCreateError] = useState('');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [feedbackImageUrl, setFeedbackImageUrl] = useState<string | null>(null);
   const [sendingFeedback, setSendingFeedback] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [showAllNotifs, setShowAllNotifs] = useState(false);
@@ -213,7 +215,7 @@ export function Header() {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: feedbackMsg.trim() }),
+        body: JSON.stringify({ message: feedbackMsg.trim(), imageUrl: feedbackImageUrl }),
       });
       if (!res.ok) throw new Error();
       setFeedbackOpen(false);
@@ -559,7 +561,7 @@ export function Header() {
       </Dialog>
 
       {/* Feedback dialog */}
-      <Dialog open={feedbackOpen} onOpenChange={(o) => { setFeedbackOpen(o); if (!o) setFeedbackMsg(''); }}>
+      <Dialog open={feedbackOpen} onOpenChange={(o) => { setFeedbackOpen(o); if (!o) { setFeedbackMsg(''); setFeedbackImageUrl(null); } }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Enviar feedback</DialogTitle>
@@ -572,6 +574,13 @@ export function Header() {
               onChange={(e) => setFeedbackMsg(e.target.value)}
               rows={4}
             />
+            <div className="mt-3">
+              <ImageUpload
+                value={feedbackImageUrl}
+                onChange={setFeedbackImageUrl}
+                disabled={sendingFeedback}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setFeedbackOpen(false)}>Cancelar</Button>

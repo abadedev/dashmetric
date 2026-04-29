@@ -744,6 +744,7 @@ export const feedback = pgTable('feedback', {
   userEmail: varchar('user_email', { length: 255 }),
   userName: varchar('user_name', { length: 255 }),
   status: varchar('status', { length: 20 }).default('pendente'),
+  imageUrl: text('image_url'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
