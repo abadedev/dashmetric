@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const { session, response } = await requireAuth(req);
   if (response) return response;
 
-  const body = (await req.json()) as { message?: string };
+  const body = (await req.json()) as { message?: string; imageUrl?: string | null };
 
   if (!body.message?.trim()) {
     return NextResponse.json({ error: 'Mensagem é obrigatória' }, { status: 400 });
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     message: body.message.trim(),
     userEmail: user.email ?? null,
     userName: user.name ?? null,
+    imageUrl: body.imageUrl ?? null,
   });
 
   return NextResponse.json({ success: true });

@@ -32,6 +32,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { toast } from 'sonner';
 import { signOut, useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
@@ -74,8 +75,10 @@ export function Header() {
   const [createError, setCreateError] = useState('');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [feedbackImageUrl, setFeedbackImageUrl] = useState<string | null>(null);
   const [sendingFeedback, setSendingFeedback] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [showAllNotifs, setShowAllNotifs] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -212,7 +215,7 @@ export function Header() {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: feedbackMsg.trim() }),
+        body: JSON.stringify({ message: feedbackMsg.trim(), imageUrl: feedbackImageUrl }),
       });
       if (!res.ok) throw new Error();
       setFeedbackOpen(false);
@@ -282,7 +285,7 @@ export function Header() {
           </button>
 
           {/* Notification Bell */}
-          <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+          <Popover open={notifOpen} onOpenChange={(v) => { setNotifOpen(v); if (!v) setShowAllNotifs(false); }}>
             <PopoverTrigger
               aria-label="Notificações"
               className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-all hover:border-border/80 hover:bg-card/80 hover:text-foreground"
@@ -307,40 +310,52 @@ export function Header() {
                   </button>
                 )}
               </div>
-              <div className="max-h-[400px] overflow-y-auto">
+              <div className="max-h-[60vh] overflow-y-auto">
                 {notifications.length === 0 ? (
                   <div className="py-10 text-center text-sm text-muted-foreground">Nenhuma notificação.</div>
                 ) : (
-                  notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      className={cn('border-b px-4 py-3 last:border-0 transition-colors', !n.isRead && 'bg-primary/5')}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium leading-snug">{n.title}</p>
-                          <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">{n.body}</p>
-                          {n.feedbackId && (
-                            <span className="mt-1.5 inline-block text-[10px] text-muted-foreground/70 font-medium">
-                              Em resposta ao feedback #{n.feedbackId}
-                            </span>
+                  <>
+                    {(showAllNotifs ? notifications : notifications.slice(0, 3)).map((n) => (
+                      <div
+                        key={n.id}
+                        className={cn('border-b px-4 py-3 last:border-0 transition-colors', !n.isRead && 'bg-primary/5')}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium leading-snug">{n.title}</p>
+                            <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">{n.body}</p>
+                            {n.feedbackId && (
+                              <span className="mt-1.5 inline-block text-[10px] text-muted-foreground/70 font-medium">
+                                Em resposta ao feedback #{n.feedbackId}
+                              </span>
+                            )}
+                            <p className="mt-1 text-[10px] text-muted-foreground/50">
+                              {new Date(n.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                            </p>
+                          </div>
+                          {!n.isRead && (
+                            <button
+                              onClick={() => markAsRead(n.id)}
+                              className="shrink-0 rounded p-1 text-muted-foreground/60 transition-colors hover:text-foreground"
+                              aria-label="Marcar como lida"
+                            >
+                              <CheckCheck className="h-3.5 w-3.5" />
+                            </button>
                           )}
-                          <p className="mt-1 text-[10px] text-muted-foreground/50">
-                            {new Date(n.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-                          </p>
                         </div>
-                        {!n.isRead && (
-                          <button
-                            onClick={() => markAsRead(n.id)}
-                            className="shrink-0 rounded p-1 text-muted-foreground/60 transition-colors hover:text-foreground"
-                            aria-label="Marcar como lida"
-                          >
-                            <CheckCheck className="h-3.5 w-3.5" />
-                          </button>
-                        )}
                       </div>
-                    </div>
-                  ))
+                    ))}
+                    {notifications.length > 3 && (
+                      <div className="border-t px-4 py-2">
+                        <button
+                          onClick={() => setShowAllNotifs((v) => !v)}
+                          className="w-full rounded-md py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          {showAllNotifs ? 'Mostrar menos' : `Ver mais (${notifications.length - 3} antigas)`}
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </PopoverContent>
@@ -546,7 +561,7 @@ export function Header() {
       </Dialog>
 
       {/* Feedback dialog */}
-      <Dialog open={feedbackOpen} onOpenChange={(o) => { setFeedbackOpen(o); if (!o) setFeedbackMsg(''); }}>
+      <Dialog open={feedbackOpen} onOpenChange={(o) => { setFeedbackOpen(o); if (!o) { setFeedbackMsg(''); setFeedbackImageUrl(null); } }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Enviar feedback</DialogTitle>
@@ -559,6 +574,13 @@ export function Header() {
               onChange={(e) => setFeedbackMsg(e.target.value)}
               rows={4}
             />
+            <div className="mt-3">
+              <ImageUpload
+                value={feedbackImageUrl}
+                onChange={setFeedbackImageUrl}
+                disabled={sendingFeedback}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setFeedbackOpen(false)}>Cancelar</Button>
