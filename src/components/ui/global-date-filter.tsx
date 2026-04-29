@@ -5,10 +5,18 @@ import { useQueryState, createParser } from "nuqs";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { useMemo, useCallback } from "react";
 
+function getDatePart(value: string): string | null {
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
+}
+
 export const parseAsLocalIsoDate = createParser({
   parse: (v) => {
     if (!v) return null;
-    const date = new Date(`${v}T00:00:00`);
+    const datePart = getDatePart(v);
+    if (!datePart) return null;
+    const [year, month, day] = datePart.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return isNaN(date.getTime()) ? null : date;
   },
   serialize: (v: Date) => {
@@ -28,7 +36,7 @@ export function GlobalDateFilter({ noDefault }: { noDefault?: boolean } = {}) {
     (noDefault
       ? parseAsLocalIsoDate
       : parseAsLocalIsoDate.withDefault(defaultFrom)
-    ).withOptions({ shallow: false })
+    ).withOptions({ shallow: false, clearOnDefault: false })
   ) as [Date | null, (v: Date | null) => Promise<URLSearchParams>];
 
   const [to, setTo] = useQueryState(
@@ -36,7 +44,7 @@ export function GlobalDateFilter({ noDefault }: { noDefault?: boolean } = {}) {
     (noDefault
       ? parseAsLocalIsoDate
       : parseAsLocalIsoDate.withDefault(defaultTo)
-    ).withOptions({ shallow: false })
+    ).withOptions({ shallow: false, clearOnDefault: false })
   ) as [Date | null, (v: Date | null) => Promise<URLSearchParams>];
 
   const dateRange = useMemo(() => ({
