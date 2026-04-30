@@ -7,6 +7,50 @@ import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 
 export const runtime = 'nodejs';
 
+export async function POST(req: NextRequest) {
+  const result = await requireWorkspacePermission(req, 'qualidade.view', {
+    moduleSlug: 'qualidade',
+    action: 'view',
+    requiredRole: 'user',
+  });
+  if (result.response) return result.response;
+
+  try {
+    const body = await req.json();
+    const { indicator, technicianName, clientName, city, plan, reason, osNumber, openedAt: openedAtStr } = body;
+
+    if (!indicator || !['IQIv', 'IQRv', 'ICT'].includes(indicator)) {
+      return NextResponse.json({ error: 'Indicador inválido. Use IQIv, IQRv ou ICT.' }, { status: 400 });
+    }
+    if (!technicianName?.trim()) {
+      return NextResponse.json({ error: 'Nome do técnico é obrigatório.' }, { status: 400 });
+    }
+
+    const openedAt = openedAtStr ? new Date(openedAtStr) : new Date();
+    const periodMonth = openedAt.getMonth() + 1;
+    const periodYear = openedAt.getFullYear();
+
+    const [record] = await db.insert(qualityRecords).values({
+      workspaceId: result.context.workspaceId,
+      indicator: indicator as never,
+      technicianName: technicianName.trim(),
+      clientName: clientName?.trim() || null,
+      city: city?.trim() || null,
+      plan: plan?.trim() || null,
+      reason: reason?.trim() || null,
+      osNumber: osNumber?.trim() || null,
+      openedAt,
+      periodMonth,
+      periodYear,
+    }).returning();
+
+    return NextResponse.json(record, { status: 201 });
+  } catch (err) {
+    console.error('[quality-records POST]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function GET(req: NextRequest) {
   const result = await requireWorkspacePermission(req, 'qualidade.view', {
     moduleSlug: 'qualidade',

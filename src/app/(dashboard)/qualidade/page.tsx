@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { IndicatorCards } from '@/components/qualidade/indicator-cards';
 import { QualityTable } from '@/components/qualidade/quality-table';
 import { PageSkeleton, TableSkeleton } from '@/components/ui/state-display';
@@ -10,6 +10,8 @@ import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-da
 import { useQueryState } from 'nuqs';
 import { PageLayout } from '@/components/layout/page-layout';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { NewQualityRecordDialog } from '@/components/qualidade/new-quality-record-dialog';
 
 function QualidadePageContent() {
   const [from] = useQueryState("from", parseAsLocalIsoDate);
@@ -18,6 +20,8 @@ function QualidadePageContent() {
   const [city, setCity] = useState('');
   const [plan, setPlan] = useState('');
   const [search, setSearch] = useState('');
+  const [newRecordOpen, setNewRecordOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const queryParams = new URLSearchParams({
     ...(indicator !== 'all' && { indicator }),
@@ -55,6 +59,7 @@ function QualidadePageContent() {
       description="Métricas de retrabalho, inviabilidades e retornos técnicos."
       actions={
         <div className="flex gap-3 flex-wrap">
+          <Button onClick={() => setNewRecordOpen(true)}>+ Novo Registro</Button>
           <GlobalDateFilter />
           <Input
             value={search}
@@ -106,6 +111,11 @@ function QualidadePageContent() {
         </div>
       }
     >
+      <NewQualityRecordDialog
+        open={newRecordOpen}
+        onClose={() => setNewRecordOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['quality-records'] })}
+      />
       <IndicatorCards byIndicator={data?.byIndicator ?? {}} totalReparos={data?.totalReparos ?? 0} />
       {isLoading ? (
         <TableSkeleton />
