@@ -49,7 +49,7 @@ export function QualityTable({ records }: { records: any[] }) {
         <Table>
           <TableHeader className="sticky top-0 bg-muted/35 backdrop-blur-sm">
             <TableRow>
-              <TableHead>No OS</TableHead>
+              <TableHead>Login</TableHead>
               <TableHead>Indicador</TableHead>
               <TableHead>Tecnico</TableHead>
               <TableHead>Cliente</TableHead>
