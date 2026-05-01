@@ -300,7 +300,7 @@ const DEFAULT_MODULES: Array<{
   },
   {
     module: {
-      name: 'Resumo SLA',
+      name: 'Análise Comparativa',
       slug: 'resumo-sla',
       description: 'Resumo consolidado do SLA util e corrido por tipo operacional.',
       icon: 'BarChart3',

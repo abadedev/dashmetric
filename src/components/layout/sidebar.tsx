@@ -47,7 +47,7 @@ type GroupState = Record<string, boolean>;
 
 const TOP_ITEMS: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Resumo SLA', href: '/resumo-sla', icon: BarChart },
+  { name: 'Análise Comparativa', href: '/resumo-sla', icon: BarChart },
 ];
 
 const NAV_GROUPS: NavGroup[] = [
