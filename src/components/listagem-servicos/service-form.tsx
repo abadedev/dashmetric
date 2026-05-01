@@ -543,31 +543,6 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="sf-obs-main" className="text-sm font-medium">OBS:</Label>
-                  {canOpenLocation && (
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                      onClick={() => window.open(form.locationUrl.trim(), '_blank', 'noopener,noreferrer')}
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      {'Abrir link de localiza\u00E7\u00E3o'}
-                    </button>
-                  )}
-                </div>
-                <textarea
-                  id="sf-obs-main"
-                  value={form.observacaoInfra}
-                  onChange={(event) => updateField('observacaoInfra', event.target.value)}
-                  rows={4}
-                  placeholder="Observacao complementar opcional..."
-                  className="min-h-[110px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
-                  disabled={isEditLocked}
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="sf-solicitante" className="text-sm font-medium">Solicitante</Label>
                 <Select
                   value={form.solicitante || 'none'}
@@ -595,6 +570,31 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
                     autoFocus
                   />
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="sf-obs-main" className="text-sm font-medium">OBS:</Label>
+                  {canOpenLocation && (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                      onClick={() => window.open(form.locationUrl.trim(), '_blank', 'noopener,noreferrer')}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      {'Abrir link de localiza\u00E7\u00E3o'}
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  id="sf-obs-main"
+                  value={form.observacaoInfra}
+                  onChange={(event) => updateField('observacaoInfra', event.target.value)}
+                  rows={4}
+                  placeholder="Observacao complementar opcional..."
+                  className="min-h-[110px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+                  disabled={isEditLocked}
+                />
               </div>
 
               <div className="space-y-1.5">
