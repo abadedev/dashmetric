@@ -11,7 +11,7 @@ const ROUTE_LABELS: Record<string, string> = {
   ranking: 'Ranking Técnicos',
   qualidade: 'Qualidade & Reclamações',
   suporte: 'Suporte Técnico',
-  'resumo-sla': 'Resumo SLA',
+  'resumo-sla': 'Análise Comparativa',
   upload: 'Importar Dados',
   admin: 'Painel ADM',
 };
