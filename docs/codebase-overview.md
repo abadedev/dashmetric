@@ -8,8 +8,6 @@ Este arquivo documenta a estrutura principal do projeto `dstech-noc` para servir
 - Stack principal: `Next.js 16`, `React 19`, `TypeScript`, `Drizzle ORM`, `PostgreSQL`, `Better Auth`, `React Query`, `Tailwind CSS`, `shadcn/base-ui`
 - Objetivo do sistema:
   - importar arquivos operacionais (`atendimentos`, `qualidade`, `suporte`)
-  - calcular e consolidar SLA
-  - exibir dashboard, ranking, indicadores de qualidade e resumo de suporte
 
 ## Estrutura Raiz
 
