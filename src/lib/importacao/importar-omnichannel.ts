@@ -20,11 +20,17 @@ import { db } from '@/lib/db';
 import { omnichannelRecords } from '@/lib/db/schema';
 import { normalizeHeader } from './helpers';
 import { AGENTES_EXCLUIDOS } from '@/lib/omnichannel/constants';
+import { and, eq } from 'drizzle-orm';
+
+export type OmnichannelGrupo = 'geral' | 'admin' | 'suporte' | 'vendas';
 
 export interface ResumoOmnichannel {
   totalLidas: number;
   totalInseridas: number;
   totalInvalidas: number;
+  grupo: OmnichannelGrupo;
+  periodMonth: number;
+  periodYear: number;
   erros: { linha: number; erro: string }[];
 }
 
@@ -79,6 +85,24 @@ const MESES_PT: Record<string, number> = {
  *     "Omini - Fevereiro 2025.xlsx" → { month: 2, year: 2025 }
  * Retorna null se nenhum mês for identificado.
  */
+/**
+ * Detecta o grupo (Geral / Admin / Suporte / Vendas) pelo nome do arquivo.
+ * Ex.: "Omini_-_Suporte_Janeiro.xlsx" → 'suporte'.
+ * Default: 'geral'.
+ */
+export function extrairGrupoDoNome(fileName: string): OmnichannelGrupo {
+  const name = fileName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]/g, ' ');
+
+  if (/\badmin/.test(name)) return 'admin';
+  if (/\bsuporte/.test(name)) return 'suporte';
+  if (/\bvenda/.test(name)) return 'vendas';
+  return 'geral';
+}
+
 export function extrairMesAnoDoNome(fileName: string): { month: number; year: number } | null {
   const name = fileName
     .toLowerCase()
@@ -283,6 +307,7 @@ export async function importarOmnichannel(
   await validarHeadersOmnichannel(rows);
 
   const colIndex = buildColIndex(rows[0]);
+  const grupo: OmnichannelGrupo = fileName ? extrairGrupoDoNome(fileName) : 'geral';
 
   // Período: extraído exclusivamente do nome do arquivo.
   // Tenta primeiro por nome de mês ("Omini - Janeiro.xlsx"),
@@ -332,6 +357,7 @@ export async function importarOmnichannel(
     registros.push({
       workspaceId,
       agente,
+      grupo,
       isHuman: isHumanAgent(agente),
       quantidade,
       te:   normalizeTime(getVal(row, colIndex, 'te')),
@@ -354,10 +380,21 @@ export async function importarOmnichannel(
 
   let totalInseridas = 0;
   if (registros.length > 0) {
+    // Reimport: limpa o conjunto anterior do mesmo workspace+grupo+período antes de inserir
+    await db
+      .delete(omnichannelRecords)
+      .where(
+        and(
+          eq(omnichannelRecords.workspaceId, workspaceId),
+          eq(omnichannelRecords.grupo, grupo),
+          eq(omnichannelRecords.periodMonth, periodMonth),
+          eq(omnichannelRecords.periodYear, periodYear),
+        )
+      );
+
     const inserted = await db
       .insert(omnichannelRecords)
       .values(registros)
-      .onConflictDoNothing()
       .returning({ id: omnichannelRecords.id });
     totalInseridas = inserted.length;
   }
@@ -366,6 +403,9 @@ export async function importarOmnichannel(
     totalLidas: rows.length,
     totalInseridas,
     totalInvalidas,
+    grupo,
+    periodMonth,
+    periodYear,
     erros: erros.slice(0, 20),
   };
 }

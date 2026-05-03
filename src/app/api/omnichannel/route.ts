@@ -29,10 +29,15 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const month = searchParams.get('month') ? parseInt(searchParams.get('month')!) : null;
     const year  = searchParams.get('year')  ? parseInt(searchParams.get('year')!)  : null;
+    const grupoParam = searchParams.get('grupo');
+    const grupo = grupoParam && ['geral', 'admin', 'suporte', 'vendas'].includes(grupoParam)
+      ? grupoParam
+      : null;
 
     const conditions = [eq(omnichannelRecords.workspaceId, result.context.workspaceId)];
     if (month) conditions.push(eq(omnichannelRecords.periodMonth, month));
     if (year)  conditions.push(eq(omnichannelRecords.periodYear, year));
+    if (grupo) conditions.push(eq(omnichannelRecords.grupo, grupo));
 
     const records = await db
       .select()
@@ -67,16 +72,25 @@ export async function GET(req: NextRequest) {
       .where(eq(omnichannelRecords.workspaceId, result.context.workspaceId))
       .orderBy(asc(omnichannelRecords.periodYear), asc(omnichannelRecords.periodMonth));
 
+    const allGrupos = await db
+      .selectDistinct({ grupo: omnichannelRecords.grupo })
+      .from(omnichannelRecords)
+      .where(eq(omnichannelRecords.workspaceId, result.context.workspaceId))
+      .orderBy(asc(omnichannelRecords.grupo));
+
+    const nomesUnicos = new Set(human.map((r) => r.agente.trim().toLowerCase()));
+
     return NextResponse.json({
       records: human,
       bots,
-      totalAtendentes: human.length,
+      totalAtendentes: nomesUnicos.size,
       totalAtendimentos,
       melhorTma: sortedByTma[0] ?? null,
       piorTma:   sortedByTma[sortedByTma.length - 1] ?? null,
       melhorTme: sortedByTme[0] ?? null,
       piorTme:   sortedByTme[sortedByTme.length - 1] ?? null,
       periods: allPeriods,
+      grupos: allGrupos.map((g) => g.grupo),
     });
   } catch (err) {
     console.error('[omnichannel] GET error:', err);

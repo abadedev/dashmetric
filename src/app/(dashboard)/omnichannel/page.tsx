@@ -18,9 +18,17 @@ const MONTH_LABELS: Record<number, string> = {
   9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro',
 };
 
+const GRUPO_LABELS: Record<string, string> = {
+  geral: 'Geral',
+  admin: 'Administrativo',
+  suporte: 'Suporte',
+  vendas: 'Vendas',
+};
+
 function OmnichannelPageContent() {
   const [month, setMonth] = useState('');
   const [year, setYear]   = useState('');
+  const [grupo, setGrupo] = useState('geral');
   const [searchTerm, setSearchTerm] = useState('');
 
   const normalize = (s: string) =>
@@ -29,6 +37,7 @@ function OmnichannelPageContent() {
   const params = new URLSearchParams();
   if (month) params.set('month', month);
   if (year)  params.set('year', year);
+  if (grupo) params.set('grupo', grupo);
   const qs = params.toString();
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -40,6 +49,7 @@ function OmnichannelPageContent() {
     },
   });
 
+  const grupos: string[] = data?.grupos?.length ? data.grupos : ['geral', 'admin', 'suporte', 'vendas'];
   const periods: { month: number; year: number }[] = data?.periods ?? [];
   const years   = [...new Set(periods.map((p) => p.year))].sort((a, b) => b - a);
   const months  = periods
@@ -95,6 +105,17 @@ function OmnichannelPageContent() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-[180px]"
           />
+
+          <Select value={grupo} onValueChange={(v) => setGrupo(v ?? 'geral')}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Grupo" />
+            </SelectTrigger>
+            <SelectContent>
+              {grupos.map((g) => (
+                <SelectItem key={g} value={g}>{GRUPO_LABELS[g] ?? g}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <Select key={year || 'all'} value={year || 'all'} onValueChange={(v) => { setYear(!v || v === 'all' ? '' : v); setMonth(''); }}>
             <SelectTrigger className="w-[110px]">

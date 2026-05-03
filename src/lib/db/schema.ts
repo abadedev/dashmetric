@@ -377,6 +377,7 @@ export const omnichannelRecords = pgTable(
     id: serial('id').primaryKey(),
     workspaceId: uuid('workspace_id'),
     agente: varchar('agente', { length: 255 }).notNull(),
+    grupo: varchar('grupo', { length: 50 }).default('geral').notNull(),
     isHuman: boolean('is_human').default(true).notNull(),
     quantidade: integer('quantidade'),
     te: varchar('te', { length: 20 }),
@@ -401,6 +402,8 @@ export const omnichannelRecords = pgTable(
     index('omnichannel_period_idx').on(table.periodYear, table.periodMonth),
     index('omnichannel_ws_period_idx').on(table.workspaceId, table.periodYear, table.periodMonth),
     index('omnichannel_agente_idx').on(table.agente),
+    index('omnichannel_grupo_idx').on(table.grupo),
+    index('omnichannel_ws_grupo_period_idx').on(table.workspaceId, table.grupo, table.periodYear, table.periodMonth),
   ]
 );
 
