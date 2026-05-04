@@ -1,12 +1,11 @@
 'use client';
 
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -31,20 +30,44 @@ export function DailyBarChart({ data }: { data: Array<{ date: string; opened: nu
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Ocorrencias por Dia</CardTitle>
-        <CardDescription>Aberturas e resolucoes dentro do periodo selecionado</CardDescription>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Ocorrencias por Dia</CardTitle>
+            <CardDescription>Aberturas e resolucoes dentro do periodo selecionado</CardDescription>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#0f766e]" />
+              Abertas
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#3b82f6]" />
+              Resolvidas
+            </span>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={formatted} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-            <XAxis dataKey="date" tick={{ fill: '#9ca3af', fontSize: 11 }} tickLine={false} axisLine={false} />
-            <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} tickLine={false} axisLine={false} />
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart data={formatted} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gradAberta" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#0f766e" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#0f766e" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradResolvida" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+            <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+            <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} tickLine={false} axisLine={false} />
             <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="opened" name="Abertas" fill="#0f766e" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="resolved" name="Resolvidas" fill="#2563eb" radius={[4, 4, 0, 0]} />
-          </BarChart>
+            <Area type="monotone" dataKey="opened" name="Abertas" stroke="#0f766e" strokeWidth={2} fill="url(#gradAberta)" dot={false} activeDot={{ r: 4 }} />
+            <Area type="monotone" dataKey="resolved" name="Resolvidas" stroke="#3b82f6" strokeWidth={2} fill="url(#gradResolvida)" dot={false} activeDot={{ r: 4 }} />
+          </AreaChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>
@@ -52,32 +75,40 @@ export function DailyBarChart({ data }: { data: Array<{ date: string; opened: nu
 }
 
 export function OccurrenceDistributionChart({ data }: { data: Array<{ name: string; value: number }> }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  const sorted = [...data].sort((a, b) => b.value - a.value);
+  const max = sorted[0]?.value ?? 1;
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle>Distribuicao por Tipo</CardTitle>
         <CardDescription>Ocorrencias padronizadas registradas nas OS</CardDescription>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={280}>
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={58}
-              outerRadius={102}
-              paddingAngle={2}
-              label={({ percent }: { percent?: number }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
-              labelLine={false}
-            >
-              {data.map((entry, index) => (
-                <Cell key={entry.name} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={tooltipStyle} />
-          </PieChart>
-        </ResponsiveContainer>
+        <div className="flex flex-col gap-2">
+          {sorted.map((entry, index) => {
+            const pct = total > 0 ? (entry.value / total) * 100 : 0;
+            const barWidth = total > 0 ? (entry.value / max) * 100 : 0;
+            return (
+              <div key={entry.name} className="flex items-center gap-3 group">
+                <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
+                <span className="text-xs text-muted-foreground truncate w-44 flex-shrink-0 group-hover:text-foreground transition-colors" title={entry.name}>
+                  {entry.name}
+                </span>
+                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${barWidth}%`, backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-foreground w-8 text-right flex-shrink-0">
+                  {pct.toFixed(0)}%
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );
@@ -85,12 +116,12 @@ export function OccurrenceDistributionChart({ data }: { data: Array<{ name: stri
 
 export function CityBarChart({ data }: { data: Array<{ city: string; total: number }> }) {
   return (
-    <Card>
+    <Card className="flex flex-col h-full">
       <CardHeader>
         <CardTitle>Ocorrencias por Cidade</CardTitle>
         <CardDescription>Top cidades com maior volume de recorrencias</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col">
         <ResponsiveContainer width="100%" height={Math.max(220, data.length * 28)}>
           <BarChart data={data} layout="vertical" margin={{ top: 0, right: 24, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
@@ -100,6 +131,17 @@ export function CityBarChart({ data }: { data: Array<{ city: string; total: numb
             <Bar dataKey="total" name="Ocorrencias" fill="#f97316" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
+        <div className="mt-2 flex flex-col">
+          {data.map((entry, index) => (
+            <div key={entry.city} className="flex items-center justify-between text-xs py-1.5 border-b border-border/30 last:border-0">
+              <span className="flex items-center gap-2">
+                <span className="text-muted-foreground font-mono w-4 text-right flex-shrink-0">{index + 1}</span>
+                <span className="text-muted-foreground truncate" title={entry.city}>{entry.city}</span>
+              </span>
+              <span className="font-semibold text-foreground pl-4 flex-shrink-0">{entry.total}</span>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
