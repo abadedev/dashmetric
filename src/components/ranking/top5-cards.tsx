@@ -68,12 +68,16 @@ export function Top5Cards({ ranking }: { ranking: any[] }) {
 
               <div className="mt-4 space-y-1 border-t border-border/70 pt-3">
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">SLA Util %</span>
-                  <span className="font-medium text-foreground">{tech.slaUtilPercent ?? '-'}%</span>
+                  <span className="text-muted-foreground">SLA %</span>
+                  <span className="font-medium text-foreground">{tech.slaPercent ?? '-'}%</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">SLA medio</span>
-                  <span className="font-mono text-foreground">{tech.avgSlaUtilFormatted}</span>
+                  <span className="font-mono text-foreground">{tech.avgSlaFormatted ?? tech.avgSlaUtilFormatted}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">SLA Útil (informativo)</span>
+                  <span className="font-medium text-foreground">{tech.slaUtilPercent ?? '-'}%</span>
                 </div>
               </div>
             </CardContent>

@@ -41,15 +41,15 @@ export function SlaByTypeTable({ data }: { data: any[] }) {
               <TableHead>Tipo de Atividade</TableHead>
               <TableHead className="text-right">Volume</TableHead>
               <TableHead className="text-right">Meta</TableHead>
-              <TableHead className="text-right">SLA Útil</TableHead>
-              <TableHead className="text-right">SLA Corr.</TableHead>
+              <TableHead className="text-right">SLA</TableHead>
+              <TableHead className="text-right">SLA Útil (informativo)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedData.map((row) => {
-              const utilPct = row.slaUtilPercent;
+              const corridoPct = row.slaCorridoPercent;
               const hasMeta = row.slaTargetHours !== null;
-              const isUtilOk = utilPct >= 0.95;
+              const isOk = corridoPct >= 0.95;
 
               return (
                 <TableRow key={row.activityType}>
@@ -63,17 +63,17 @@ export function SlaByTypeTable({ data }: { data: any[] }) {
                   <TableCell className="text-right">
                     {hasMeta ? (
                       <Badge
-                        variant={isUtilOk ? 'default' : 'destructive'}
-                        className={isUtilOk ? 'border-emerald-500/20 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400' : ''}
+                        variant={isOk ? 'default' : 'destructive'}
+                        className={isOk ? 'border-emerald-500/20 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400' : ''}
                       >
-                        {formatPercent(utilPct)}
+                        {formatPercent(corridoPct)}
                       </Badge>
                     ) : (
                       '-'
                     )}
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground">
-                    {hasMeta ? formatPercent(row.slaCorridoPercent) : '-'}
+                    {hasMeta ? formatPercent(row.slaUtilPercent) : '-'}
                   </TableCell>
                 </TableRow>
               );

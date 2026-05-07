@@ -18,10 +18,8 @@ async function main() {
     { type: 'instalacao_nova', targetHours: 24, description: 'Instalação Nova (Geral)' },
     { type: 'instalacao_reativacao', targetHours: 24, description: 'Instalação Reativação' },
     { type: 'reparo', targetHours: 24, description: 'Reparo Padrão' },
-    { type: 'reparo_corporativo', targetHours: 4, description: 'Reparo Corporativo' }, // Exemplo
-    { type: 'mudanca_endereco', targetHours: 48, description: 'Mudança de Endereço' },
+    { type: 'mudanca_endereco', targetHours: 24, description: 'Mudança de Endereço' },
     { type: 'mudanca_plano', targetHours: 24, description: 'Mudança de Plano' },
-    { type: 'retirada_kit', targetHours: 72, description: 'Retirada de Equipamento' },
   ];
 
   for (const t of targets) {
