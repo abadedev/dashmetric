@@ -131,10 +131,14 @@ export async function GET(req: NextRequest) {
       { indicator: 'ICT',  total: byIndicator['ICT'] ?? 0 },
     ].filter((q) => q.total > 0);
 
+    const slaCorridoGeral = calculateValidAverage(slaByType.map((t) => t.slaCorridoPercent));
+    const slaUtilGeral = calculateValidAverage(slaByType.map((t) => t.slaUtilPercent));
+
     return NextResponse.json({
       totalAtendimentos: totalRow?.total ?? 0,
-      slaUtilGeral:    calculateValidAverage(slaByType.map((t) => t.slaUtilPercent)),
-      slaCorridoGeral: calculateValidAverage(slaByType.map((t) => t.slaCorridoPercent)),
+      slaGeral:        slaCorridoGeral,
+      slaCorridoGeral,
+      slaUtilGeral,
       metaSLA: 0.95,
       slaByType,
       qualityIndicators,

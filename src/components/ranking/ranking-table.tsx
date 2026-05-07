@@ -75,23 +75,23 @@ export function RankingTable({ ranking }: { ranking: any[] }) {
                     <TableCell className="text-right text-muted-foreground">{tech.retiradaKit || '-'}</TableCell>
                     <TableCell className="text-right text-muted-foreground">{tech.retorno || '-'}</TableCell>
                     <TableCell className="text-right">
-                      {tech.slaUtilPercent !== null ? (
+                      {tech.slaPercent !== null && tech.slaPercent !== undefined ? (
                         <Badge
-                          variant={tech.slaUtilPercent >= 95 ? 'default' : 'destructive'}
+                          variant={tech.slaPercent >= 95 ? 'default' : 'destructive'}
                           className={
-                            tech.slaUtilPercent >= 95
+                            tech.slaPercent >= 95
                               ? 'border-emerald-500/20 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
                               : ''
                           }
                         >
-                          {tech.slaUtilPercent}%
+                          {tech.slaPercent}%
                         </Badge>
                       ) : (
                         '-'
                       )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">
-                      {tech.avgSlaUtilFormatted}
+                      {tech.avgSlaFormatted ?? tech.avgSlaUtilFormatted}
                     </TableCell>
                   </TableRow>
                 ))}

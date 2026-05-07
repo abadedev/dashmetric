@@ -110,8 +110,10 @@ export async function GET(req: NextRequest) {
           retiradaKit:  sql<number>`cast(sum(case when ${atendimentos.tipo} = 'Retirada de Kit' then 1 else 0 end) as int)`,
           mudPlano:     sql<number>`cast(sum(case when ${atendimentos.tipo} = 'Mudança de Plano' then 1 else 0 end) as int)`,
           retorno:      sql<number>`cast(sum(case when ${atendimentos.tipo} = 'Retorno' then 1 else 0 end) as int)`,
+          withinSlaCorrido:sql<number>`cast(sum(case when ${atendimentos.dentroSla} = true then 1 else 0 end) as int)`,
           withinSlaUtil:sql<number>`cast(sum(case when ${atendimentos.dentroSlaUtil} = true then 1 else 0 end) as int)`,
           concluded:    sql<number>`cast(sum(case when ${atendimentos.finalizacaoAt} is not null then 1 else 0 end) as int)`,
+          avgSlaCorridoSeg:sql<number>`avg(case when ${atendimentos.finalizacaoAt} is not null then ${atendimentos.slaCorridoSegundos} else null end)`,
           avgSlaUtilSeg:sql<number>`avg(case when ${atendimentos.finalizacaoAt} is not null then ${atendimentos.slaUtilSegundos} else null end)`,
         })
         .from(atendimentos)
@@ -134,8 +136,10 @@ export async function GET(req: NextRequest) {
           retiradaKit: number;
           mudancaPlano: number;
           retorno: number;
+          withinSlaCorrido: number;
           withinSlaUtil: number;
           concluded: number;
+          avgSlaCorridoWeightedTotal: number;
           avgSlaUtilWeightedTotal: number;
         }>
       >((acc, row) => {
@@ -157,8 +161,10 @@ export async function GET(req: NextRequest) {
           retiradaKit: 0,
           mudancaPlano: 0,
           retorno: 0,
+          withinSlaCorrido: 0,
           withinSlaUtil: 0,
           concluded: 0,
+          avgSlaCorridoWeightedTotal: 0,
           avgSlaUtilWeightedTotal: 0,
         };
 
@@ -176,8 +182,10 @@ export async function GET(req: NextRequest) {
         current.retiradaKit += Number(row.retiradaKit ?? 0);
         current.mudancaPlano += Number(row.mudPlano ?? 0);
         current.retorno += Number(row.retorno ?? 0);
+        current.withinSlaCorrido += Number(row.withinSlaCorrido ?? 0);
         current.withinSlaUtil += Number(row.withinSlaUtil ?? 0);
         current.concluded += Number(row.concluded ?? 0);
+        current.avgSlaCorridoWeightedTotal += (Number(row.avgSlaCorridoSeg) || 0) * Number(row.concluded ?? 0);
         current.avgSlaUtilWeightedTotal += (Number(row.avgSlaUtilSeg) || 0) * Number(row.concluded ?? 0);
         acc.set(technicianKey, current);
         return acc;
@@ -198,11 +206,18 @@ export async function GET(req: NextRequest) {
       retiradaKit: r.retiradaKit,
       mudancaPlano: r.mudancaPlano,
       retorno: r.retorno,
+      withinSlaCorrido: r.withinSlaCorrido,
       withinSlaUtil: r.withinSlaUtil,
       concluded: r.concluded,
+      avgSlaFormatted: formatSecondsToHHMMSS(
+        Math.floor(r.concluded > 0 ? r.avgSlaCorridoWeightedTotal / r.concluded : 0)
+      ),
       avgSlaUtilFormatted: formatSecondsToHHMMSS(
         Math.floor(r.concluded > 0 ? r.avgSlaUtilWeightedTotal / r.concluded : 0)
       ),
+      slaPercent: r.concluded > 0
+        ? Math.round((r.withinSlaCorrido / r.concluded) * 100)
+        : null,
       slaUtilPercent: r.concluded > 0
         ? Math.round((r.withinSlaUtil / r.concluded) * 100)
         : null,

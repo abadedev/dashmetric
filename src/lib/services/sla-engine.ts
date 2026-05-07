@@ -108,11 +108,11 @@ export function formatSLATime(totalSeconds: number): string {
  * Busca as metas SLA por tipo de atividade
  */
 export const SLA_TARGETS: Record<string, number | null> = {
-  instalacao_nova: 30,
-  instalacao_reativacao: 30,
+  instalacao_nova: 24,
+  instalacao_reativacao: 24,
   reparo: 24,
-  mudanca_endereco: 30,
-  mudanca_plano: 30,
+  mudanca_endereco: 24,
+  mudanca_plano: 24,
   retirada_kit: null,
   retorno: null,
 };

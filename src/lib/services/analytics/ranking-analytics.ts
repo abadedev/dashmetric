@@ -80,7 +80,9 @@ export async function getRankingAnalytics(filters: ExternalApiFilters) {
         technicianName: atendimentos.tecnico,
         totalOS: count(),
         concluded: sql<number>`cast(sum(case when ${atendimentos.finalizacaoAt} is not null then 1 else 0 end) as int)`,
+        withinSlaCorrido: sql<number>`cast(sum(case when ${atendimentos.dentroSla} = true then 1 else 0 end) as int)`,
         withinSlaUtil: sql<number>`cast(sum(case when ${atendimentos.dentroSlaUtil} = true then 1 else 0 end) as int)`,
+        avgSlaCorridoSeg: sql<number>`avg(case when ${atendimentos.finalizacaoAt} is not null then ${atendimentos.slaCorridoSegundos} else null end)`,
         avgSlaUtilSeg: sql<number>`avg(case when ${atendimentos.finalizacaoAt} is not null then ${atendimentos.slaUtilSegundos} else null end)`,
       })
       .from(atendimentos)
@@ -111,7 +113,9 @@ export async function getRankingAnalytics(filters: ExternalApiFilters) {
         technicianName: string;
         totalOS: number;
         concluded: number;
+        withinSlaCorrido: number;
         withinSlaUtil: number;
+        avgSlaCorridoWeightedTotal: number;
         avgSlaUtilWeightedTotal: number;
       }>
     >((acc, row) => {
@@ -127,7 +131,9 @@ export async function getRankingAnalytics(filters: ExternalApiFilters) {
         technicianName,
         totalOS: 0,
         concluded: 0,
+        withinSlaCorrido: 0,
         withinSlaUtil: 0,
+        avgSlaCorridoWeightedTotal: 0,
         avgSlaUtilWeightedTotal: 0,
       };
 
@@ -139,7 +145,9 @@ export async function getRankingAnalytics(filters: ExternalApiFilters) {
         : technicianName;
       current.totalOS += Number(row.totalOS ?? 0);
       current.concluded += Number(row.concluded ?? 0);
+      current.withinSlaCorrido += Number(row.withinSlaCorrido ?? 0);
       current.withinSlaUtil += Number(row.withinSlaUtil ?? 0);
+      current.avgSlaCorridoWeightedTotal += (Number(row.avgSlaCorridoSeg) || 0) * Number(row.concluded ?? 0);
       current.avgSlaUtilWeightedTotal += (Number(row.avgSlaUtilSeg) || 0) * Number(row.concluded ?? 0);
       acc.set(technicianKey, current);
       return acc;
@@ -155,10 +163,19 @@ export async function getRankingAnalytics(filters: ExternalApiFilters) {
       technicianName: row.technicianName,
       totalOS: row.totalOS,
       concluded: row.concluded,
+      withinSla: row.withinSlaCorrido,
+      withinSlaCorrido: row.withinSlaCorrido,
       withinSlaUtil: row.withinSlaUtil,
+      avgSlaFormatted: formatSecondsToHHMMSS(
+        Math.floor(row.concluded > 0 ? row.avgSlaCorridoWeightedTotal / row.concluded : 0)
+      ),
       avgSlaUtilFormatted: formatSecondsToHHMMSS(
         Math.floor(row.concluded > 0 ? row.avgSlaUtilWeightedTotal / row.concluded : 0)
       ),
+      slaPercent:
+        row.concluded > 0
+          ? Math.round((row.withinSlaCorrido / row.concluded) * 100)
+          : null,
       slaUtilPercent:
         row.concluded > 0
           ? Math.round((row.withinSlaUtil / row.concluded) * 100)

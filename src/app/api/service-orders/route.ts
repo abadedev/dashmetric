@@ -61,8 +61,8 @@ export async function GET(req: NextRequest) {
     if (plan)         filters.push(ilike(atendimentos.plano, `%${plan}%`));
     if (bairro)       filters.push(ilike(atendimentos.bairro, `%${bairro}%`));
     if (source)       filters.push(ilike(atendimentos.indicacao, `%${source}%`));
-    if (slaStatus === 'ok')  filters.push(eq(atendimentos.dentroSlaUtil, true));
-    if (slaStatus === 'nok') filters.push(eq(atendimentos.dentroSlaUtil, false));
+    if (slaStatus === 'ok')  filters.push(eq(atendimentos.dentroSla, true));
+    if (slaStatus === 'nok') filters.push(eq(atendimentos.dentroSla, false));
     if (search) {
       filters.push(or(
         ilike(atendimentos.numeroOs, `%${search}%`),
@@ -117,14 +117,19 @@ export async function GET(req: NextRequest) {
       db.select({ total: count() }).from(atendimentos).where(whereClause),
 
       db.select({
+        withinSlaCorrido: sql<number>`count(*) filter (where ${atendimentos.dentroSla} = true)`.as('within_sla_corrido'),
+        outsideSlaCorrido: sql<number>`count(*) filter (where ${atendimentos.dentroSla} = false and ${atendimentos.finalizacaoAt} is not null)`.as('outside_sla_corrido'),
         withinSlaUtil: sql<number>`count(*) filter (where ${atendimentos.dentroSlaUtil} = true)`.as('within_sla_util'),
         outsideSlaUtil: sql<number>`count(*) filter (where ${atendimentos.dentroSlaUtil} = false and ${atendimentos.finalizacaoAt} is not null)`.as('outside_sla_util'),
       }).from(atendimentos).where(whereClause),
     ]);
 
     const total = totalRow?.total ?? 0;
+    const withinSlaCorrido = Number(slaRow?.withinSlaCorrido ?? 0);
+    const outsideSlaCorrido = Number(slaRow?.outsideSlaCorrido ?? 0);
     const withinSlaUtil = Number(slaRow?.withinSlaUtil ?? 0);
     const outsideSlaUtil = Number(slaRow?.outsideSlaUtil ?? 0);
+    const slaPercent = total > 0 ? Math.round((withinSlaCorrido / total) * 10000) / 10000 : 0;
     const slaUtilPercent = total > 0 ? Math.round((withinSlaUtil / total) * 10000) / 10000 : 0;
 
     const data = rows.map((r) => ({
@@ -159,6 +164,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       data,
       total,
+      withinSla: withinSlaCorrido,
+      outsideSla: outsideSlaCorrido,
+      slaPercent,
+      withinSlaCorrido,
+      outsideSlaCorrido,
       withinSlaUtil,
       outsideSlaUtil,
       slaUtilPercent,

@@ -79,8 +79,8 @@ export function KpiCards({ data }: { data: any }) {
   if (!data) return null;
 
   const mSla = data.metaSLA || 0.95;
-  const isUtilOk = data.slaUtilGeral >= mSla;
-  const isCorridoOk = data.slaCorridoGeral >= mSla;
+  const slaGeral = data.slaGeral ?? data.slaCorridoGeral;
+  const isSlaOk = slaGeral >= mSla;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -94,33 +94,33 @@ export function KpiCards({ data }: { data: any }) {
       />
 
       <KpiCard
-        title="SLA Util Geral"
-        value={formatPercent(data.slaUtilGeral || 0)}
-        caption={`Meta operacional: ${formatPercent(mSla)}`}
-        icon={Timer}
-        tone={isUtilOk ? 'success' : 'alert'}
-        eyebrow={isUtilOk ? 'Dentro da meta' : 'Atencao'}
+        title="SLA"
+        value={formatPercent(slaGeral || 0)}
+        caption={`Meta operacional: ${formatPercent(mSla)} (24h corridas)`}
+        icon={TrendingUp}
+        tone={isSlaOk ? 'success' : 'alert'}
+        eyebrow={isSlaOk ? 'Dentro da meta' : 'Atencao'}
         valueClassName="text-foreground"
       />
 
       <KpiCard
-        title="SLA Corrido Geral"
-        value={formatPercent(data.slaCorridoGeral || 0)}
-        caption="Leitura integral sem cortes de horario"
-        icon={TrendingUp}
-        tone={isCorridoOk ? 'performance' : 'alert'}
-        eyebrow={isCorridoOk ? 'Ritmo estavel' : 'Acompanhar'}
+        title="SLA Útil (informativo)"
+        value={formatPercent(data.slaUtilGeral || 0)}
+        caption="Considera apenas horario comercial"
+        icon={Timer}
+        tone="info"
+        eyebrow="Referencia"
         valueClassName="text-foreground"
       />
 
       <KpiCard
         title="Status Geral da Meta"
-        value={isUtilOk ? 'ATINGIDA' : 'FALHA'}
-        caption="Baseado no SLA util do periodo"
+        value={isSlaOk ? 'ATINGIDA' : 'Fora da Meta'}
+        caption="Baseado no SLA de 24h corridas"
         icon={Target}
-        tone={isUtilOk ? 'success' : 'alert'}
-        eyebrow={isUtilOk ? 'Meta atingida' : 'Fora da meta'}
-        valueClassName={isUtilOk ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}
+        tone={isSlaOk ? 'success' : 'alert'}
+        eyebrow={isSlaOk ? 'Meta atingida' : 'Fora da meta'}
+        valueClassName={isSlaOk ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}
       />
     </div>
   );

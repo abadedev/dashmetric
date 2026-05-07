@@ -73,6 +73,8 @@ function buildLabel(fromStr: string, toStr: string): string {
 type SlaRow = {
   total: number;
   concluded: number;
+  withinSla: number;
+  slaPercent: number;
   withinSlaUtil: number;
   slaUtilPercent: number;
 };
@@ -105,6 +107,7 @@ async function fetchSla(
     .select({
       total: sql<number>`cast(count(*) as int)`,
       concluded: sql<number>`cast(sum(case when ${atendimentos.finalizacaoAt} is not null then 1 else 0 end) as int)`,
+      withinSla: sql<number>`cast(sum(case when ${atendimentos.dentroSla} = true and ${atendimentos.finalizacaoAt} is not null then 1 else 0 end) as int)`,
       withinSlaUtil: sql<number>`cast(sum(case when ${atendimentos.dentroSlaUtil} = true and ${atendimentos.finalizacaoAt} is not null then 1 else 0 end) as int)`,
     })
     .from(atendimentos)
@@ -112,10 +115,12 @@ async function fetchSla(
 
   const total = Number(row?.total ?? 0);
   const concluded = Number(row?.concluded ?? 0);
+  const withinSla = Number(row?.withinSla ?? 0);
+  const slaPercent = concluded > 0 ? (withinSla / concluded) * 100 : 0;
   const withinSlaUtil = Number(row?.withinSlaUtil ?? 0);
   const slaUtilPercent = concluded > 0 ? (withinSlaUtil / concluded) * 100 : 0;
 
-  return { total, concluded, withinSlaUtil, slaUtilPercent };
+  return { total, concluded, withinSla, slaPercent, withinSlaUtil, slaUtilPercent };
 }
 
 async function fetchAtendimentos(
