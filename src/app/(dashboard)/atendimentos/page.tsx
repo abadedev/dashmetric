@@ -119,14 +119,14 @@ function AtendimentosPageContent() {
         <MetricCard label="Total de OS" value={data?.total ?? '—'} />
         <MetricCard
           label="Dentro da meta"
-          value={data?.withinSlaUtil ?? '—'}
-          subtitle={data?.slaUtilPercent != null ? `${formatPercent(data.slaUtilPercent)} dentro da meta` : undefined}
+          value={data?.withinSla ?? data?.withinSlaCorrido ?? '—'}
+          subtitle={data?.slaPercent != null ? `${formatPercent(data.slaPercent)} dentro da meta` : undefined}
           valueClass="text-emerald-600 dark:text-emerald-400"
         />
         <MetricCard
           label="Fora da meta"
-          value={data?.outsideSlaUtil ?? '—'}
-          subtitle={data?.total ? `${formatPercent(data.outsideSlaUtil / data.total)} fora da meta` : undefined}
+          value={data?.outsideSla ?? data?.outsideSlaCorrido ?? '—'}
+          subtitle={data?.total ? `${formatPercent((data.outsideSla ?? data.outsideSlaCorrido ?? 0) / data.total)} fora da meta` : undefined}
           valueClass="text-red-500 dark:text-red-400"
         />
       </div>

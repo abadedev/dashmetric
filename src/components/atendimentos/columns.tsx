@@ -101,10 +101,10 @@ export const Columns: ColumnDef<any>[] = [
     },
   },
   {
-    accessorKey: 'slaUtilSeconds',
-    header: 'SLA Útil',
+    accessorKey: 'slaCorridoSeconds',
+    header: 'SLA',
     cell: ({ row }) => {
-      const seconds = row.getValue('slaUtilSeconds') as number | null;
+      const seconds = row.getValue('slaCorridoSeconds') as number | null;
       if (seconds === null || seconds === undefined)
         return <span className="text-muted-foreground text-sm">—</span>;
       return (
@@ -115,10 +115,24 @@ export const Columns: ColumnDef<any>[] = [
     },
   },
   {
-    accessorKey: 'withinSlaUtil',
+    accessorKey: 'slaUtilSeconds',
+    header: 'SLA Útil (informativo)',
+    cell: ({ row }) => {
+      const seconds = row.getValue('slaUtilSeconds') as number | null;
+      if (seconds === null || seconds === undefined)
+        return <span className="text-muted-foreground text-sm">—</span>;
+      return (
+        <div className="font-mono text-xs font-medium tabular-nums text-muted-foreground">
+          {formatSLATime(seconds)}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: 'withinSlaCorrido',
     header: 'Status Meta',
     cell: ({ row }) => {
-      const isWithin = row.getValue('withinSlaUtil') as boolean | null;
+      const isWithin = row.getValue('withinSlaCorrido') as boolean | null;
       if (isWithin === null || isWithin === undefined) {
         return (
           <span className="flex items-center gap-1.5 text-muted-foreground text-xs">

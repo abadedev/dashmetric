@@ -58,7 +58,7 @@ export function TechDetailDialog({ tech, isOpen, onClose }: TechDetailDialogProp
           <div className="bg-muted p-3 rounded-lg flex flex-col items-center justify-center text-center">
             <CheckCircle className="w-5 h-5 text-muted-foreground mb-2" />
             <div className="text-2xl font-bold text-green-500">
-              {tech.slaUtilPercent !== null ? `${tech.slaUtilPercent}%` : '-'}
+              {tech.slaPercent !== null && tech.slaPercent !== undefined ? `${tech.slaPercent}%` : '-'}
             </div>
             <div className="text-xs text-muted-foreground mt-1">SLA Atingido</div>
           </div>
@@ -66,9 +66,12 @@ export function TechDetailDialog({ tech, isOpen, onClose }: TechDetailDialogProp
           <div className="bg-muted p-3 rounded-lg flex flex-col items-center justify-center text-center">
             <Clock className="w-5 h-5 text-muted-foreground mb-2" />
             <div className="text-lg font-mono font-bold mt-1">
-              {tech.avgSlaUtilFormatted}
+              {tech.avgSlaFormatted ?? tech.avgSlaUtilFormatted}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">SLA Médio Útil</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              SLA Médio
+              {tech.slaUtilPercent !== null && tech.slaUtilPercent !== undefined ? ` · Útil ${tech.slaUtilPercent}%` : ''}
+            </div>
           </div>
 
           <div className="bg-muted p-3 rounded-lg flex flex-col items-center justify-center text-center">

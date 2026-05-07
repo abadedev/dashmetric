@@ -117,11 +117,11 @@ function SlaBar({ percent }: { percent: number | null }) {
 export function OsDetailSheet({ os, isOpen, onClose }: OsDetailSheetProps) {
   if (!os) return null;
 
-  const isWithin = os.withinSlaUtil;
+  const isWithin = os.withinSlaCorrido ?? os.withinSlaUtil;
   const label = ACTIVITY_LABELS[os.activityType] || os.activityType;
   const slaPercent =
-    os.slaUtilSeconds !== null && os.slaTargetHours
-      ? Math.round((os.slaUtilSeconds / (os.slaTargetHours * 3600)) * 100)
+    os.slaCorridoSeconds !== null && os.slaTargetHours
+      ? Math.round((os.slaCorridoSeconds / (os.slaTargetHours * 3600)) * 100)
       : null;
 
   return (
@@ -184,11 +184,17 @@ export function OsDetailSheet({ os, isOpen, onClose }: OsDetailSheetProps) {
 
               {slaPercent !== null && <SlaBar percent={slaPercent} />}
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-3 gap-2.5">
                 <div className="rounded-lg bg-muted/40 px-3 py-2.5">
-                  <div className="text-[11px] text-muted-foreground mb-1">Tempo útil</div>
+                  <div className="text-[11px] text-muted-foreground mb-1">Tempo (corrido)</div>
                   <div className="text-sm font-mono font-semibold">
-                    {os.slaUtilSeconds !== null ? formatSLATime(os.slaUtilSeconds) : '—'}
+                    {os.slaCorridoSeconds !== null && os.slaCorridoSeconds !== undefined ? formatSLATime(os.slaCorridoSeconds) : '—'}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-muted/40 px-3 py-2.5">
+                  <div className="text-[11px] text-muted-foreground mb-1">Tempo útil (informativo)</div>
+                  <div className="text-sm font-mono font-semibold text-muted-foreground">
+                    {os.slaUtilSeconds !== null && os.slaUtilSeconds !== undefined ? formatSLATime(os.slaUtilSeconds) : '—'}
                   </div>
                 </div>
                 <div className="rounded-lg bg-muted/40 px-3 py-2.5">

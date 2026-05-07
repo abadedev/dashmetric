@@ -229,8 +229,8 @@ type ComparativeData = {
   periodA: { label: string; from: string; to: string };
   periodB: { label: string; from: string; to: string };
   sla: {
-    a: { slaUtilPercent: number; total: number; concluded: number; withinSlaUtil: number };
-    b: { slaUtilPercent: number; total: number; concluded: number; withinSlaUtil: number };
+    a: { slaPercent: number; slaUtilPercent: number; total: number; concluded: number; withinSla: number; withinSlaUtil: number };
+    b: { slaPercent: number; slaUtilPercent: number; total: number; concluded: number; withinSla: number; withinSlaUtil: number };
   };
   atendimentos: {
     a: { total: number; reparos: number; instalacoes: number; emAberto: number; byType: AtendByType[] };
@@ -447,29 +447,29 @@ function ResumoSlaPageContent() {
         };
 
         let totalConc = 0;
-        let totalUtil = 0;
+        let totalCorrido = 0;
         let totalAtividades = 0;
 
         for (const r of monthRecords) {
           const concluded = Number(r.concluded);
-          const util = Number(r.withinSlaUtil);
+          const corrido = Number(r.withinSlaCorrido);
           const total = Number(r.total);
 
           if (r.slaTargetHours !== null && r.slaTargetHours !== undefined) {
             totalConc += concluded;
-            totalUtil += util;
+            totalCorrido += corrido;
           }
           totalAtividades += total;
 
           const type = ACTIVITY_LABELS[r.activityType] || r.activityType;
           if (r.slaTargetHours !== null && r.slaTargetHours !== undefined) {
-            const pct = concluded > 0 ? Math.round((util / concluded) * 100) : 0;
+            const pct = concluded > 0 ? Math.round((corrido / concluded) * 100) : 0;
             monthObj[type] = pct;
             monthObj.cells[type] = { pct, total, concluded };
           }
         }
 
-        monthObj.Geral = totalConc > 0 ? Math.round((totalUtil / totalConc) * 100) : 0;
+        monthObj.Geral = totalConc > 0 ? Math.round((totalCorrido / totalConc) * 100) : 0;
         monthObj.totalOS = totalAtividades;
 
         return monthObj;
@@ -495,8 +495,8 @@ function ResumoSlaPageContent() {
   const refLineColor = '#22c55e';
   const generalLineColor = isDark ? '#e2e8f0' : '#0f172a';
 
-  const slaA = comparative?.sla.a.slaUtilPercent ?? 0;
-  const slaB = comparative?.sla.b.slaUtilPercent ?? 0;
+  const slaA = comparative?.sla.a.slaPercent ?? 0;
+  const slaB = comparative?.sla.b.slaPercent ?? 0;
   const qualityATotal = comparative
     ? comparative.qualidade.a.IQIv + comparative.qualidade.a.IQRv + comparative.qualidade.a.ICT
     : 0;
