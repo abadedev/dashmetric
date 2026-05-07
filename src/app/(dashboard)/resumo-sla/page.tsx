@@ -590,14 +590,14 @@ function ResumoSlaPageContent() {
         ) : (
           <>
             <ComparativeKpi
-              label="SLA Útil %"
+              label="SLA %"
               icon={ShieldCheck}
               current={slaA}
               previous={slaB}
               format={(n) => `${n.toFixed(1)}%`}
               valueColor={getSlaStatus(slaA).color}
               orientation="higher-better"
-              hint={`B: ${slaB.toFixed(1)}%`}
+              hint={`B: ${slaB.toFixed(1)}% · Meta: 24h corridas`}
             />
             <ComparativeKpi
               label="Total Atendimentos"
@@ -783,7 +783,7 @@ function ResumoSlaPageContent() {
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
           <div>
             <CardTitle className="text-base">Heatmap SLA por Tipo × Mês</CardTitle>
-            <p className="text-xs text-muted-foreground">SLA Útil % por combinação tipo de atividade × período</p>
+            <p className="text-xs text-muted-foreground">SLA % por combinação tipo de atividade × período (24h corridas)</p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="border-border/80 bg-background/80 text-xs text-muted-foreground">
@@ -836,7 +836,7 @@ function ResumoSlaPageContent() {
                         const cell: CellData | undefined = m.cells?.[type];
                         const hasData = cell !== undefined;
                         const tooltipTitle = hasData
-                          ? `${type} — ${m.name}\nSLA Útil: ${cell.pct}% (${cell.concluded}/${cell.total} OS)`
+                          ? `${type} — ${m.name}\nSLA: ${cell.pct}% (${cell.concluded}/${cell.total} OS)`
                           : `${type} — ${m.name}\nSem dados`;
                         return (
                           <div
@@ -881,7 +881,7 @@ function ResumoSlaPageContent() {
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
           <div>
             <CardTitle className="text-base">Evolução por Tipo de Atividade</CardTitle>
-            <p className="text-xs text-muted-foreground">SLA Útil % mês a mês — comparação entre tipos e linha geral</p>
+            <p className="text-xs text-muted-foreground">SLA % mês a mês — comparação entre tipos e linha geral (24h corridas)</p>
           </div>
           <Badge variant="outline" className="border-border/80 bg-background/80 text-xs text-muted-foreground">
             Meta Ouro: {SLA_META}%
