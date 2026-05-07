@@ -233,8 +233,8 @@ type ComparativeData = {
     b: { slaPercent: number; slaUtilPercent: number; total: number; concluded: number; withinSla: number; withinSlaUtil: number };
   };
   atendimentos: {
-    a: { total: number; reparos: number; instalacoes: number; emAberto: number; byType: AtendByType[] };
-    b: { total: number; reparos: number; instalacoes: number; emAberto: number; byType: AtendByType[] };
+    a: { total: number; reparos: number; instalacoes: number; byType: AtendByType[] };
+    b: { total: number; reparos: number; instalacoes: number; byType: AtendByType[] };
   };
   qualidade: {
     a: { IQIv: number; IQRv: number; ICT: number; RST: number };
@@ -607,18 +607,6 @@ function ResumoSlaPageContent() {
               orientation="higher-better"
             />
             <ComparativeKpi
-              label="Em Aberto"
-              icon={AlertTriangle}
-              current={comparative.atendimentos.a.emAberto}
-              previous={comparative.atendimentos.b.emAberto}
-              orientation="lower-better"
-              valueColor={
-                comparative.atendimentos.a.emAberto > comparative.atendimentos.b.emAberto
-                  ? 'text-red-500'
-                  : 'text-foreground'
-              }
-            />
-            <ComparativeKpi
               label="Suporte (ligações)"
               icon={Headphones}
               current={comparative.suporte.a.total}
@@ -712,14 +700,6 @@ function ResumoSlaPageContent() {
                     orientation={item.orientation}
                   />
                 ))}
-                <div className="mt-1 border-t border-border/70 pt-1">
-                  <BreakdownRow
-                    label="Em Aberto"
-                    current={comparative.atendimentos.a.emAberto}
-                    previous={comparative.atendimentos.b.emAberto}
-                    orientation="lower-better"
-                  />
-                </div>
               </div>
             )}
           </CardContent>

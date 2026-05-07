@@ -83,7 +83,6 @@ type AtendRow = {
   total: number;
   reparos: number;
   instalacoes: number;
-  emAberto: number;
   byType: AtendByTypeRow[];
 };
 type QualityRow = { IQIv: number; IQRv: number; ICT: number; RST: number };
@@ -142,7 +141,6 @@ async function fetchAtendimentos(
         total: sql<number>`cast(count(*) as int)`,
         reparos: sql<number>`cast(sum(case when ${atendimentos.tipo} ilike '%reparo%' then 1 else 0 end) as int)`,
         instalacoes: sql<number>`cast(sum(case when (${atendimentos.tipo} ilike '%instalação%' or ${atendimentos.tipo} ilike '%instalacao%') then 1 else 0 end) as int)`,
-        emAberto: sql<number>`cast(sum(case when ${atendimentos.finalizacaoAt} is null then 1 else 0 end) as int)`,
       })
       .from(atendimentos)
       .where(atendWhere),
@@ -161,7 +159,6 @@ async function fetchAtendimentos(
     total: Number(row?.total ?? 0),
     reparos: Number(row?.reparos ?? 0),
     instalacoes: Number(row?.instalacoes ?? 0),
-    emAberto: Number(row?.emAberto ?? 0),
     byType: byTypeRows.map((item) => ({
       type: item.type,
       total: Number(item.total ?? 0),

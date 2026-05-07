@@ -41,7 +41,6 @@ const STARTER_MESSAGE =
 const QUICK_PROMPTS = [
   'Como estamos hoje?',
   'Resumo geral',
-  'Atendimentos em aberto',
   'Ranking dos técnicos',
   'SLA do período',
   'Cancelamentos',
