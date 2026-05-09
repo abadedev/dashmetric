@@ -70,4 +70,26 @@ export async function ensureServiceListingsTable() {
     ALTER TABLE service_listings
     ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ
   `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS service_listing_logs (
+      id SERIAL PRIMARY KEY,
+      service_listing_id INTEGER NOT NULL,
+      field_name VARCHAR(64) NOT NULL,
+      old_value TEXT,
+      new_value TEXT,
+      changed_by VARCHAR(255),
+      changed_at TIMESTAMP DEFAULT NOW() NOT NULL
+    )
+  `);
+
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS service_listing_logs_service_listing_id_idx
+      ON service_listing_logs (service_listing_id, changed_at DESC)
+  `);
+
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS service_listings_network_box_idx
+      ON service_listings (network_box)
+  `);
 }

@@ -29,3 +29,21 @@ export const serviceListings = pgTable('service_listings', {
 
 export type ServiceListing = typeof serviceListings.$inferSelect;
 export type NewServiceListing = typeof serviceListings.$inferInsert;
+
+export type ServiceListingWithStats = ServiceListing & {
+  occurrenceCount: number;
+  isReincidente: boolean;
+};
+
+export const serviceListingLogs = pgTable('service_listing_logs', {
+  id: serial('id').primaryKey(),
+  serviceListingId: integer('service_listing_id').notNull(),
+  fieldName: varchar('field_name', { length: 64 }).notNull(),
+  oldValue: text('old_value'),
+  newValue: text('new_value'),
+  changedBy: varchar('changed_by', { length: 255 }),
+  changedAt: timestamp('changed_at').defaultNow().notNull(),
+});
+
+export type ServiceListingLog = typeof serviceListingLogs.$inferSelect;
+export type NewServiceListingLog = typeof serviceListingLogs.$inferInsert;
