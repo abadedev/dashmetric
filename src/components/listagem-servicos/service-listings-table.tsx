@@ -39,7 +39,7 @@ interface ServiceListingsTableProps {
   queryKey: readonly unknown[];
   sortField: string | null;
   sortDir: 'asc' | 'desc';
-  onSort: (field: string) => void;
+  onSort: (field: string, initialDir?: 'asc' | 'desc') => void;
   searchValue: string;
   onSearchChange: (val: string) => void;
   queryString: string;
@@ -255,7 +255,7 @@ function RecordsTable({
   onDelete: (id: number) => void;
   sortField: string | null;
   sortDir: 'asc' | 'desc';
-  onSort: (field: string) => void;
+  onSort: (field: string, initialDir?: 'asc' | 'desc') => void;
   showResolved?: boolean;
 }) {
   const canEdit = moduleAccessLevel === 'editor' || moduleAccessLevel === 'admin';
@@ -322,7 +322,12 @@ function RecordsTable({
             </TableHead>
             <TableHead className="w-[110px]">Solicitante</TableHead>
             {showResolved && (
-              <TableHead className="w-[130px] whitespace-nowrap">Concluído em</TableHead>
+              <TableHead
+                className="group w-[130px] cursor-pointer select-none whitespace-nowrap hover:text-foreground"
+                onClick={() => onSort('resolvedAt', 'desc')}
+              >
+                Concluído em<SortIcon field="resolvedAt" sortField={sortField} sortDir={sortDir} />
+              </TableHead>
             )}
             <TableHead className="w-[110px]" />
           </TableRow>
