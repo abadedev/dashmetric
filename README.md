@@ -104,9 +104,7 @@ No Painel ADM, o administrador pode configurar sem tocar no código:
 **Banco de dados dedicado**
 O módulo usa o banco secundário no **SquareCloud (PostgreSQL)** com conexão via SSL, isolado do banco principal NeonDB, garantindo performance e segurança para as operações de tempo real.
 
-### Antes x Depois
-
-| Antes (planilha) | Depois (DashMetric) |
+| Antes | Depois |
 |---|---|
 | Planilha compartilhada no Excel | Sistema web acessível por qualquer membro do time |
 | Sem filtros ou busca rápida | Filtros por ocorrência, técnico, cidade, status e período |
@@ -114,10 +112,7 @@ O módulo usa o banco secundário no **SquareCloud (PostgreSQL)** com conexão v
 | Sem detecção de duplicidade | Alerta automático ao tentar criar chamado duplicado para a mesma CA |
 | Comunicação manual por WhatsApp | Compartilhamento direto no Bitrix24 pelo sistema |
 | Sem evidências fotográficas | Upload de imagens vinculadas ao chamado via Cloudinary |
-| Sem localização estruturada | Link de geolocalização por chamado |
-| Sem controle de quem abriu | Rastreamento de criador e técnico responsável |
-| Sem histórico de resolução | Data e notas de resolução registradas automaticamente |
-
+| Sem histórico de resolução estruturado | Data, notas e técnico de resolução registrados automaticamente |
 ---
 
 ## Stack
