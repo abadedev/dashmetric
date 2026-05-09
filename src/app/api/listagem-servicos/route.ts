@@ -76,6 +76,7 @@ export async function GET(req: NextRequest) {
       status: serviceListings.status,
       technician: serviceListings.technician,
       openAge: sql<number>`greatest(0, current_date - ${serviceListings.referenceDate})`,
+      resolvedAt: serviceListings.resolvedAt,
     } as const;
 
     const sortColumn =

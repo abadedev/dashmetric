@@ -52,17 +52,17 @@ function ListagemServicosContent() {
     setPage('1');
   }
 
-  function handleSort(field: string) {
+  function handleSort(field: string, initialDir: 'asc' | 'desc' = 'asc') {
     if (sortField === field) {
-      if (sortDir === 'asc') {
-        setSortDir('desc');
+      if (sortDir === initialDir) {
+        setSortDir(initialDir === 'asc' ? 'desc' : 'asc');
       } else {
         setSortField(null);
         setSortDir('asc');
       }
     } else {
       setSortField(field);
-      setSortDir('asc');
+      setSortDir(initialDir);
     }
   }
 
