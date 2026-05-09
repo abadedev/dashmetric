@@ -8,8 +8,134 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { CalendarDays, User, Clock, MapPin, Wifi, FileText } from 'lucide-react';
+import { CalendarDays, User, Clock, MapPin, Wifi, FileText, History } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  AUDITED_FIELDS,
+  FIELD_LABELS,
+  formatAuditValue,
+  type AuditedField,
+} from '@/lib/listagem-servicos/audit-fields';
+import { cn } from '@/lib/utils';
+
+interface ServiceListingLogRow {
+  id: number;
+  serviceListingId: number;
+  fieldName: string;
+  oldValue: string | null;
+  newValue: string | null;
+  changedBy: string | null;
+  changedAt: string;
+}
+
+const AUDITED_FIELD_SET = new Set<string>(AUDITED_FIELDS);
+
+const SECTION_CARD_CLASS =
+  'rounded-[12px] border-[0.5px] border-[var(--color-border-tertiary)] bg-[var(--color-background-secondary)] px-4 py-3.5';
+
+function Section({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={SECTION_CARD_CLASS}>
+      <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-tertiary)] flex items-center gap-1.5 mb-2.5 pb-2.5 border-b-[0.5px] border-[var(--color-border-tertiary)]">
+        <Icon className="w-3 h-3" /> {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function Field({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn('flex flex-col gap-0.5', className)}>
+      <span className="text-[11px] font-normal text-[var(--color-text-tertiary)]">{label}</span>
+      <div className="text-[13px] font-medium text-[var(--color-text-primary)]">{children}</div>
+    </div>
+  );
+}
+
+function ChangeHistorySection({ recordId }: { recordId: number }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['listagem-servicos', recordId, 'logs'],
+    queryFn: async () => {
+      const res = await fetch(`/api/listagem-servicos/${recordId}/logs`);
+      if (!res.ok) throw new Error('logs error');
+      return res.json() as Promise<{ data: ServiceListingLogRow[] }>;
+    },
+  });
+
+  const logs = data?.data ?? [];
+
+  return (
+    <Section icon={History} title="Histórico de alterações">
+      {isLoading ? (
+        <div className="text-xs text-muted-foreground">Carregando…</div>
+      ) : isError ? (
+        <div className="text-xs text-red-400">Erro ao carregar histórico.</div>
+      ) : logs.length === 0 ? (
+        <div className="text-xs text-muted-foreground">Sem alterações registradas.</div>
+      ) : (
+        <ol className="space-y-2">
+          {logs.map((log) => {
+            const isAudited = AUDITED_FIELD_SET.has(log.fieldName);
+            const label = isAudited
+              ? FIELD_LABELS[log.fieldName as AuditedField]
+              : log.fieldName;
+            const oldFmt = isAudited
+              ? formatAuditValue(log.fieldName as AuditedField, log.oldValue)
+              : log.oldValue ?? '—';
+            const newFmt = isAudited
+              ? formatAuditValue(log.fieldName as AuditedField, log.newValue)
+              : log.newValue ?? '—';
+            return (
+              <li
+                key={log.id}
+                className="rounded-md border-[0.5px] border-[var(--color-border-tertiary)] bg-[var(--color-background-secondary)]/60 p-3 text-xs"
+              >
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="font-medium text-foreground">{label}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {formatDateTime(log.changedAt)}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="rounded border border-border bg-background px-1.5 py-0.5 text-[11px] line-through text-muted-foreground">
+                    {oldFmt}
+                  </span>
+                  <span className="text-muted-foreground">→</span>
+                  <span className="rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground">
+                    {newFmt}
+                  </span>
+                </div>
+                {log.changedBy && (
+                  <div className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1">
+                    <User className="w-3 h-3" /> {log.changedBy}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </Section>
+  );
+}
 
 interface OsServiceDetailSheetProps {
   record: any;
@@ -42,143 +168,90 @@ export function OsServiceDetailSheet({ record, isOpen, onClose }: OsServiceDetai
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-2">
+      <DialogContent className="w-[90vw] sm:max-w-[1080px] max-h-[90vh] overflow-y-auto sm:p-6">
+        <DialogHeader className="pb-3 border-b-[0.5px] border-[var(--color-border-tertiary)]">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <DialogTitle className="text-xl">
+            <DialogTitle className="text-[18px] font-bold">
               {record.networkBox || record.caixaRede || 'Sem caixa/rede'}
             </DialogTitle>
             <Badge variant="outline" className={badgeClass}>
               {record.status ?? '—'}
             </Badge>
           </div>
-          <DialogDescription>
+          <DialogDescription className="text-[13px] text-muted-foreground">
             {record.tipoOcorrencia || record.occurrence || record.tipo || '—'}
           </DialogDescription>
         </DialogHeader>
 
-        <Separator className="my-2" />
-
-        <div className="space-y-5 text-sm">
+        <div className="flex flex-col gap-2.5">
 
           {/* Localização */}
-          <div>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" /> Localização
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-muted/40 p-3 rounded-md">
-                <div className="text-xs text-muted-foreground mb-1">Cidade / Área</div>
-                <div className="font-medium">{record.cityArea || record.cidade || '—'}</div>
-              </div>
-              <div className="bg-muted/40 p-3 rounded-md">
-                <div className="text-xs text-muted-foreground mb-1">Rede / Caixa</div>
-                <div className="font-medium font-mono text-xs">{record.networkBox || record.caixaRede || '—'}</div>
-              </div>
-              <div className="bg-muted/40 p-3 rounded-md col-span-2">
-                <div className="text-xs text-muted-foreground mb-1">Endereço</div>
-                <div className="font-medium">{record.address || record.endereco || '—'}</div>
-              </div>
+          <Section icon={MapPin} title="Localização">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Cidade / Área">{record.cityArea || record.cidade || '—'}</Field>
+              <Field label="Rede / Caixa">
+                <span className="font-mono text-xs">{record.networkBox || record.caixaRede || '—'}</span>
+              </Field>
+              <Field label="Endereço" className="col-span-2">
+                {record.address || record.endereco || '—'}
+              </Field>
             </div>
-          </div>
-
-          <Separator />
+          </Section>
 
           {/* Ocorrência */}
-          <div>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <Wifi className="w-3.5 h-3.5" /> Ocorrência
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-muted/40 p-3 rounded-md">
-                <div className="text-xs text-muted-foreground mb-1">Tipo</div>
-                <div className="font-medium">{record.tipoOcorrencia || record.occurrence || record.tipo || '—'}</div>
-              </div>
-              <div className="bg-muted/40 p-3 rounded-md">
-                <div className="text-xs text-muted-foreground mb-1">Status</div>
+          <Section icon={Wifi} title="Ocorrência">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Tipo">{record.tipoOcorrencia || record.occurrence || record.tipo || '—'}</Field>
+              <Field label="Status">
                 <Badge variant="outline" className={badgeClass}>{record.status ?? '—'}</Badge>
-              </div>
+              </Field>
+              {(record.observacaoInfra || record.problem || record.descricao || record.observacao) && (
+                <Field label="Descrição / Obs" className="col-span-2">
+                  {record.observacaoInfra || record.problem || record.descricao || record.observacao}
+                </Field>
+              )}
+              {record.solution && (
+                <Field label="Solução" className="col-span-2">
+                  {record.solution}
+                </Field>
+              )}
             </div>
-            {(record.observacaoInfra || record.problem || record.descricao || record.observacao) && (
-              <div className="bg-muted/40 p-3 rounded-md mt-3">
-                <div className="text-xs text-muted-foreground mb-1">Descrição / Obs</div>
-                <div>{record.observacaoInfra || record.problem || record.descricao || record.observacao}</div>
-              </div>
-            )}
-            {record.solution && (
-              <div className="bg-muted/40 p-3 rounded-md mt-3">
-                <div className="text-xs text-muted-foreground mb-1">Solução</div>
-                <div>{record.solution}</div>
-              </div>
-            )}
-          </div>
-
-          <Separator />
+          </Section>
 
           {/* Técnico */}
           {(record.technician || record.tecnico) && (
-            <>
-              <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5" /> Técnico
-                </h3>
-                <div className="bg-muted/40 p-3 rounded-md">
-                  <div className="font-medium">{record.technician || record.tecnico}</div>
-                </div>
-              </div>
-              <Separator />
-            </>
+            <Section icon={User} title="Técnico">
+              <Field label="Técnico">{record.technician || record.tecnico}</Field>
+            </Section>
           )}
 
           {/* Solicitante */}
           {record.solicitante && (
-            <>
-              <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5" /> Solicitante
-                </h3>
-                <div className="bg-muted/40 p-3 rounded-md">
-                  <div className="font-medium">{record.solicitante}</div>
-                </div>
-              </div>
-              <Separator />
-            </>
+            <Section icon={User} title="Solicitante">
+              <Field label="Solicitante">{record.solicitante}</Field>
+            </Section>
           )}
 
           {/* Registro */}
-          <div>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5" /> Informações do Registro
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-muted/40 p-3 rounded-md">
-                <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                  <CalendarDays className="w-3 h-3" /> Adicionado em
-                </div>
-                <div className="font-medium">
-                  {formatDateTime(record.createdAt || record.addedAt || record.dataImportacao)}
-                </div>
-              </div>
-              <div className="bg-muted/40 p-3 rounded-md">
-                <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> Concluído em
-                </div>
-                <div className="font-medium">
-                  {formatDateTime(record.resolvedAt)}
-                </div>
-              </div>
+          <Section icon={FileText} title="Informações do Registro">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Adicionado em">
+                {formatDateTime(record.createdAt || record.addedAt || record.dataImportacao)}
+              </Field>
+              <Field label="Concluído em">
+                {formatDateTime(record.resolvedAt)}
+              </Field>
               {(record.createdBy || record.addedByName || record.added_by_name) && (
-                <div className="bg-muted/40 p-3 rounded-md col-span-2">
-                  <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                    <User className="w-3 h-3" /> Adicionado por
-                  </div>
-                  <div className="font-medium">
-                    {record.createdBy || record.addedByName || record.added_by_name}
-                  </div>
-                </div>
+                <Field label="Adicionado por" className="col-span-2">
+                  {record.createdBy || record.addedByName || record.added_by_name}
+                </Field>
               )}
             </div>
-          </div>
+          </Section>
+
+          {typeof record.id === 'number' && (
+            <ChangeHistorySection recordId={record.id} />
+          )}
 
         </div>
       </DialogContent>

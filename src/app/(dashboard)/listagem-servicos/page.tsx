@@ -12,7 +12,7 @@ import { PageSkeleton } from '@/components/ui/state-display';
 import { Card, CardContent } from '@/components/ui/card';
 import { ServiceListingsTable } from '@/components/listagem-servicos/service-listings-table';
 import { ServiceForm } from '@/components/listagem-servicos/service-form';
-import type { ServiceListing } from '@/lib/db/infra-schema';
+import type { ServiceListing, ServiceListingWithStats } from '@/lib/db/infra-schema';
 import { INFRA_OCCURRENCE_OPTIONS } from '@/lib/listagem-servicos/infra-occurrences';
 import type { ModuleAccessLevel } from '@/lib/module-access';
 
@@ -92,7 +92,7 @@ function ListagemServicosContent() {
     queryFn: async () => {
       const res = await fetch(`/api/listagem-servicos?${qs}`);
       return res.json() as Promise<{
-        data: ServiceListing[];
+        data: ServiceListingWithStats[];
         total: number;
         totalPendentes: number;
         totalResolvidos: number;

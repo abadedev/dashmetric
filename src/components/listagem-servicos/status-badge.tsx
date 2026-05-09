@@ -64,7 +64,10 @@ export function StatusSelectBadge({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error('Falha ao atualizar status');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? 'Falha ao atualizar status');
+      }
       return res.json();
     },
   });
@@ -75,9 +78,9 @@ export function StatusSelectBadge({
     setStatus(newStatus);
     mutation.mutate(newStatus, {
       onSuccess: () => queryClient.invalidateQueries({ queryKey }),
-      onError: () => {
+      onError: (error) => {
         setStatus(prev);
-        toast.error('Falha ao atualizar o status');
+        toast.error(error instanceof Error ? error.message : 'Falha ao atualizar o status');
       },
     });
   };
@@ -86,6 +89,17 @@ export function StatusSelectBadge({
 
   if (!canEdit) {
     return <StatusBadge status={status} />;
+  }
+
+  if (status === 'resolvido') {
+    return (
+      <span
+        title="Chamado já resolvido não pode ser reaberto. Crie um novo registro na listagem."
+        className="inline-flex cursor-not-allowed"
+      >
+        <StatusBadge status={status} />
+      </span>
+    );
   }
 
   return (

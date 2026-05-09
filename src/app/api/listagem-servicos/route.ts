@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, asc, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { getInfraDb } from '@/lib/db/infra';
 import { serviceListings } from '@/lib/db/infra-schema';
@@ -139,13 +139,31 @@ export async function GET(req: NextRequest) {
       db.select({ count: sql<number>`count(*)::int` }).from(serviceListings).where(
         baseCondition ? and(baseCondition, resolvedStatusOr) : resolvedStatusOr
       ),
-      db
-        .select()
-        .from(serviceListings)
-        .where(condition)
-        .orderBy(orderClause, asc(serviceListings.id))
-        .limit(pageSize)
-        .offset(offset),
+      (() => {
+        const rowsQuery = db
+          .select({
+            ...getTableColumns(serviceListings),
+            occurrenceCount: sql<number>`(
+              case
+                when service_listings.network_box is null or service_listings.network_box = ''
+                then 1
+                else (
+                  select count(*)::int from service_listings sl2
+                  where sl2.network_box = service_listings.network_box
+                    and sl2.city_area is not distinct from service_listings.city_area
+                )
+              end
+            )`.as('occurrence_count'),
+          })
+          .from(serviceListings)
+          .where(condition)
+          .orderBy(orderClause, asc(serviceListings.id))
+          .limit(pageSize)
+          .offset(offset);
+        // TEMP DEBUG: remove after verifying occurrenceCount correlation in prod
+        console.log('[listagem-servicos rows SQL]', rowsQuery.toSQL());
+        return rowsQuery;
+      })(),
       db
         .selectDistinct({ cityArea: serviceListings.cityArea })
         .from(serviceListings)
@@ -165,8 +183,17 @@ export async function GET(req: NextRequest) {
     const total = countResult[0]?.count ?? 0;
     const openAgeOptions = sortOpenAgeOptions(openAgeRaw.map((row) => row.openAge).filter(Boolean));
 
+    const rowsWithStats = rows.map((row) => {
+      const occurrenceCount = Number(row.occurrenceCount ?? 1);
+      return {
+        ...row,
+        occurrenceCount,
+        isReincidente: occurrenceCount > 1,
+      };
+    });
+
     return NextResponse.json({
-      data: rows,
+      data: rowsWithStats,
       total,
       totalPendentes: countPendentes[0]?.count ?? 0,
       totalResolvidos: countResolvidos[0]?.count ?? 0,
