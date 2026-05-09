@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { getInfraDb } from '@/lib/db/infra';
-import { serviceListings } from '@/lib/db/infra-schema';
+import { serviceListings, serviceListingLogs } from '@/lib/db/infra-schema';
 import {
   infraOccurrenceSchema,
   normalizeCityArea,
@@ -10,6 +10,7 @@ import {
   serviceListingPayloadSchema,
 } from '@/lib/listagem-servicos/infra-occurrences';
 import { ensureServiceListingsTable } from '@/lib/listagem-servicos/service-listings-schema';
+import { AUDITED_FIELDS, normalizeForCompare, type AuditedField } from '@/lib/listagem-servicos/audit-fields';
 
 export const runtime = 'nodejs';
 
@@ -68,7 +69,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
 
     const [currentRecord] = await db
-      .select({ resolvedAt: serviceListings.resolvedAt })
+      .select()
       .from(serviceListings)
       .where(eq(serviceListings.id, recordId))
       .limit(1);
@@ -170,6 +171,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
+    if (
+      'status' in updateData &&
+      currentRecord.status === 'resolvido' &&
+      updateData.status !== 'resolvido'
+    ) {
+      return NextResponse.json(
+        { error: 'Chamado já resolvido não pode ser reaberto. Crie um novo registro na listagem.' },
+        { status: 400 },
+      );
+    }
+
     if ('status' in updateData) {
       if (updateData.status === 'resolvido') {
         if (!currentRecord.resolvedAt) {
@@ -180,11 +192,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    const [updated] = await db
-      .update(serviceListings)
-      .set(updateData)
-      .where(eq(serviceListings.id, recordId))
-      .returning();
+    const logEntries: Array<{
+      serviceListingId: number;
+      fieldName: string;
+      oldValue: string | null;
+      newValue: string | null;
+      changedBy: string;
+    }> = [];
+    for (const field of AUDITED_FIELDS) {
+      if (!(field in updateData)) continue;
+      const before = normalizeForCompare((currentRecord as Record<AuditedField, unknown>)[field]);
+      const after = normalizeForCompare(updateData[field]);
+      if (before === after) continue;
+      logEntries.push({
+        serviceListingId: recordId,
+        fieldName: field,
+        oldValue: before,
+        newValue: after,
+        changedBy: userEmail,
+      });
+    }
+
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(serviceListings)
+        .set(updateData)
+        .where(eq(serviceListings.id, recordId))
+        .returning();
+      if (row && logEntries.length > 0) {
+        await tx.insert(serviceListingLogs).values(logEntries);
+      }
+      return row;
+    });
 
     if (!updated) {
       return NextResponse.json({ error: 'Registro n\u00E3o encontrado.' }, { status: 404 });

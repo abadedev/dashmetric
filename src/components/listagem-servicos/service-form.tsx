@@ -371,6 +371,9 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
   const canOpenLocation = form.locationUrl.trim().length > 0;
   const canManage = moduleAccessLevel === 'admin';
   const isEditLocked = isEdit && !canManage;
+  const isResolvedLocked = isEdit && editRecord?.status === 'resolvido';
+  const isStatusLocked = isEditLocked || isResolvedLocked;
+  const RESOLVED_TOOLTIP = 'Chamado já resolvido não pode ser reaberto. Crie um novo registro na listagem.';
 
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
@@ -431,8 +434,13 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
 
                 <div className="space-y-2">
                   <Label htmlFor="sf-status" className="text-sm font-medium">Status</Label>
-                  <Select value={form.status} onValueChange={(value) => { if (!isEditLocked) updateField('status', value ?? 'pendente'); }}>
-                    <SelectTrigger id="sf-status" className="h-10 w-full" disabled={isEditLocked}>
+                  <Select value={form.status} onValueChange={(value) => { if (!isStatusLocked) updateField('status', value ?? 'pendente'); }}>
+                    <SelectTrigger
+                      id="sf-status"
+                      className="h-10 w-full"
+                      disabled={isStatusLocked}
+                      title={isResolvedLocked ? RESOLVED_TOOLTIP : undefined}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[190px]">
@@ -441,6 +449,9 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
                       ))}
                     </SelectContent>
                   </Select>
+                  {isResolvedLocked && (
+                    <p className="text-[11px] text-muted-foreground">{RESOLVED_TOOLTIP}</p>
+                  )}
                 </div>
               </div>
 

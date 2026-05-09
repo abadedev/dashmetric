@@ -29,11 +29,12 @@ import { OsServiceDetailSheet } from './os-detail-sheet';
 import { ServiceForm } from './service-form';
 import { ShareOsMessageButton } from './share-os-message-button';
 import { PriorityDot, StatusSelectBadge } from './status-badge';
-import type { ServiceListing } from '@/lib/db/infra-schema';
+import type { ServiceListing, ServiceListingWithStats } from '@/lib/db/infra-schema';
+import { cn } from '@/lib/utils';
 import type { ModuleAccessLevel } from '@/lib/module-access';
 
 interface ServiceListingsTableProps {
-  data: ServiceListing[] | undefined;
+  data: ServiceListingWithStats[] | undefined;
   isLoading: boolean;
   moduleAccessLevel: ModuleAccessLevel;
   queryKey: readonly unknown[];
@@ -85,7 +86,7 @@ function AddressCell({ row }: { row: ServiceListing }) {
   );
 }
 
-function OccurrenceCell({ row }: { row: ServiceListing }) {
+function OccurrenceCell({ row }: { row: ServiceListingWithStats }) {
   return (
     <div className="min-w-0 space-y-0.5">
       <div className="flex min-w-0 items-center gap-1">
@@ -96,6 +97,35 @@ function OccurrenceCell({ row }: { row: ServiceListing }) {
       <p className="truncate text-[11px] text-muted-foreground" title={row.observacaoInfra ?? row.problem ?? ''}>
         {row.observacaoInfra || row.problem || ''}
       </p>
+      {row.isReincidente && (
+        <Badge
+          variant="outline"
+          className="mt-0.5 h-5 border-orange-500/30 bg-orange-500/15 px-1.5 text-[10px] font-medium text-orange-400"
+        >
+          Reincidente
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+function NetworkBoxCell({ row }: { row: ServiceListingWithStats }) {
+  const count = row.occurrenceCount ?? 1;
+  const showCount = count >= 2;
+  const countClass = count >= 3 ? 'text-red-400' : 'text-orange-400';
+  return (
+    <div className="flex min-w-0 items-center gap-1">
+      <span className="block truncate" title={row.networkBox ?? ''}>
+        {row.networkBox || '—'}
+      </span>
+      {showCount && (
+        <span
+          className={cn('shrink-0 text-[11px] font-semibold tabular-nums', countClass)}
+          title={`Esta CA já foi registrada ${count} vezes`}
+        >
+          ×{count}
+        </span>
+      )}
     </div>
   );
 }
@@ -246,7 +276,7 @@ function RecordsTable({
   onSort,
   showResolved = false,
 }: {
-  rows: ServiceListing[];
+  rows: ServiceListingWithStats[];
   moduleAccessLevel: ModuleAccessLevel;
   queryKey: readonly unknown[];
   onViewDetail: (record: ServiceListing) => void;
@@ -296,7 +326,7 @@ function RecordsTable({
             </TableHead>
             <TableHead className="w-[180px]">{'Endere\u00E7o'}</TableHead>
             <TableHead
-              className="group w-[90px] cursor-pointer select-none hover:text-foreground"
+              className="group w-[110px] cursor-pointer select-none hover:text-foreground"
               onClick={() => onSort('networkBox')}
             >
               Rede/Caixa<SortIcon field="networkBox" sortField={sortField} sortDir={sortDir} />
@@ -343,8 +373,8 @@ function RecordsTable({
               <TableCell className="max-w-[180px] text-xs">
                 <AddressCell row={row} />
               </TableCell>
-              <TableCell className="max-w-[90px] text-xs">
-                <span className="block truncate" title={row.networkBox ?? ''}>{row.networkBox || '\u2014'}</span>
+              <TableCell className="max-w-[110px] text-xs">
+                <NetworkBoxCell row={row} />
               </TableCell>
               <TableCell className="max-w-[200px]">
                 <OccurrenceCell row={row} />
