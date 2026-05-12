@@ -58,15 +58,23 @@ function parseDate(value: unknown): Date | null {
   const s = String(value).trim();
   if (!s || s.toLowerCase() === 'inativo' || s === '-') return null;
 
-  // Formato com barra: a planilha exporta como MM/DD/YY (americano).
-  // Heurística: se primeira parte > 12, é dia → cai em DD/MM/YY.
-  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  // Formato com barra: duas convenções convivem na mesma planilha.
+  //  - "4/10/26"      → ano com 2 dígitos = exportado pelo sistema em MM/DD/YY (US).
+  //  - "10/04/2026"   → ano com 4 dígitos = digitação manual no Brasil em DD/MM/YYYY.
+  //  - Disambiguação extra por valor: se uma das partes > 12, ela só pode ser dia.
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (slash) {
     const a = parseInt(slash[1], 10);
     const b = parseInt(slash[2], 10);
-    let y = parseInt(slash[3], 10);
+    const yearRaw = slash[3];
+    let y = parseInt(yearRaw, 10);
     if (y < 100) y += 2000;
-    const isDayFirst = a > 12;
+
+    let isDayFirst: boolean;
+    if (a > 12) isDayFirst = true;        // a só pode ser dia
+    else if (b > 12) isDayFirst = false;  // b só pode ser dia → a é mês
+    else isDayFirst = yearRaw.length === 4; // ambíguo → ano 4 dígitos = BR, 2 = US
+
     const month = (isDayFirst ? b : a) - 1;
     const day = isDayFirst ? a : b;
     if (month < 0 || month > 11 || day < 1 || day > 31) return null;
