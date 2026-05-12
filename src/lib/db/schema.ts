@@ -9,6 +9,7 @@ import {
   date,
   pgEnum,
   numeric,
+  decimal,
   index,
   uniqueIndex,
   jsonb,
@@ -858,3 +859,87 @@ export const dropdownOptions = pgTable(
 
 export type DropdownOption = typeof dropdownOptions.$inferSelect;
 export type NewDropdownOption = typeof dropdownOptions.$inferInsert;
+
+// ========== COBRANÇA ==========
+
+export const cobrancaRegistros = pgTable(
+  'cobranca_registros',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: varchar('workspace_id', { length: 100 }).notNull().default('default'),
+
+    // Identificação
+    clienteNome: varchar('cliente_nome', { length: 255 }).notNull(),
+    clienteCodigo: varchar('cliente_codigo', { length: 50 }),
+    telefone: varchar('telefone', { length: 50 }),
+    cidade: varchar('cidade', { length: 100 }),
+
+    // Financeiro
+    vencimento: timestamp('vencimento'),
+    valor: decimal('valor', { precision: 10, scale: 2 }),
+
+    // Status vindo do sistema (planilha de boletos)
+    statusSistema: varchar('status_sistema', { length: 50 }),
+    motivoAtraso: varchar('motivo_atraso', { length: 100 }),
+    perfilAtraso: boolean('perfil_atraso'),
+    tempoDeCasa: varchar('tempo_de_casa', { length: 50 }),
+    dataPagamento: timestamp('data_pagamento'),
+    dataBloqueio: timestamp('data_bloqueio'),
+    dataInativo: timestamp('data_inativo'),
+
+    // Status CRM (derivado da abordagem da equipe)
+    statusCrm: varchar('status_crm', { length: 50 }).notNull().default('pendente'),
+    // Valores possíveis:
+    // 'convertido'           — linha verde na planilha / pagou
+    // 'sem_contato'          — caixa postal, número errado, bloqueado, indisponível
+    // 'desligou'             — cliente desligou durante a ligação
+    // 'retirada_em_aberto'   — kit pendente de devolução
+    // 'retirada_finalizada'  — kit devolvido OU boleto R$250 gerado
+    // 'cancelamento_confirmado' — cliente confirmou que vai cancelar
+    // 'promessa_pagamento'   — prometeu pagar em data X
+    // 'promessa_devolucao'   — prometeu devolver equipamento
+    // 'pendente'             — ainda não abordado (observação em branco)
+
+    observacao: text('observacao'),
+    meioContato: varchar('meio_contato', { length: 100 }),
+
+    // Tipo da lista de origem
+    tipoLista: varchar('tipo_lista', { length: 30 }).notNull(),
+    // 'boletos_vencidos' ou 'pre_inativacao'
+
+    // Controle de import
+    importId: integer('import_id'),
+    linhaCor: varchar('linha_cor', { length: 20 }), // hex da cor da célula original
+
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('cobranca_workspace_idx').on(table.workspaceId),
+    index('cobranca_status_crm_idx').on(table.statusCrm),
+    index('cobranca_tipo_lista_idx').on(table.tipoLista),
+    index('cobranca_vencimento_idx').on(table.vencimento),
+    index('cobranca_cidade_idx').on(table.cidade),
+    uniqueIndex('cobranca_unique_idx').on(table.clienteCodigo, table.vencimento, table.tipoLista),
+  ]
+);
+
+export const cobrancaImports = pgTable(
+  'cobranca_imports',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: varchar('workspace_id', { length: 100 }).notNull().default('default'),
+    tipoLista: varchar('tipo_lista', { length: 30 }).notNull(),
+    nomeArquivo: varchar('nome_arquivo', { length: 255 }),
+    totalRegistros: integer('total_registros').default(0),
+    inseridos: integer('inseridos').default(0),
+    atualizados: integer('atualizados').default(0),
+    ignorados: integer('ignorados').default(0),
+    importadoEm: timestamp('importado_em').defaultNow().notNull(),
+  }
+);
+
+export type CobrancaRegistro = typeof cobrancaRegistros.$inferSelect;
+export type NewCobrancaRegistro = typeof cobrancaRegistros.$inferInsert;
+export type CobrancaImport = typeof cobrancaImports.$inferSelect;
+export type NewCobrancaImport = typeof cobrancaImports.$inferInsert;
