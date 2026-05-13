@@ -72,6 +72,11 @@ export async function ensureServiceListingsTable() {
   `);
 
   await db.execute(sql`
+    ALTER TABLE service_listings
+    ADD COLUMN IF NOT EXISTS sla_status VARCHAR(20)
+  `);
+
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS service_listing_logs (
       id SERIAL PRIMARY KEY,
       service_listing_id INTEGER NOT NULL,

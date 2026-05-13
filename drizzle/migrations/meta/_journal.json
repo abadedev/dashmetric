@@ -148,6 +148,13 @@
       "when": 1775740000000,
       "tag": "0020_cobranca_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1775750000000,
+      "tag": "0021_infra_sla_config",
+      "breakpoints": true
     }
   ]
 }
