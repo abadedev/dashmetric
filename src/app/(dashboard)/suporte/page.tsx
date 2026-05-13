@@ -39,22 +39,26 @@ type RespostaLegado = {
 
 type Resposta = RespostaDetalhada | RespostaLegado;
 
-function pickPeriod(from?: Date | null, to?: Date | null) {
-  // Mês/ano de referência = mês da data "from" (ou do "to" se from ausente, senão mês corrente).
-  const ref = from ?? to ?? new Date();
-  return { mes: ref.getMonth() + 1, ano: ref.getFullYear() };
+function formatDateParam(date: Date | null) {
+  if (!date) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function SuportePageContent() {
   const [from] = useQueryState('from', parseAsLocalIsoDate);
   const [to] = useQueryState('to', parseAsLocalIsoDate);
 
-  const { mes, ano } = pickPeriod(from, to);
-
-  const qs = new URLSearchParams({ mes: String(mes), ano: String(ano) }).toString();
+  const fromParam = formatDateParam(from);
+  const toParam = formatDateParam(to);
+  const qs = new URLSearchParams();
+  if (fromParam) qs.set('from', fromParam);
+  if (toParam) qs.set('to', toParam);
 
   const { data, isLoading, isError, refetch } = useQuery<Resposta>({
-    queryKey: ['suporte-call-records', mes, ano],
+    queryKey: ['suporte-call-records', fromParam, toParam],
     queryFn: async () => {
       const res = await fetch(`/api/suporte/call-records?${qs}`);
       if (!res.ok) throw new Error('Falha ao carregar suporte.');

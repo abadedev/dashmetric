@@ -19,6 +19,7 @@ const IMPORT_DATA_TABLES = [
   'atendimentos',
   'service_orders',
   'quality_records',
+  'support_call_records',
   'support_call_categories',
   'support_records',
   'sales_records',

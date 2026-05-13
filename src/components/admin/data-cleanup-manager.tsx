@@ -29,7 +29,7 @@ const MODULE_TABLE_MAP = [
   {
     key: 'suporte',
     label: 'Suporte Técnico',
-    description: 'Tabela: support_records + support_call_categories. Apaga registros de suporte.',
+    description: 'Tabela: support_call_records + support_records + support_call_categories. Apaga registros de suporte.',
   },
   {
     key: 'vendas',

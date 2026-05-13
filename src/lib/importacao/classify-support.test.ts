@@ -24,12 +24,12 @@ test('normalizeText: vazio retorna vazio', () => {
   assert.equal(normalizeText(''), '');
 });
 
-test('cliente sem internet => Não Navega', () => {
-  assert.equal(classifySupportRecord('cliente sem internet'), SUPPORT_CATEGORIES.NAO_NAVEGA_ONU);
+test('cliente sem internet => Não Navega Geral', () => {
+  assert.equal(classifySupportRecord('cliente sem internet'), SUPPORT_CATEGORIES.NAO_NAVEGA_GERAL);
 });
 
-test('los piscando => Não Conecta', () => {
-  assert.equal(classifySupportRecord('los piscando'), SUPPORT_CATEGORIES.NAO_CONECTA_ONU);
+test('los piscando => Não Conecta LOS/PON', () => {
+  assert.equal(classifySupportRecord('los piscando'), SUPPORT_CATEGORIES.NAO_CONECTA_LOS_PON);
 });
 
 test('internet oscilando => Intermitência', () => {
@@ -40,12 +40,12 @@ test('internet lenta => Lentidão', () => {
   assert.equal(classifySupportRecord('internet lenta'), SUPPORT_CATEGORIES.LENTIDAO);
 });
 
-test('senha wifi => Wi-Fi', () => {
-  assert.equal(classifySupportRecord('senha wifi'), SUPPORT_CATEGORIES.WIFI);
+test('senha wifi => Wi-Fi senha', () => {
+  assert.equal(classifySupportRecord('senha wifi'), SUPPORT_CATEGORIES.WIFI_SENHA);
 });
 
-test('bloqueado por boleto => Bloqueio/Boleto', () => {
-  assert.equal(classifySupportRecord('bloqueado por boleto'), SUPPORT_CATEGORIES.BLOQUEIO_BOLETO);
+test('bloqueado por boleto => Boleto / Financeiro', () => {
+  assert.equal(classifySupportRecord('bloqueado por boleto'), SUPPORT_CATEGORIES.BOLETO_FINANCEIRO);
 });
 
 test('rompimento de link => Não Conecta (Rede - Link)', () => {
@@ -68,29 +68,29 @@ test('lentidao no link => Lentidão (Rede - Link)', () => {
   assert.equal(classifySupportRecord('lentidão no link da operadora'), SUPPORT_CATEGORIES.LENTIDAO_LINK);
 });
 
-test('sem sinal na fibra => Não Conecta (LOS, PON...)', () => {
-  assert.equal(classifySupportRecord('cliente sem sinal na fibra'), SUPPORT_CATEGORIES.NAO_CONECTA_ONU);
+test('sem sinal na fibra => Não Conecta sem sinal', () => {
+  assert.equal(classifySupportRecord('cliente sem sinal na fibra'), SUPPORT_CATEGORIES.NAO_CONECTA_SEM_SINAL);
 });
 
-test('reset na onu => Outros (ONU)', () => {
-  assert.equal(classifySupportRecord('precisa resetar a onu'), SUPPORT_CATEGORIES.OUTROS_ONU);
+test('reset na onu => Não Navega ONU travada', () => {
+  assert.equal(classifySupportRecord('precisa resetar a onu'), SUPPORT_CATEGORIES.NAO_NAVEGA_ONU_TRAVADA);
 });
 
 test('duvida comercial => Outros', () => {
   assert.equal(classifySupportRecord('duvida sobre o plano contratado'), SUPPORT_CATEGORIES.OUTROS);
 });
 
-test('conectado sem internet => Não Navega (ONU/IP travado ou pendência financeira)', () => {
+test('conectado sem internet => Não Navega IP', () => {
   assert.equal(
     classifySupportRecord('cliente conectado sem internet'),
-    SUPPORT_CATEGORIES.NAO_NAVEGA_ONU
+    SUPPORT_CATEGORIES.NAO_NAVEGA_IP
   );
 });
 
-test('pon apagado => Não Conecta (LOS, PON ou PWR piscando, etc..)', () => {
+test('pon apagado => Não Conecta LOS/PON', () => {
   assert.equal(
     classifySupportRecord('pon apagado e luz vermelha'),
-    SUPPORT_CATEGORIES.NAO_CONECTA_ONU
+    SUPPORT_CATEGORIES.NAO_CONECTA_LOS_PON
   );
 });
 
@@ -122,24 +122,24 @@ test('cai toda hora => Intermitência', () => {
   );
 });
 
-test('trocar senha do wifi => Wi-Fi', () => {
+test('trocar senha do wifi => Wi-Fi senha', () => {
   assert.equal(
     classifySupportRecord('cliente quer trocar senha do wifi'),
-    SUPPORT_CATEGORIES.WIFI
+    SUPPORT_CATEGORIES.WIFI_SENHA
   );
 });
 
-test('financeiro desbloqueio => Bloqueio/Boleto', () => {
+test('financeiro desbloqueio => Bloqueio/Suspensão', () => {
   assert.equal(
     classifySupportRecord('solicitacao de desbloqueio financeiro'),
-    SUPPORT_CATEGORIES.BLOQUEIO_BOLETO
+    SUPPORT_CATEGORIES.BLOQUEIO_SUSPENSAO
   );
 });
 
-test('reconfigurar onu => Outros (ONU)', () => {
+test('reconfigurar onu => Outros', () => {
   assert.equal(
     classifySupportRecord('necessario reconfigurar onu'),
-    SUPPORT_CATEGORIES.OUTROS_ONU
+    SUPPORT_CATEGORIES.OUTROS
   );
 });
 
@@ -156,7 +156,7 @@ test('buildSupportSummary: conta e calcula percentual corretamente', () => {
   ];
   const result = buildSupportSummary(records);
 
-  assert.equal(result[0].tipo, SUPPORT_CATEGORIES.NAO_NAVEGA_ONU);
+  assert.equal(result[0].tipo, SUPPORT_CATEGORIES.NAO_NAVEGA_GERAL);
   assert.equal(result[0].quantidade, 2);
   assert.equal(result[0].percentual, 50.0);
 });
