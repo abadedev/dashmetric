@@ -1,8 +1,14 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { supportRecords, supportCallCategories } from '@/lib/db/schema';
+import {
+  supportRecords,
+  supportCallCategories,
+  supportCallRecords,
+  type NewSupportCallRecord,
+} from '@/lib/db/schema';
 import { normalizeHeader, normalizeTechName, parseBRDateWithTime, splitBRDateTime, trimOrNull } from './helpers';
 import { buildSupportSummary, classifySupportRecord, type SupportCategoryItem } from './classify-support';
+import { calcularSegmento, detectarModelo } from '@/lib/suporte/normalizarProblema';
 
 // ── Aliases de colunas ────────────────────────────────────────────────────────
 
@@ -21,7 +27,17 @@ const ALIASES: Record<string, string[]> = {
   dataFinalizacao:    ['dataFechamento', 'dataFinalizacao', 'data_finalizacao', 'data_final', 'fechamento', 'finalizacao', 'data_fechamento'],
   horaFinalizacao:    ['horaFinalizacao', 'hora_finalizacao', 'horaSaida', 'hora_saida', 'hora_fechamento'],
   problemaReclamado:  ['problemareclamado', 'problema_reclamado', 'problema', 'reclamacao',
-                       'motivo', 'descricao', 'assunto'],
+                       'descricao', 'assunto'],
+  os:                 ['os', 'numero_os', 'n_os', 'numero', 'protocolo'],
+  cliente:            ['cliente', 'nome_cliente'],
+  plano:              ['plano', 'plano_contratado'],
+  cidade:             ['cidade', 'municipio'],
+  bairro:             ['bairro'],
+  motivo:             ['motivo'],
+  causa:              ['causa', 'problemaencontrado', 'problema_encontrado'],
+  solucao:            ['solucao', 'solução'],
+  obs:                ['obs', 'observacao', 'observacoes', 'observação', 'observações'],
+  tipo:               ['tipo'],
 };
 
 function get(row: Record<string, string>, key: string): string {
@@ -117,6 +133,9 @@ export async function importarSuporte(
   };
 
   const registros: typeof supportRecords.$inferInsert[] = [];
+  // Registros detalhados (1 linha por OS) para o novo módulo.
+  const callRecords: NewSupportCallRecord[] = [];
+  const callRecordsOsSeen = new Set<string>();
   // Agrupa problemas por período real de cada linha (não pelo lote)
   const problemasPorPeriodo = new Map<string, { month: number; year: number; records: Array<{ problemaReclamado: string }> }>();
 
@@ -155,6 +174,42 @@ export async function importarSuporte(
       const entrada = problemasPorPeriodo.get(periodoKey) ?? { month, year, records: [] };
       entrada.records.push({ problemaReclamado: get(row, 'problemaReclamado') });
       problemasPorPeriodo.set(periodoKey, entrada);
+
+      // ── Registro detalhado (1 linha por OS) ────────────────────────────
+      const os = get(row, 'os').trim();
+      if (os && !callRecordsOsSeen.has(os)) {
+        callRecordsOsSeen.add(os);
+        const problemaReclamadoTxt = get(row, 'problemaReclamado');
+        const causaTxt = get(row, 'causa');
+        const modelo = openedAt ? detectarModelo(openedAt) : 'B';
+        const segmento = calcularSegmento(problemaReclamadoTxt, causaTxt, modelo);
+
+        // Para support_call_records a precedência é openedAt ?? closedAt:
+        // uma OS aberta em janeiro pertence a janeiro, mesmo que tenha fechado em fevereiro.
+        const callPeriodDate = openedAt ?? closedAt;
+        const callMonth = callPeriodDate ? callPeriodDate.getMonth() + 1 : month;
+        const callYear = callPeriodDate ? callPeriodDate.getFullYear() : year;
+
+        callRecords.push({
+          os,
+          periodMonth: callMonth,
+          periodYear: callYear,
+          dataAbertura: openedAt,
+          dataFechamento: closedAt,
+          atendente,
+          cliente: trimOrNull(get(row, 'cliente')),
+          plano: trimOrNull(get(row, 'plano')),
+          cidade: trimOrNull(get(row, 'cidade')),
+          bairro: trimOrNull(get(row, 'bairro')),
+          problemaReclamado: trimOrNull(problemaReclamadoTxt),
+          motivo: trimOrNull(get(row, 'motivo')),
+          causa: trimOrNull(causaTxt),
+          solucao: trimOrNull(get(row, 'solucao')),
+          obs: trimOrNull(get(row, 'obs')),
+          segmento,
+          modeloPeriodo: modelo,
+        });
+      }
     } catch (err: unknown) {
       resumo.erros.push({ linha: numLinha, erro: String(err) });
       resumo.totalInvalidas++;
@@ -168,6 +223,37 @@ export async function importarSuporte(
       await db.insert(supportRecords).values(registros.slice(i, i + CHUNK));
     }
     resumo.totalInseridas = registros.length;
+  }
+
+  // ── Persiste registros detalhados (1 linha por OS) ─────────────────────────
+  if (callRecords.length) {
+    const CHUNK = 200;
+    for (let i = 0; i < callRecords.length; i += CHUNK) {
+      await db
+        .insert(supportCallRecords)
+        .values(callRecords.slice(i, i + CHUNK))
+        .onConflictDoUpdate({
+          target: supportCallRecords.os,
+          set: {
+            periodMonth: sql`excluded.period_month`,
+            periodYear: sql`excluded.period_year`,
+            dataAbertura: sql`excluded.data_abertura`,
+            dataFechamento: sql`excluded.data_fechamento`,
+            atendente: sql`excluded.atendente`,
+            cliente: sql`excluded.cliente`,
+            plano: sql`excluded.plano`,
+            cidade: sql`excluded.cidade`,
+            bairro: sql`excluded.bairro`,
+            problemaReclamado: sql`excluded.problema_reclamado`,
+            motivo: sql`excluded.motivo`,
+            causa: sql`excluded.causa`,
+            solucao: sql`excluded.solucao`,
+            obs: sql`excluded.obs`,
+            segmento: sql`excluded.segmento`,
+            modeloPeriodo: sql`excluded.modelo_periodo`,
+          },
+        });
+    }
   }
 
   // ── Classificação automática por ProblemaReclamado (por período) ──────────
