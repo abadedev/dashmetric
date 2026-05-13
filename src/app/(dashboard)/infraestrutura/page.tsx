@@ -2,7 +2,7 @@
 
 import { Suspense, type ElementType } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, Clock, Network, RefreshCw, TrendingUp } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Gauge, Network, RefreshCw, TrendingUp } from 'lucide-react';
 import { useQueryState } from 'nuqs';
 import { PageLayout } from '@/components/layout/page-layout';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   TechnicianRankingTable,
 } from '@/components/infraestrutura/infra-charts';
 import { INFRA_OCCURRENCE_OPTIONS } from '@/lib/listagem-servicos/infra-occurrences';
+import { cn } from '@/lib/utils';
 
 interface DashboardData {
   kpi: {
@@ -37,12 +38,85 @@ interface DashboardData {
   byNetworkBox: Array<{ networkBox: string; total: number }>;
   byTechnician: Array<{ technician: string; total: number }>;
   recurringIssues: Array<{ occurrenceType: string; city: string; networkBox: string; total: number }>;
+  sla: Array<{
+    prioridade: number;
+    label: string;
+    metaHoras: number;
+    total: number;
+    within: number;
+    warning: number;
+    breached: number;
+    percentDentroMeta: number;
+  }>;
   filters: {
     cities: string[];
     technicians: string[];
     statuses: string[];
     occurrenceTypes: string[];
   };
+}
+
+function SlaPanel({ sla }: { sla: DashboardData['sla'] }) {
+  const metaLabel = sla.length > 0
+    ? sla.map((s) => `${s.label}: ${s.metaHoras}h`).join(' · ')
+    : 'Metas não configuradas';
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <div className="flex items-center gap-2">
+          <Gauge className="h-4 w-4 text-sky-400" />
+          <CardTitle className="text-sm font-semibold">SLA por prioridade</CardTitle>
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {metaLabel}
+        </span>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {sla.map((item) => {
+            const accentBar =
+              item.percentDentroMeta >= 80
+                ? 'bg-emerald-500'
+                : item.percentDentroMeta >= 60
+                  ? 'bg-amber-500'
+                  : 'bg-red-500';
+            const breachedPct = item.total > 0 ? Math.round((item.breached / item.total) * 100) : 0;
+            return (
+              <div
+                key={item.prioridade}
+                className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 p-3"
+              >
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {item.label} · meta {item.metaHoras}h
+                  </span>
+                  <span className="text-[10px] tabular-nums text-muted-foreground">{item.total} OS</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold tabular-nums text-foreground">
+                    {item.percentDentroMeta}%
+                  </span>
+                  <span className="text-xs text-muted-foreground">dentro da meta</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-background/60">
+                  <div
+                    className={cn('h-full transition-all', accentBar)}
+                    style={{ width: `${item.percentDentroMeta}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[11px] tabular-nums text-muted-foreground">
+                  <span className="text-emerald-400">✓ {item.within} no prazo</span>
+                  <span className="text-amber-400">⚠ {item.warning} alerta</span>
+                  <span className="text-red-400">✗ {item.breached} ({breachedPct}%)</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function KpiCard({
@@ -223,6 +297,12 @@ function InfraestruturaContent() {
           </>
         )}
       </div>
+
+      {isLoading ? (
+        <Skeleton className="h-44 rounded-xl" />
+      ) : (
+        <SlaPanel sla={data?.sla ?? []} />
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         {isLoading ? (

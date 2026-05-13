@@ -860,6 +860,24 @@ export const dropdownOptions = pgTable(
 export type DropdownOption = typeof dropdownOptions.$inferSelect;
 export type NewDropdownOption = typeof dropdownOptions.$inferInsert;
 
+// ========== INFRA SLA CONFIG ==========
+
+/**
+ * Metas de SLA por prioridade para a Listagem de Serviços de Infraestrutura.
+ * 1 = Alta, 2 = Média, 3 = Baixa. Horas corridas.
+ */
+export const infraSlaConfig = pgTable('infra_sla_config', {
+  id: serial('id').primaryKey(),
+  prioridade: integer('prioridade').notNull().unique(),
+  label: varchar('label', { length: 50 }).notNull(),
+  metaHoras: integer('meta_horas').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  updatedBy: varchar('updated_by', { length: 255 }),
+});
+
+export type InfraSlaConfig = typeof infraSlaConfig.$inferSelect;
+export type NewInfraSlaConfig = typeof infraSlaConfig.$inferInsert;
+
 // ========== COBRANÇA ==========
 
 export const cobrancaRegistros = pgTable(

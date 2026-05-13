@@ -1,8 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, Download, Eye, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, CheckCircle, CheckCircle2, Download, Eye, MapPin, Pencil, Trash2, XCircle } from 'lucide-react';
+import {
+  evaluateSla,
+  formatHoursLabel,
+  parsePriority,
+  type SlaMeta,
+  type SlaStatus,
+} from '@/lib/listagem-servicos/sla';
+import type { InfraSlaConfig } from '@/lib/db/schema';
 import {
   Table,
   TableBody,
@@ -221,14 +229,56 @@ function DeleteConfirmDialog({
   );
 }
 
-function calcularTempoAberto(referenceDate: string): { texto: string; cor: string } {
-  const inicio = new Date(referenceDate);
-  const agora = new Date();
-  const dias = Math.floor((agora.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
-  if (dias === 0) return { texto: 'Hoje', cor: 'text-green-500' };
-  if (dias <= 4) return { texto: `${dias}d`, cor: 'text-yellow-500' };
-  if (dias <= 7) return { texto: `${dias}d`, cor: 'text-orange-500' };
-  return { texto: `${dias}d`, cor: 'text-red-500' };
+function resolveOpenedAt(row: { referenceDate: string; createdAt?: Date | string | null }): Date {
+  if (row.createdAt) {
+    const d = row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return new Date(`${row.referenceDate}T00:00:00Z`);
+}
+
+const SLA_BADGE_CLASSES: Record<SlaStatus, string> = {
+  within: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+  warning: 'border-amber-500/30 bg-amber-500/10 text-amber-400',
+  breached: 'border-red-500/30 bg-red-500/10 text-red-400',
+  unknown: 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400',
+};
+
+function SlaBadge({
+  status,
+  hours,
+  meta,
+  resolved,
+}: {
+  status: SlaStatus;
+  hours: number;
+  meta: number | null;
+  resolved: boolean;
+}) {
+  const Icon =
+    status === 'within'
+      ? CheckCircle2
+      : status === 'warning'
+        ? AlertTriangle
+        : status === 'breached'
+          ? XCircle
+          : CheckCircle2;
+  const label = status === 'unknown' ? '—' : formatHoursLabel(hours);
+  const title = meta
+    ? `${resolved ? 'Resolvido' : 'Aberto'} há ${formatHoursLabel(hours)} · meta ${meta}h`
+    : 'Sem meta cadastrada';
+  return (
+    <span
+      title={title}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium tabular-nums',
+        SLA_BADGE_CLASSES[status]
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {label}
+    </span>
+  );
 }
 
 async function exportarCSV(queryString: string) {
@@ -275,6 +325,7 @@ function RecordsTable({
   sortDir,
   onSort,
   showResolved = false,
+  metas,
 }: {
   rows: ServiceListingWithStats[];
   moduleAccessLevel: ModuleAccessLevel;
@@ -287,6 +338,7 @@ function RecordsTable({
   sortDir: 'asc' | 'desc';
   onSort: (field: string, initialDir?: 'asc' | 'desc') => void;
   showResolved?: boolean;
+  metas: SlaMeta[];
 }) {
   const canEdit = moduleAccessLevel === 'editor' || moduleAccessLevel === 'admin';
   const isAdmin = moduleAccessLevel === 'admin';
@@ -389,11 +441,25 @@ function RecordsTable({
                   />
                 </div>
               </TableCell>
-              <TableCell className="w-[80px] text-xs font-medium">
-                {PENDING_STATUSES.has(row.status ?? '') ? (() => {
-                  const { texto, cor } = calcularTempoAberto(row.referenceDate);
-                  return <span className={cor}>{texto}</span>;
-                })() : <span className="text-muted-foreground">—</span>}
+              <TableCell className="w-[88px] text-xs font-medium">
+                {(() => {
+                  const openedAt = resolveOpenedAt(row);
+                  const resolvedAt = row.resolvedAt ? new Date(row.resolvedAt) : null;
+                  const ev = evaluateSla({
+                    openedAt,
+                    resolvedAt,
+                    prioridade: parsePriority(row.priority),
+                    metas,
+                  });
+                  return (
+                    <SlaBadge
+                      status={ev.status}
+                      hours={ev.hoursElapsed}
+                      meta={ev.metaHoras}
+                      resolved={!!resolvedAt}
+                    />
+                  );
+                })()}
               </TableCell>
               <TableCell className="max-w-[100px] text-xs">
                 <span className="block truncate" title={row.technician ?? ''}>{row.technician || '\u2014'}</span>
@@ -504,6 +570,21 @@ export function ServiceListingsTable({
     }
   }
 
+  const { data: slaData } = useQuery<{ data: InfraSlaConfig[] }>({
+    queryKey: ['sla-config'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/sla-config');
+      if (!res.ok) throw new Error('falha sla-config');
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+  const metas: SlaMeta[] = (slaData?.data ?? []).map((m) => ({
+    prioridade: m.prioridade,
+    label: m.label,
+    metaHoras: m.metaHoras,
+  }));
+
   if (isLoading) return <TableSkeleton />;
   const canExport = moduleAccessLevel === 'editor' || moduleAccessLevel === 'admin';
 
@@ -568,6 +649,7 @@ export function ServiceListingsTable({
                 sortField={sortField}
                 sortDir={sortDir}
                 onSort={onSort}
+                metas={metas}
               />
             </CardContent>
           </Card>
@@ -592,6 +674,7 @@ export function ServiceListingsTable({
                 sortDir={sortDir}
                 onSort={onSort}
                 showResolved
+                metas={metas}
               />
             </CardContent>
           </Card>

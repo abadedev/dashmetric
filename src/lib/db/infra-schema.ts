@@ -25,6 +25,7 @@ export const serviceListings = pgTable('service_listings', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   resolvedAt: timestamp('resolved_at'),
+  slaStatus: varchar('sla_status', { length: 20 }),
 });
 
 export type ServiceListing = typeof serviceListings.$inferSelect;

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, desc, eq, gte, ilike, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, lte, sql } from 'drizzle-orm';
 import { requireAuth } from '@/lib/require-auth';
+import { db as mainDb } from '@/lib/db';
 import { getInfraDb } from '@/lib/db/infra';
+import { infraSlaConfig } from '@/lib/db/schema';
 import { serviceListings } from '@/lib/db/infra-schema';
 import { INFRA_OCCURRENCE_OPTIONS, normalizeCityArea } from '@/lib/listagem-servicos/infra-occurrences';
 import { ensureServiceListingsTable } from '@/lib/listagem-servicos/service-listings-schema';
+import { evaluateSla, parsePriority, type SlaMeta } from '@/lib/listagem-servicos/sla';
 
 export const runtime = 'nodejs';
 
@@ -170,6 +173,61 @@ export async function GET(req: NextRequest) {
     const kpi = kpiResult[0] ?? { total: 0, pending: 0, resolved: 0, recurring: 0, avgResolutionDays: null };
     const resolutionRate = kpi.total > 0 ? Math.round(((kpi.resolved ?? 0) / kpi.total) * 100) : 0;
     const topOccurrence = topOccurrenceResult[0];
+
+    // ===== SLA summary (metas no main DB; rows no infra DB; agregação em JS) =====
+    const metasRows = await mainDb
+      .select()
+      .from(infraSlaConfig)
+      .orderBy(asc(infraSlaConfig.prioridade));
+    const metas: SlaMeta[] = metasRows.map((m) => ({
+      prioridade: m.prioridade,
+      label: m.label,
+      metaHoras: m.metaHoras,
+    }));
+
+    const slaSourceRowsCorrect = await db
+      .select({
+        priority: serviceListings.priority,
+        referenceDate: serviceListings.referenceDate,
+        createdAt: serviceListings.createdAt,
+        resolvedAt: serviceListings.resolvedAt,
+      })
+      .from(serviceListings)
+      .where(condition);
+
+    const slaSummary = metas.map((meta) => {
+      const stats = { within: 0, warning: 0, breached: 0, total: 0 };
+      for (const r of slaSourceRowsCorrect) {
+        const prio = parsePriority(r.priority);
+        if (prio !== meta.prioridade) continue;
+        const openedAt = r.createdAt instanceof Date
+          ? r.createdAt
+          : r.referenceDate ? new Date(`${r.referenceDate}T00:00:00Z`) : null;
+        if (!openedAt) continue;
+        stats.total++;
+        const ev = evaluateSla({
+          openedAt,
+          resolvedAt: r.resolvedAt ?? null,
+          prioridade: prio,
+          metas,
+        });
+        if (ev.status === 'within') stats.within++;
+        else if (ev.status === 'warning') stats.warning++;
+        else if (ev.status === 'breached') stats.breached++;
+      }
+      const dentroMeta = stats.within + stats.warning;
+      const percentDentro = stats.total > 0 ? Math.round((dentroMeta / stats.total) * 100) : 0;
+      return {
+        prioridade: meta.prioridade,
+        label: meta.label,
+        metaHoras: meta.metaHoras,
+        total: stats.total,
+        within: stats.within,
+        warning: stats.warning,
+        breached: stats.breached,
+        percentDentroMeta: percentDentro,
+      };
+    });
     const byTechnician = byTechnicianResult
       .map((row) => ({ technician: row.technician?.trim() || 'Não informado', total: row.total }));
 
@@ -210,6 +268,7 @@ export async function GET(req: NextRequest) {
         networkBox: row.networkBox || 'Sem caixa/rede',
         total: row.total,
       })),
+      sla: slaSummary,
       filters: {
         cities: (() => {
           const seen = new Set<string>();
