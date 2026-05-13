@@ -707,6 +707,46 @@ export type SupportRecord = typeof supportRecords.$inferSelect;
 export type NewSupportRecord = typeof supportRecords.$inferInsert;
 export type SupportCallCategory = typeof supportCallCategories.$inferSelect;
 export type NewSupportCallCategory = typeof supportCallCategories.$inferInsert;
+
+// ========== SUPORTE — REGISTROS DETALHADOS (1 linha por OS) ==========
+
+/**
+ * Atendimentos individuais de Suporte por Telefone exportados do RBXSoft.
+ * Diferente de `supportRecords` (agregado por atendente), esta tabela mantém
+ * 1 linha por OS para permitir análise por ProblemaReclamado/Causa/Segmento.
+ */
+export const supportCallRecords = pgTable(
+  'support_call_records',
+  {
+    id: serial('id').primaryKey(),
+    os: varchar('os', { length: 20 }).notNull().unique(),
+    periodMonth: integer('period_month').notNull(),
+    periodYear: integer('period_year').notNull(),
+    dataAbertura: timestamp('data_abertura'),
+    dataFechamento: timestamp('data_fechamento'),
+    atendente: varchar('atendente', { length: 100 }),
+    cliente: varchar('cliente', { length: 150 }),
+    plano: varchar('plano', { length: 100 }),
+    cidade: varchar('cidade', { length: 100 }),
+    bairro: varchar('bairro', { length: 100 }),
+    problemaReclamado: text('problema_reclamado'),
+    motivo: text('motivo'),
+    causa: text('causa'),
+    solucao: text('solucao'),
+    obs: text('obs'),
+    segmento: varchar('segmento', { length: 20 }),
+    modeloPeriodo: varchar('modelo_periodo', { length: 2 }).default('B'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => [
+    index('scr_period_idx').on(table.periodYear, table.periodMonth),
+    index('scr_segmento_idx').on(table.segmento),
+    index('scr_data_abertura_idx').on(table.dataAbertura),
+  ]
+);
+
+export type SupportCallRecord = typeof supportCallRecords.$inferSelect;
+export type NewSupportCallRecord = typeof supportCallRecords.$inferInsert;
 export type SystemModule = typeof systemModules.$inferSelect;
 export type NewSystemModule = typeof systemModules.$inferInsert;
 export type ModuleImportProfile = typeof moduleImportProfiles.$inferSelect;
