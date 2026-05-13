@@ -179,11 +179,10 @@ export function SupportDetailedTable({
               Suporte por telefone — detalhado
             </div>
             <CardTitle className="text-lg font-semibold tracking-tight">
-              Atendimentos por segmento, problema e causa
+              Atendimentos por segmento e categoria operacional
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Cada linha representa uma combinação distinta de ProblemaReclamado × Causa,
-              classificada pelo segmento de negócio.
+              Cada linha representa uma categoria consolidada a partir de ProblemaReclamado e Causa.
             </p>
           </div>
         </CardHeader>

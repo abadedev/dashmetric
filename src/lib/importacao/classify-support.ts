@@ -5,18 +5,52 @@ export type SupportCategoryItem = {
 };
 
 export const SUPPORT_CATEGORIES = {
-  NAO_NAVEGA_ONU: 'Não Navega (ONU/IP travado ou pendência financeira)',
-  NAO_CONECTA_ONU: 'Não Conecta (LOS, PON ou PWR piscando, etc..)',
-  LENTIDAO: 'Lentidão',
-  INTERMITENCIA: 'Intermitência',
-  BLOQUEIO_BOLETO: 'Bloqueio/Boleto',
-  NAO_CONECTA_LINK: 'Não Conecta (Rede - Link)',
-  NAO_NAVEGA_LINK: 'Não Navega (Rede - Link)',
-  LENTIDAO_LINK: 'Lentidão (Rede - Link)',
-  WIFI: 'Wi-Fi (nome da rede e senha)',
-  OUTROS_ONU: 'Outros (ONU)',
-  ROTEADOR: 'Roteador Particular - Não conecta',
-  OUTROS: 'Outros (Situações Atípicas, procedimentos comerciais em geral, dúvidas, etc...)',
+  // ── Técnico: Não Conecta ──────────────────────────────────────────────────
+  NAO_CONECTA_LOS_PON:     'Não Conecta — LOS / PON piscando',
+  NAO_CONECTA_SEM_SINAL:   'Não Conecta — Sem sinal / LEDs apagados na ONU',
+  NAO_CONECTA_DROP:        'Não Conecta — Drop rompido / fibra física',
+  NAO_CONECTA_LINK:        'Não Conecta — Rede / Link da operadora',
+
+  // ── Técnico: Não Navega ───────────────────────────────────────────────────
+  NAO_NAVEGA_IP:           'Não Navega — IP travado / sem autenticação',
+  NAO_NAVEGA_ONU_TRAVADA:  'Não Navega — ONU travada / reinício necessário',
+  NAO_NAVEGA_GERAL:        'Não Navega — Geral (sem causa específica)',
+  NAO_NAVEGA_LINK:         'Não Navega — Rede / Link da operadora',
+
+  // ── Técnico: Lentidão e Instabilidade ────────────────────────────────────
+  LENTIDAO:                'Lentidão / Internet lenta',
+  LENTIDAO_LINK:           'Lentidão — Rede / Link da operadora',
+  INTERMITENCIA:           'Intermitência / Conexão caindo',
+
+  // ── Técnico: Wi-Fi ────────────────────────────────────────────────────────
+  WIFI_SENHA:              'Wi-Fi — Troca de nome / senha',
+  WIFI_SINAL_FRACO:        'Wi-Fi — Sinal fraco / não aparece',
+
+  // ── Técnico: Equipamentos ─────────────────────────────────────────────────
+  TROCA_ONU:               'Troca / Substituição de ONU',
+  ROTEADOR:                'Roteador — Reconfiguração ou particular',
+  MUDANCA_COMODO:          'Mudança de cômodo / Novo ponto de rede',
+
+  // ── Técnico: TV / IPTV ───────────────────────────────────────────────────
+  TV_IPTV:                 'TV / TVBOX / IPTV com problema',
+
+  // ── Técnico: Outros técnicos ─────────────────────────────────────────────
+  PING_JOGO:               'Ping alto / Lag em jogos',
+  CORRECAO_SINAL:          'Correção de sinal / Atendimento externo técnico',
+
+  // ── Comercial / Financeiro ────────────────────────────────────────────────
+  BLOQUEIO_SUSPENSAO:      'Bloqueio / Suspensão de contrato',
+  BOLETO_FINANCEIRO:       'Boleto / Fatura / Financeiro',
+  DSTECH_PLAY:             'DSTech Play — Acesso, dados ou senha',
+  CANCELAMENTO:            'Cancelamento / Possível cancelamento',
+  MUDANCA_PLANO:           'Mudança de plano',
+  MUDANCA_TITULARIDADE:    'Mudança de titularidade',
+  MUDANCA_ENDERECO:        'Mudança de endereço',
+  REATIVACAO:              'Reativação de contrato',
+
+  // ── Administrativo ────────────────────────────────────────────────────────
+  CONTATO_SEM_PROBLEMA:    'Contato / Sem problema identificado',
+  OUTROS:                  'Outros',
 } as const;
 
 export function normalizeText(value: string) {
@@ -32,165 +66,149 @@ export function normalizeText(value: string) {
 
 export function classifySupportRecord(problemaReclamado: string) {
   const text = normalizeText(problemaReclamado ?? '');
-
   if (!text) return SUPPORT_CATEGORIES.OUTROS;
 
-  const has = (pattern: RegExp) => pattern.test(text);
-  const hasAny = (...patterns: RegExp[]) => patterns.some((pattern) => has(pattern));
+  const hasAny = (...ps: RegExp[]) => ps.some((p) => p.test(text));
 
-  const hasLinkContext = hasAny(
-    /link/,
-    /operadora/,
-    /rede\s*externa/,
-    /link\s*externo/,
-    /sem\s*link/,
-    /link\s*down/
-  );
+  const isLink = hasAny(/\blink\b/, /operadora/, /rede\s*externa/, /link\s*externo/, /link\s*down/, /link\s*fora/);
+  const isSlow = hasAny(/lentidao/, /\blento\b/, /\blenta\b/, /baixa\s*velocidade/, /internet\s*devagar/, /internet\s*lenta/, /velocidade\s*baixa/);
+  const noNav  = hasAny(/nao\s*navega/, /nao\s*conecta/, /sem\s*internet/, /sem\s*acesso/, /sem\s*navegacao/, /sem\s*ip/, /conectado\s*sem\s*internet/);
 
-  const hasSlowContext = hasAny(
-    /lentidao/,
-    /\blento\b/,
-    /\blenta\b/,
-    /baixa\s*velocidade/,
-    /velocidade\s*baixa/,
-    /internet\s*devagar/,
-    /demora\s*para\s*carregar/
-  );
+  if (hasAny(/dstech\s*play/, /dstechplay/, /cdntv/, /cdn\s*tv/,
+             /canais\s*bloqueados/, /acesso\s*ao\s*dstech/, /dados\s*dstech/, /senha\s*dstech/,
+             /baixar\s*dstech/, /dstech\s*play\s*e/, /acesso.*play/, /play.*acesso/)) {
+    return SUPPORT_CATEGORIES.DSTECH_PLAY;
+  }
 
-  const hasNoNavigateContext = hasAny(
-    /nao\s*navega/,
-    /sem\s*internet/,
-    /sem\s*acesso/,
-    /sem\s*ip/,
-    /conectado\s*sem\s*internet/,
-    /sem\s*navegacao/
-  );
+  if (hasAny(/tvbox/, /tv\s*box/, /dificuldade.*tv/, /problema.*tv/, /tv.*travando/, /smart\s*tv/,
+             /televisao/, /\biptv\b/, /lentidao.*tv/)) {
+    return SUPPORT_CATEGORIES.TV_IPTV;
+  }
 
-  if (
-    hasAny(
-      /roteador/,
-      /particular/,
-      /aparelho\s*proprio/,
-      /equipamento\s*proprio/,
-      /meu\s*roteador/,
-      /roteador\s*proprio/
-    )
-  ) {
+  if (hasAny(/ping\s*alto/, /lag/, /\bjogo\b/, /jogos/, /ms\s*alto/)) {
+    return SUPPORT_CATEGORIES.PING_JOGO;
+  }
+
+  if (hasAny(/cancelar/, /cancelamento/, /possivel\s*cancelamento/, /quer\s*cancelar/,
+             /deseja\s*cancelar/, /cancelado/)) {
+    return SUPPORT_CATEGORIES.CANCELAMENTO;
+  }
+
+  if (hasAny(/reativar/, /reativacao/, /reativad/, /reversao.*cancelamento/, /reversao\s*de\s*cancel/,
+             /possivel\s*reativacao/, /possivel\s*retorno/)) {
+    return SUPPORT_CATEGORIES.REATIVACAO;
+  }
+
+  if (hasAny(/mudanca\s*de\s*plano/, /mudar\s*plano/, /troca\s*de\s*plano/, /alterar\s*plano/,
+             /mudanca\s*plano/, /quer\s*mudar\s*de\s*plano/)) {
+    return SUPPORT_CATEGORIES.MUDANCA_PLANO;
+  }
+
+  if (hasAny(/titularidade/, /mudar\s*titular/, /troca\s*de\s*titular/, /mudanca\s*de\s*titular/)) {
+    return SUPPORT_CATEGORIES.MUDANCA_TITULARIDADE;
+  }
+
+  if (hasAny(/mudanca\s*de\s*endereco/, /mudar\s*endereco/, /mudou\s*de\s*endereco/, /se\s*mudou/,
+             /novo\s*endereco/, /alteracao.*endereco/)) {
+    return SUPPORT_CATEGORIES.MUDANCA_ENDERECO;
+  }
+
+  if (hasAny(/bloqueio/, /suspensao/, /suspens/, /desbloqueio/, /status\s*[456]/, /aviso\s*de\s*bloqueio/,
+             /contrato.*bloqueado/, /inadimpl/)) {
+    return SUPPORT_CATEGORIES.BLOQUEIO_SUSPENSAO;
+  }
+
+  if (hasAny(/boleto/, /fatura/, /pagamento/, /cobran/, /vencimento/, /debito/, /nota\s*fiscal/,
+             /comprovante/, /financeiro/, /pagar\s*no\s*credito/, /boleto\s*pago/, /duplicidade/)) {
+    return SUPPORT_CATEGORIES.BOLETO_FINANCEIRO;
+  }
+
+  if (hasAny(/sinal\s*fraco/, /wifi.*nao\s*aparece/, /wi.fi.*nao\s*aparece/, /alcance/,
+             /nao\s*aparece.*wifi/, /repetidor/, /sinal\s*insuficiente/)) {
+    return SUPPORT_CATEGORIES.WIFI_SINAL_FRACO;
+  }
+
+  if (hasAny(/wi.fi/, /wifi/, /senha.*rede/, /nome.*rede/, /rede.*senha/, /ssid/,
+             /troca.*senha/, /senha.*wi/, /alterar.*senha/, /mudar.*senha.*wi/,
+             /rede\s*2g/, /rede\s*5g/)) {
+    return SUPPORT_CATEGORIES.WIFI_SENHA;
+  }
+
+  if (hasAny(/roteador/, /reconfigurar.*roteador/, /roteador.*desconfigurado/, /roteador.*particular/,
+             /equipamento.*proprio/, /aparelho.*proprio/)) {
     return SUPPORT_CATEGORIES.ROTEADOR;
   }
 
-  if (
-    hasAny(
-      /wi.?fi/,
-      /senha/,
-      /\bssid\b/,
-      /nome\s*da\s*rede/,
-      /rede\s*2g/,
-      /rede\s*5g/,
-      /trocar\s*senha/
-    )
-  ) {
-    return SUPPORT_CATEGORIES.WIFI;
+  if (hasAny(/comodo/, /ponto\s*de\s*rede/, /mudanca\s*de\s*ponto/, /novo\s*ponto/, /segundo\s*ponto/)) {
+    return SUPPORT_CATEGORIES.MUDANCA_COMODO;
   }
 
-  if (
-    hasAny(
-      /boleto/,
-      /bloqueio/,
-      /fatura/,
-      /pagamento/,
-      /inadimplente/,
-      /suspenso/,
-      /desbloqueio/,
-      /financeiro/
-    )
-  ) {
-    return SUPPORT_CATEGORIES.BLOQUEIO_BOLETO;
+  if (hasAny(/troca\s*de\s*onu/, /troca.*onu/, /substituir\s*onu/, /instalar\s*onu\s*\d/,
+             /trocar\s*onu/, /onu\s*\d{3}/, /instalar\s*\d{3}/, /instalar\s*(huawei|onu)/)) {
+    return SUPPORT_CATEGORIES.TROCA_ONU;
   }
 
-  if (
-    hasAny(
-      /intermitente/,
-      /oscilando/,
-      /caindo/,
-      /instavel/,
-      /oscila/,
-      /cai\s*toda\s*hora/,
-      /queda\s*constante/,
-      /picotando/
-    )
-  ) {
-    return SUPPORT_CATEGORIES.INTERMITENCIA;
+  if (hasAny(/correcao\s*de\s*sinal/, /sinal\s*fora\s*do\s*padrao/, /sinal\s*alto/, /sinal\s*baixo/,
+             /drop\s*atenuado/, /drop\s*baixo/, /acao\s*de\s*melhoria/, /atendimento\s*externo/)) {
+    return SUPPORT_CATEGORIES.CORRECAO_SINAL;
   }
 
-  if (hasSlowContext && hasLinkContext) {
+  if (hasAny(/drop\s*rompido/, /drop\s*rompimento/, /fibra\s*rompida/, /cabo\s*rompido/,
+             /drop\s*danificado/, /fibra\s*cortada/, /conector.*optico.*danificado/)) {
+    return SUPPORT_CATEGORIES.NAO_CONECTA_DROP;
+  }
+
+  if (isSlow && isLink) {
     return SUPPORT_CATEGORIES.LENTIDAO_LINK;
   }
 
-  if (
-    hasAny(/rompimento/, /queda\s*geral/, /backbone/) ||
-    hasAny(/back\s*bones?/, /rompido/, /link\s*indisponivel/, /operadora\s*fora/) ||
-    (hasLinkContext && !hasNoNavigateContext && !hasSlowContext)
-  ) {
+  if (isLink && !noNav) {
     return SUPPORT_CATEGORIES.NAO_CONECTA_LINK;
   }
 
-  if (
-    hasAny(/nao\s*navega/, /sem\s*internet/, /sem\s*acesso/) &&
-    hasAny(/link/, /operadora/, /rede\s*externa/)
-  ) {
+  if (isLink && noNav) {
     return SUPPORT_CATEGORIES.NAO_NAVEGA_LINK;
   }
 
-  if (
-    hasAny(
-      /\blos\b/,
-      /\bpon\b/,
-      /\bpwr\b/,
-      /sem\s*sinal/,
-      /fibra/,
-      /nao\s*conecta/,
-      /pon\s*apagado/,
-      /luz\s*vermelha/,
-      /sem\s*sincronismo/,
-      /onu\s*nao\s*registra/
-    )
-  ) {
-    return SUPPORT_CATEGORIES.NAO_CONECTA_ONU;
+  if (hasAny(/sem\s*sinal/, /leds?\s*apagados/, /onu\s*apagada/, /luzes\s*apagadas/,
+             /sem\s*energia.*onu/, /onu.*queimada/, /pwr\s*apagado/, /pwr\s*fixa/,
+             /power\s*aceso\s*apena/, /apenas.*power/, /only.*power/)) {
+    return SUPPORT_CATEGORIES.NAO_CONECTA_SEM_SINAL;
   }
 
-  if (
-    hasAny(
-      /nao\s*navega/,
-      /sem\s*internet/,
-      /sem\s*acesso/,
-      /onu\s*travada/,
-      /sem\s*ip/,
-      /ip\s*travado/,
-      /sem\s*navegacao/,
-      /conectado\s*sem\s*internet/,
-      /sem\s*autenticacao/
-    )
-  ) {
-    return SUPPORT_CATEGORIES.NAO_NAVEGA_ONU;
+  if (hasAny(/\blos\b/, /\bpon\b/, /\bpwr\b/, /los\s*piscando/, /pon\s*piscando/,
+             /pon\s*apagado/, /luz\s*vermelha/, /sem\s*sincronismo/, /onu\s*nao\s*registra/,
+             /nao\s*conecta/, /nao\s*conectad/)) {
+    return SUPPORT_CATEGORIES.NAO_CONECTA_LOS_PON;
   }
 
-  if (
-    hasAny(
-      /lentidao/,
-      /\blento\b/,
-      /\blenta\b/,
-      /baixa\s*velocidade/,
-      /velocidade\s*baixa/,
-      /internet\s*devagar/,
-      /demora\s*para\s*carregar/
-    )
-  ) {
+  if (isSlow) {
     return SUPPORT_CATEGORIES.LENTIDAO;
   }
 
-  if (hasAny(/\bonu\b/, /reset/, /reiniciar/, /reconfigurar/, /troca\s*de\s*onu/, /configurar\s*onu/)) {
-    return SUPPORT_CATEGORIES.OUTROS_ONU;
+  if (hasAny(/intermitente/, /oscilando/, /caindo/, /instavel/, /instabilidade/, /oscilac/,
+             /cai\s*toda\s*hora/, /queda\s*constante/, /picotando/, /conexao\s*caindo/,
+             /conexao\s*intermitente/, /quedas\s*frequentes/, /quedas\s*constantes/)) {
+    return SUPPORT_CATEGORIES.INTERMITENCIA;
+  }
+
+  if (hasAny(/ip\s*travado/, /sem\s*ip/, /sem\s*autenticacao/, /conectado\s*sem\s*internet/,
+             /sem\s*autenticar/, /nao\s*autentica/, /ip\s*invalido/)) {
+    return SUPPORT_CATEGORIES.NAO_NAVEGA_IP;
+  }
+
+  if (hasAny(/onu\s*travada/, /onu\s*travando/, /reiniciar\s*onu/, /reset.*onu/, /onu.*reinici/)) {
+    return SUPPORT_CATEGORIES.NAO_NAVEGA_ONU_TRAVADA;
+  }
+
+  if (hasAny(/nao\s*navega/, /sem\s*internet/, /sem\s*acesso/, /sem\s*navegacao/,
+             /cliente\s*sem\s*acesso/, /nao\s*esta\s*navegando/)) {
+    return SUPPORT_CATEGORIES.NAO_NAVEGA_GERAL;
+  }
+
+  if (hasAny(/\bcontato\b/, /sem\s*comunicacao/, /nao\s*se\s*comunicou/, /sem\s*resposta/,
+             /nao\s*respondeu/, /cliente\s*inativo/, /\binativo\b/, /tentativa\s*de\s*contato/)) {
+    return SUPPORT_CATEGORIES.CONTATO_SEM_PROBLEMA;
   }
 
   return SUPPORT_CATEGORIES.OUTROS;
