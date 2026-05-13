@@ -6,12 +6,13 @@ import {
   qualityRecords,
   supportRecords,
   supportCallCategories,
+  supportCallRecords,
   salesRecords,
   cancellationRecords,
   infrastructureRecords,
   lotesImportacao,
   importacoesBrutas,
-} from '@/lib/db/schemas/workspace';
+} from '@/lib/db/schema';
 import { getInfraDb } from '@/lib/db/infra';
 import { serviceListings } from '@/lib/db/infra-schema';
 
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
         await db.delete(qualityRecords);
         break;
       case 'suporte':
+        await db.delete(supportCallRecords);
         await db.delete(supportCallCategories);
         await db.delete(supportRecords);
         break;

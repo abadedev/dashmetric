@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, count, desc, eq, sql } from 'drizzle-orm';
+import { and, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { supportCallRecords } from '@/lib/db/schema';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { getSupportTypeSummary } from '@/lib/services/support-summary-service';
+import { classifySupportRecord, SUPPORT_CATEGORIES } from '@/lib/importacao/classify-support';
 
 export const runtime = 'nodejs';
 
@@ -17,6 +18,57 @@ interface LinhaResposta {
   percentualDoTotal: number;
 }
 
+const FINANCEIRO_CATEGORIES = new Set<string>([
+  SUPPORT_CATEGORIES.BLOQUEIO_SUSPENSAO,
+  SUPPORT_CATEGORIES.BOLETO_FINANCEIRO,
+]);
+
+const COMERCIAL_CATEGORIES = new Set<string>([
+  SUPPORT_CATEGORIES.DSTECH_PLAY,
+  SUPPORT_CATEGORIES.CANCELAMENTO,
+  SUPPORT_CATEGORIES.MUDANCA_PLANO,
+  SUPPORT_CATEGORIES.MUDANCA_TITULARIDADE,
+  SUPPORT_CATEGORIES.MUDANCA_ENDERECO,
+  SUPPORT_CATEGORIES.REATIVACAO,
+]);
+
+const OUTROS_CATEGORIES = new Set<string>([
+  SUPPORT_CATEGORIES.CONTATO_SEM_PROBLEMA,
+  SUPPORT_CATEGORIES.OUTROS,
+]);
+
+const SEGMENTO_ORDER: Record<Segmento, number> = {
+  Comercial: 1,
+  Financeiro: 2,
+  Técnico: 3,
+  Outros: 4,
+};
+
+function resolveSegmento(categoria: string): Segmento {
+  if (FINANCEIRO_CATEGORIES.has(categoria)) return 'Financeiro';
+  if (COMERCIAL_CATEGORIES.has(categoria)) return 'Comercial';
+  if (OUTROS_CATEGORIES.has(categoria)) return 'Outros';
+  return 'Técnico';
+}
+
+function parseDateFrom(value: string | null) {
+  if (!value) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+}
+
+function parseDateTo(value: string | null) {
+  if (!value) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+}
+
+function periodKey(date: Date) {
+  return date.getUTCFullYear() * 100 + date.getUTCMonth() + 1;
+}
+
 export async function GET(req: NextRequest) {
   const result = await requireWorkspacePermission(req, 'suporte.view', {
     moduleSlug: 'suporte',
@@ -27,96 +79,99 @@ export async function GET(req: NextRequest) {
 
   try {
     const url = new URL(req.url);
+    const fromParam = url.searchParams.get('from');
+    const toParam = url.searchParams.get('to');
     const mesParam = url.searchParams.get('mes');
     const anoParam = url.searchParams.get('ano');
-    const segmentoFiltro = url.searchParams.get('segmento');
+    const segmentoFiltro = url.searchParams.get('segmento') as Segmento | null;
 
     const now = new Date();
     const mes = mesParam ? parseInt(mesParam, 10) : now.getMonth() + 1;
     const ano = anoParam ? parseInt(anoParam, 10) : now.getFullYear();
+    const from = parseDateFrom(fromParam) ?? new Date(Date.UTC(ano, mes - 1, 1, 0, 0, 0, 0));
+    const to = parseDateTo(toParam) ?? new Date(Date.UTC(ano, mes, 0, 23, 59, 59, 999));
 
-    if (!Number.isFinite(mes) || mes < 1 || mes > 12 || !Number.isFinite(ano)) {
-      return NextResponse.json({ error: 'mes/ano inválidos' }, { status: 400 });
+    if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || from > to) {
+      return NextResponse.json({ error: 'Período inválido' }, { status: 400 });
     }
 
-    // 1) Tenta a fonte detalhada (1 linha por OS).
-    const whereDetalhado = [
-      eq(supportCallRecords.periodMonth, mes),
-      eq(supportCallRecords.periodYear, ano),
+    const whereDetalhado: SQL[] = [
+      sql`${supportCallRecords.periodYear} * 100 + ${supportCallRecords.periodMonth} >= ${periodKey(from)}`,
+      sql`${supportCallRecords.periodYear} * 100 + ${supportCallRecords.periodMonth} <= ${periodKey(to)}`,
     ];
-    if (segmentoFiltro) {
-      whereDetalhado.push(eq(supportCallRecords.segmento, segmentoFiltro));
-    }
 
-    const rows = await db
+    const detalhados = await db
       .select({
-        segmento: supportCallRecords.segmento,
         problemaReclamado: supportCallRecords.problemaReclamado,
         causa: supportCallRecords.causa,
-        quantidade: count(),
       })
       .from(supportCallRecords)
-      .where(and(...whereDetalhado))
-      .groupBy(
-        supportCallRecords.segmento,
-        supportCallRecords.problemaReclamado,
-        supportCallRecords.causa,
-      )
-      .orderBy(
-        sql`CASE ${supportCallRecords.segmento}
-          WHEN 'Comercial' THEN 1
-          WHEN 'Financeiro' THEN 2
-          WHEN 'Técnico' THEN 3
-          ELSE 4 END`,
-        desc(count()),
-      );
+      .where(and(...whereDetalhado));
 
-    if (rows.length > 0) {
-      const totalGeral = rows.reduce((acc, r) => acc + Number(r.quantidade ?? 0), 0);
+    if (detalhados.length > 0) {
+      const counts = new Map<string, number>();
+
+      for (const row of detalhados) {
+        const categoria = classifySupportRecord(
+          [row.problemaReclamado, row.causa].filter(Boolean).join(' ')
+        );
+        const segmento = resolveSegmento(categoria);
+        if (segmentoFiltro && segmento !== segmentoFiltro) continue;
+        counts.set(categoria, (counts.get(categoria) ?? 0) + 1);
+      }
+
+      const totalGeral = Array.from(counts.values()).reduce((acc, quantidade) => acc + quantidade, 0);
       const totalPorSegmento: Record<Segmento, number> = {
-        'Técnico': 0,
-        'Comercial': 0,
-        'Financeiro': 0,
-        'Outros': 0,
+        Técnico: 0,
+        Comercial: 0,
+        Financeiro: 0,
+        Outros: 0,
       };
-      const linhas: LinhaResposta[] = rows.map((r) => {
-        const seg = (r.segmento ?? 'Outros') as Segmento;
-        const qtd = Number(r.quantidade ?? 0);
-        totalPorSegmento[seg] = (totalPorSegmento[seg] ?? 0) + qtd;
-        return {
-          segmento: seg,
-          problemaReclamado: r.problemaReclamado ?? '(não informado)',
-          causa: r.causa ?? '(não informado)',
-          quantidade: qtd,
-          percentualDoTotal:
-            totalGeral > 0 ? Number(((qtd / totalGeral) * 100).toFixed(2)) : 0,
-        };
-      });
+
+      const linhas: LinhaResposta[] = Array.from(counts.entries())
+        .map(([categoria, quantidade]) => {
+          const segmento = resolveSegmento(categoria);
+          totalPorSegmento[segmento] += quantidade;
+
+          return {
+            segmento,
+            problemaReclamado: categoria,
+            causa: 'Classificação automática',
+            quantidade,
+            percentualDoTotal:
+              totalGeral > 0 ? Number(((quantidade / totalGeral) * 100).toFixed(2)) : 0,
+          };
+        })
+        .sort((left, right) => {
+          const segmentoOrder = SEGMENTO_ORDER[left.segmento] - SEGMENTO_ORDER[right.segmento];
+          return (
+            segmentoOrder ||
+            right.quantidade - left.quantidade ||
+            left.problemaReclamado.localeCompare(right.problemaReclamado)
+          );
+        });
 
       return NextResponse.json({
         fonte: 'detalhado' as const,
         linhas,
         totais: {
           geral: totalGeral,
-          tecnico: totalPorSegmento['Técnico'],
-          comercial: totalPorSegmento['Comercial'],
-          financeiro: totalPorSegmento['Financeiro'],
-          outros: totalPorSegmento['Outros'],
+          tecnico: totalPorSegmento.Técnico,
+          comercial: totalPorSegmento.Comercial,
+          financeiro: totalPorSegmento.Financeiro,
+          outros: totalPorSegmento.Outros,
           percentualComercial:
             totalGeral > 0
-              ? Number(((totalPorSegmento['Comercial'] / totalGeral) * 100).toFixed(2))
+              ? Number(((totalPorSegmento.Comercial / totalGeral) * 100).toFixed(2))
               : 0,
           percentualFinanceiro:
             totalGeral > 0
-              ? Number(((totalPorSegmento['Financeiro'] / totalGeral) * 100).toFixed(2))
+              ? Number(((totalPorSegmento.Financeiro / totalGeral) * 100).toFixed(2))
               : 0,
         },
       });
     }
 
-    // 2) Fallback: nada na fonte detalhada — devolve agregação legada.
-    const from = new Date(Date.UTC(ano, mes - 1, 1, 0, 0, 0, 0));
-    const to = new Date(Date.UTC(ano, mes, 0, 23, 59, 59, 999));
     const legado = await getSupportTypeSummary({
       from,
       to,
