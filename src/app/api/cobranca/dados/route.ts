@@ -3,6 +3,8 @@ import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { cobrancaImports, cobrancaRegistros } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/require-auth';
+import { getUserGroups } from '@/lib/services/permission-service';
+import { buildAuthorizationContext } from '@/lib/authorization';
 
 export const runtime = 'nodejs';
 
@@ -16,9 +18,25 @@ function parseVencimentosParam(raw: string | null): string[] {
     .filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s));
 }
 
+async function resolveCanViewValues(req: NextRequest, userId: string): Promise<boolean> {
+  try {
+    const workspaceSlug = req.cookies.get('dwm_active_workspace')?.value ?? 'dstech';
+    const context = await buildAuthorizationContext(req.headers, workspaceSlug);
+    if (!context) return false;
+    if (context.globalRole === 'admin') return true;
+    if (context.workspaceRole === 'ADMIN') return true;
+    const groups = await getUserGroups(userId, context.workspaceId);
+    return groups.some((g) => g.name.trim().toLowerCase() === 'diretoria');
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth.response) return auth.response;
+
+  const canViewValues = await resolveCanViewValues(req, auth.session.user.id);
 
   try {
     const url = new URL(req.url);
@@ -202,6 +220,7 @@ export async function GET(req: NextRequest) {
       .limit(1);
 
     return NextResponse.json({
+      canViewValues,
       filtros: { vencimentos: vencimentosFiltro },
       datasVencimentoDisponiveis: datasDisponiveisRows.map((r) => r.data),
       boletos: {

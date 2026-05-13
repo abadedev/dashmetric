@@ -9,6 +9,8 @@ import {
   Check,
   CheckCircle2,
   CircleSlash,
+  Eye,
+  EyeOff,
   FileSpreadsheet,
   Loader2,
   PhoneOff,
@@ -48,6 +50,7 @@ import { cn } from '@/lib/utils';
 type TipoLista = 'boletos_vencidos' | 'pre_inativacao';
 
 interface DadosResponse {
+  canViewValues: boolean;
   filtros: { vencimentos: string[] };
   datasVencimentoDisponiveis: string[];
   boletos: {
@@ -112,6 +115,45 @@ const PERFIL_LABELS: Record<string, string> = {
 
 const currency = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+const MASKED = 'R$ ••••••';
+const fmtValor = (v: number, visible: boolean) => (visible ? currency(v) : MASKED);
+
+function ValueToggle({
+  canView,
+  visible,
+  onToggle,
+}: {
+  canView: boolean;
+  visible: boolean;
+  onToggle: () => void;
+}) {
+  const disabled = !canView;
+  const Icon = !canView || !visible ? EyeOff : Eye;
+  const title = disabled
+    ? 'Acesso restrito a Administradores e Diretoria'
+    : visible
+      ? 'Ocultar valores monetários'
+      : 'Exibir valores monetários';
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+      className={cn(
+        'inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-background/85 text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] transition-colors',
+        disabled
+          ? 'cursor-not-allowed opacity-40'
+          : 'hover:border-primary/30 hover:bg-accent/60 hover:text-foreground'
+      )}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
 
 const formatDateBR = (iso: string) =>
   new Date(iso + 'T00:00:00Z').toLocaleDateString('pt-BR', { timeZone: 'UTC' });
@@ -445,12 +487,14 @@ function DistribuicaoTabela({
   keyLabel,
   showValue = false,
   showPercent = true,
+  valuesVisible = true,
 }: {
   title: string;
   rows: { label: string; count: number; valor?: number; badgeClass?: string }[];
   keyLabel: string;
   showValue?: boolean;
   showPercent?: boolean;
+  valuesVisible?: boolean;
 }) {
   const total = useMemo(() => rows.reduce((a, r) => a + r.count, 0), [rows]);
   return (
@@ -499,7 +543,7 @@ function DistribuicaoTabela({
                     )}
                     {showValue && (
                       <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {r.valor !== undefined ? currency(r.valor) : '-'}
+                        {r.valor !== undefined ? fmtValor(r.valor, valuesVisible) : '-'}
                       </TableCell>
                     )}
                   </TableRow>
@@ -515,6 +559,7 @@ function DistribuicaoTabela({
 
 function CobrancaPageContent() {
   const [vencimentos, setVencimentos] = useState<string[]>([]);
+  const [valuesVisible, setValuesVisible] = useState(false);
 
   const qs = useMemo(
     () => (vencimentos.length > 0 ? `?vencimentos=${vencimentos.join(',')}` : ''),
@@ -530,6 +575,9 @@ function CobrancaPageContent() {
     },
   });
 
+  const canViewValues = data?.canViewValues ?? false;
+  const showValues = canViewValues && valuesVisible;
+
   const preStatusMap = useMemo(() => {
     const map = new Map<string, number>();
     data?.preInativacao.porStatusCrm.forEach((s) => map.set(s.status, s.count));
@@ -541,7 +589,12 @@ function CobrancaPageContent() {
       title="Cobrança"
       description="Conversão de boletos vencidos e pré-inativação. Status 'Em dia' = cliente convertido após abordagem."
       actions={
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ValueToggle
+            canView={canViewValues}
+            visible={showValues}
+            onToggle={() => setValuesVisible((v) => !v)}
+          />
           <UploadDialog
             tipoLista="boletos_vencidos"
             label="Boletos"
@@ -593,7 +646,7 @@ function CobrancaPageContent() {
               <KpiCard
                 title="Total no filtro"
                 value={data.boletos.total}
-                subtitle={currency(data.boletos.valorTotal)}
+                subtitle={fmtValor(data.boletos.valorTotal, showValues)}
                 icon={Receipt}
                 accent="bg-indigo-500/10 text-indigo-400"
               />
@@ -620,14 +673,14 @@ function CobrancaPageContent() {
               />
               <KpiCard
                 title="Valor recuperado"
-                value={currency(data.boletos.valorConvertidos)}
+                value={fmtValor(data.boletos.valorConvertidos, showValues)}
                 subtitle="soma dos 'Em dia'"
                 icon={Wallet}
                 accent="bg-emerald-500/10 text-emerald-400"
               />
               <KpiCard
                 title="Valor em risco"
-                value={currency(data.boletos.valorEmAberto)}
+                value={fmtValor(data.boletos.valorEmAberto, showValues)}
                 subtitle="bloqueados + aviso pend."
                 icon={AlertTriangle}
                 accent="bg-red-500/10 text-red-400"
@@ -639,6 +692,7 @@ function CobrancaPageContent() {
                 title="Por status"
                 keyLabel="Status"
                 showValue
+                valuesVisible={showValues}
                 rows={data.boletos.porStatus.map((r) => ({
                   label: r.status,
                   count: r.count,
@@ -650,6 +704,7 @@ function CobrancaPageContent() {
                 title="Por cidade"
                 keyLabel="Cidade"
                 showValue
+                valuesVisible={showValues}
                 rows={data.boletos.porCidade.map((r) => ({
                   label: r.cidade,
                   count: r.count,
@@ -660,6 +715,7 @@ function CobrancaPageContent() {
                 title="Por data de vencimento"
                 keyLabel="Vencimento"
                 showValue
+                valuesVisible={showValues}
                 rows={data.boletos.porVencimento.map((r) => ({
                   label: formatDateBR(r.data),
                   count: r.count,
