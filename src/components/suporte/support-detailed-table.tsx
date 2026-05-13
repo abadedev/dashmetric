@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, type ElementType } from 'react';
+import { Fragment, useMemo, type ElementType } from 'react';
 import { Briefcase, Receipt, Wrench, Inbox, HeadphonesIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -204,16 +204,15 @@ export function SupportDetailedTable({
                 const meta = SEGMENTO_META[seg];
                 const totalSegmento = rows.reduce((a, r) => a + r.quantidade, 0);
                 return (
-                  <>
+                  <Fragment key={seg}>
                     <TableRow key={`${seg}-header`} className="hover:bg-transparent">
                       <TableCell
                         colSpan={4}
-                        className="border-y border-border/60 bg-muted/30 px-4 py-2"
+                        className="border-y border-border/60 bg-muted/30 px-4 py-4 text-center"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                            <span aria-hidden>{meta.icon}</span>
-                            <span>{meta.label}</span>
+                        <div className="flex flex-col items-center justify-center gap-1 sm:flex-row sm:gap-3">
+                          <div className="text-sm font-semibold uppercase tracking-widest text-foreground">
+                            {meta.label}
                           </div>
                           <span className="text-xs tabular-nums text-muted-foreground">
                             {formatNumber(totalSegmento)} atendimentos ·{' '}
@@ -240,7 +239,7 @@ export function SupportDetailedTable({
                         </TableCell>
                       </TableRow>
                     ))}
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>
