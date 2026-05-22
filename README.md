@@ -12,7 +12,7 @@ A plataforma resolve isso recebendo arquivos operacionais, identificando o tipo 
 
 ---
 
-## Módulos ativos
+## Módulos
 
 | Módulo | Descrição |
 |---|---|
