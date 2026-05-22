@@ -33,15 +33,16 @@ export function parseCsv(content: string | Buffer): Record<string, string>[] {
   const delimiter = contentWithoutBom.substring(0, 1000).includes(';') ? ';' : ',';
 
   const allLines = contentWithoutBom.split('\n');
-  let headerRowIndex = 0;
-  let bestScore = -1;
 
-  for (let i = 0; i < Math.min(10, allLines.length); i++) {
-    const cells = allLines[i].split(delimiter).map((c) => c.trim());
-    const score = scoreHeaderRow(cells);
-    if (score > bestScore) {
-      bestScore = score;
+  // Para CSV, o header está sempre na primeira linha não-vazia.
+  // scoreHeaderRow falha com campos multilinhas: split('\n') quebra dentro de
+  // aspas, e fragmentos de Obs/Causa podem pontuar mais que o header real,
+  // deslocando todos os campos no parse.
+  let headerRowIndex = 0;
+  for (let i = 0; i < Math.min(5, allLines.length); i++) {
+    if (allLines[i].trim().replace(/[";,\s]/g, '').length > 0) {
       headerRowIndex = i;
+      break;
     }
   }
 
