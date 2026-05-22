@@ -51,6 +51,11 @@ export const SUPPORT_CATEGORIES = {
   // ── Administrativo ────────────────────────────────────────────────────────
   CONTATO_SEM_PROBLEMA:    'Contato / Sem problema identificado',
   OUTROS:                  'Outros',
+
+  // ── Categorias do sistema (ProblemaReclamado já classificado) ────────────
+  SUPORTE_TECNICO:         'Suporte Técnico',
+  FINANCEIRO:              'Financeiro',
+  COMERCIAL:               'Comercial',
 } as const;
 
 export function normalizeText(value: string) {
@@ -67,6 +72,13 @@ export function normalizeText(value: string) {
 export function classifySupportRecord(problemaReclamado: string) {
   const text = normalizeText(problemaReclamado ?? '');
   if (!text) return SUPPORT_CATEGORIES.OUTROS;
+
+  // Categorias já definidas pelo sistema no ProblemaReclamado: o prefixo é a
+  // categoria oficial; qualquer texto após "/" ou "|" é detalhamento livre.
+  if (text.startsWith('suporte')) return SUPPORT_CATEGORIES.SUPORTE_TECNICO;
+  if (text.startsWith('financeiro')) return SUPPORT_CATEGORIES.FINANCEIRO;
+  if (text.startsWith('comercial')) return SUPPORT_CATEGORIES.COMERCIAL;
+  if (text.startsWith('boleto')) return SUPPORT_CATEGORIES.FINANCEIRO;
 
   const hasAny = (...ps: RegExp[]) => ps.some((p) => p.test(text));
 

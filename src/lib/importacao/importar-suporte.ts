@@ -218,42 +218,48 @@ export async function importarSuporte(
 
   // ── Persiste registros de suporte (comportamento original) ────────────────
   if (registros.length) {
-    const CHUNK = 200;
+    const CHUNK = 500;
     for (let i = 0; i < registros.length; i += CHUNK) {
       await db.insert(supportRecords).values(registros.slice(i, i + CHUNK));
     }
     resumo.totalInseridas = registros.length;
   }
 
-  // ── Persiste registros detalhados (1 linha por OS) ─────────────────────────
+  // ── Persiste registros detalhados (fire-and-forget, não bloqueia resposta) ─
   if (callRecords.length) {
-    const CHUNK = 200;
-    for (let i = 0; i < callRecords.length; i += CHUNK) {
-      await db
-        .insert(supportCallRecords)
-        .values(callRecords.slice(i, i + CHUNK))
-        .onConflictDoUpdate({
-          target: supportCallRecords.os,
-          set: {
-            periodMonth: sql`excluded.period_month`,
-            periodYear: sql`excluded.period_year`,
-            dataAbertura: sql`excluded.data_abertura`,
-            dataFechamento: sql`excluded.data_fechamento`,
-            atendente: sql`excluded.atendente`,
-            cliente: sql`excluded.cliente`,
-            plano: sql`excluded.plano`,
-            cidade: sql`excluded.cidade`,
-            bairro: sql`excluded.bairro`,
-            problemaReclamado: sql`excluded.problema_reclamado`,
-            motivo: sql`excluded.motivo`,
-            causa: sql`excluded.causa`,
-            solucao: sql`excluded.solucao`,
-            obs: sql`excluded.obs`,
-            segmento: sql`excluded.segmento`,
-            modeloPeriodo: sql`excluded.modelo_periodo`,
-          },
-        });
-    }
+    void (async () => {
+      const CHUNK_CALLS = 100;
+      for (let i = 0; i < callRecords.length; i += CHUNK_CALLS) {
+        try {
+          await db
+            .insert(supportCallRecords)
+            .values(callRecords.slice(i, i + CHUNK_CALLS))
+            .onConflictDoUpdate({
+              target: supportCallRecords.os,
+              set: {
+                periodMonth: sql`excluded.period_month`,
+                periodYear: sql`excluded.period_year`,
+                dataAbertura: sql`excluded.data_abertura`,
+                dataFechamento: sql`excluded.data_fechamento`,
+                atendente: sql`excluded.atendente`,
+                cliente: sql`excluded.cliente`,
+                plano: sql`excluded.plano`,
+                cidade: sql`excluded.cidade`,
+                bairro: sql`excluded.bairro`,
+                problemaReclamado: sql`excluded.problema_reclamado`,
+                motivo: sql`excluded.motivo`,
+                causa: sql`excluded.causa`,
+                solucao: sql`excluded.solucao`,
+                obs: sql`excluded.obs`,
+                segmento: sql`excluded.segmento`,
+                modeloPeriodo: sql`excluded.modelo_periodo`,
+              },
+            });
+        } catch (e) {
+          console.error('[support_call_records] chunk error:', e);
+        }
+      }
+    })();
   }
 
   // ── Classificação automática por ProblemaReclamado (por período) ──────────

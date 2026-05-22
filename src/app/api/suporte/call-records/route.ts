@@ -104,44 +104,60 @@ export async function GET(req: NextRequest) {
       .select({
         problemaReclamado: supportCallRecords.problemaReclamado,
         causa: supportCallRecords.causa,
+        segmento: supportCallRecords.segmento,
       })
       .from(supportCallRecords)
       .where(and(...whereDetalhado));
 
     if (detalhados.length > 0) {
-      const counts = new Map<string, number>();
-
-      for (const row of detalhados) {
-        const categoria = classifySupportRecord(
-          [row.problemaReclamado, row.causa].filter(Boolean).join(' ')
-        );
-        const segmento = resolveSegmento(categoria);
-        if (segmentoFiltro && segmento !== segmentoFiltro) continue;
-        counts.set(categoria, (counts.get(categoria) ?? 0) + 1);
-      }
-
-      const totalGeral = Array.from(counts.values()).reduce((acc, quantidade) => acc + quantidade, 0);
+      // Totais por segmento: usa o campo `segmento` já gravado na importação
+      // (calcularSegmento), em vez de reclassificar via classifySupportRecord.
       const totalPorSegmento: Record<Segmento, number> = {
         Técnico: 0,
         Comercial: 0,
         Financeiro: 0,
         Outros: 0,
       };
+      for (const row of detalhados) {
+        const seg: Segmento =
+          row.segmento === 'Técnico' || row.segmento === 'Comercial' ||
+          row.segmento === 'Financeiro' || row.segmento === 'Outros'
+            ? row.segmento
+            : 'Outros';
+        totalPorSegmento[seg] += 1;
+      }
+      const totalGeral =
+        totalPorSegmento.Técnico + totalPorSegmento.Comercial +
+        totalPorSegmento.Financeiro + totalPorSegmento.Outros;
+
+      // Linhas detalhadas: continuam usando classifySupportRecord para o
+      // breakdown por categoria (problemaReclamado), mas o `segmento` da linha
+      // vem do campo gravado.
+      const counts = new Map<string, { quantidade: number; segmento: Segmento }>();
+      for (const row of detalhados) {
+        const seg: Segmento =
+          row.segmento === 'Técnico' || row.segmento === 'Comercial' ||
+          row.segmento === 'Financeiro' || row.segmento === 'Outros'
+            ? row.segmento
+            : 'Outros';
+        if (segmentoFiltro && seg !== segmentoFiltro) continue;
+        const categoria = classifySupportRecord(
+          [row.problemaReclamado, row.causa].filter(Boolean).join(' ')
+        );
+        const entry = counts.get(categoria) ?? { quantidade: 0, segmento: seg };
+        entry.quantidade += 1;
+        counts.set(categoria, entry);
+      }
 
       const linhas: LinhaResposta[] = Array.from(counts.entries())
-        .map(([categoria, quantidade]) => {
-          const segmento = resolveSegmento(categoria);
-          totalPorSegmento[segmento] += quantidade;
-
-          return {
-            segmento,
-            problemaReclamado: categoria,
-            causa: 'Classificação automática',
-            quantidade,
-            percentualDoTotal:
-              totalGeral > 0 ? Number(((quantidade / totalGeral) * 100).toFixed(2)) : 0,
-          };
-        })
+        .map(([categoria, { quantidade, segmento }]) => ({
+          segmento,
+          problemaReclamado: categoria,
+          causa: 'Classificação automática',
+          quantidade,
+          percentualDoTotal:
+            totalGeral > 0 ? Number(((quantidade / totalGeral) * 100).toFixed(2)) : 0,
+        }))
         .sort((left, right) => {
           const segmentoOrder = SEGMENTO_ORDER[left.segmento] - SEGMENTO_ORDER[right.segmento];
           return (
