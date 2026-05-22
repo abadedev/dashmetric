@@ -143,6 +143,44 @@ test('reconfigurar onu => Outros', () => {
   );
 });
 
+test('Suporte Técnico (puro) => Suporte Técnico', () => {
+  assert.equal(classifySupportRecord('Suporte Técnico'), SUPPORT_CATEGORIES.SUPORTE_TECNICO);
+});
+
+test('Suporte Técnico / Não conecta / LOS piscando => Suporte Técnico', () => {
+  assert.equal(
+    classifySupportRecord('Suporte Técnico / Não conecta / LOS piscando'),
+    SUPPORT_CATEGORIES.SUPORTE_TECNICO
+  );
+});
+
+test('Suporte Técnico | Ação de melhoria => Suporte Técnico', () => {
+  assert.equal(
+    classifySupportRecord('Suporte Técnico | Ação de melhoria'),
+    SUPPORT_CATEGORIES.SUPORTE_TECNICO
+  );
+});
+
+test('Suporte (abreviado) => Suporte Técnico', () => {
+  assert.equal(classifySupportRecord('Suporte'), SUPPORT_CATEGORIES.SUPORTE_TECNICO);
+});
+
+test('Financeiro (puro) => Financeiro', () => {
+  assert.equal(classifySupportRecord('Financeiro'), SUPPORT_CATEGORIES.FINANCEIRO);
+});
+
+test('Financeiro / Boleto => Financeiro', () => {
+  assert.equal(classifySupportRecord('Financeiro / Boleto'), SUPPORT_CATEGORIES.FINANCEIRO);
+});
+
+test('Comercial => Comercial', () => {
+  assert.equal(classifySupportRecord('Comercial'), SUPPORT_CATEGORIES.COMERCIAL);
+});
+
+test('Boleto (prefixo) => Financeiro', () => {
+  assert.equal(classifySupportRecord('Boleto'), SUPPORT_CATEGORIES.FINANCEIRO);
+});
+
 test('buildSupportSummary: lista vazia retorna vazio', () => {
   assert.deepEqual(buildSupportSummary([]), []);
 });

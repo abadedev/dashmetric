@@ -21,16 +21,20 @@ const FINANCEIRO_KW = [
   'aviso de bloqueio', 'pendência financeira', 'pendencia financeira',
   'débitos em aberto', 'debitos em aberto', 'inadimplên', 'inadimplenc',
   'financeiro',
+  'boleto', 'fatura', 'vencimento', 'cobrança', 'cobranca',
 ];
 
 const COMERCIAL_KW = [
-  'boleto', 'fatura', 'cobran', 'cancelar', 'mudar de plano',
-  'mudança de plano', 'vencimento', 'bloqueio', 'suspensão', 'suspensao',
+  'cobran', 'cancelar', 'mudar de plano',
+  'mudança de plano', 'bloqueio', 'suspensão', 'suspensao',
   'débito automático', 'debito automatico', 'extrato de conexão',
   'indicação', 'indicacao', 'titularidade', 'reativar', 'desbloqueio de confiança',
   'desbloqueio de confianca', 'retirada de equipamento', 'atendimento ruim',
   'não foi atendido', 'nao foi atendido', 'insatisfação com preço',
   'insatisfacao com preco', 'dstech play',
+  'mudança de endereço', 'mudanca de endereco', 'mudanca de plano',
+  'cancelamento', 'reativação', 'reativacao', 'troca de plano',
+  'desbloqueio',
 ];
 
 const TECNICO_KW = [
@@ -39,6 +43,7 @@ const TECNICO_KW = [
   'não navega', 'nao navega', 'conexão caindo', 'conexao caindo',
   'intermit', 'ping', 'latência', 'latencia', 'tv', 'tvbox', 'iptv',
   'troca de dados', 'rede fora', 'link fora', 'sinal', 'alcance', 'equipamento',
+  'sem sinal', 'intermitência', 'intermitencia', 'sem internet', 'ip travado',
 ];
 
 /**
@@ -50,13 +55,13 @@ export function calcularSegmento(
   causa: string,
   modelo: ModeloPeriodo
 ): Segmento {
-  if (modelo === 'A') {
-    const r = (problemaReclamado ?? '').toLowerCase().trim();
-    if (r === 'comercial') return 'Comercial';
-    if (r === 'financeiro') return 'Financeiro';
-    if (r.includes('suporte técnico') || r.includes('suporte tecnico')) return 'Técnico';
-    return 'Outros';
-  }
+  const pr = (problemaReclamado ?? '').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+  if (pr.startsWith('comercial')) return 'Comercial';
+  if (pr.startsWith('financeiro')) return 'Financeiro';
+  if (pr.startsWith('boleto')) return 'Financeiro';
+  if (pr.startsWith('suporte')) return 'Técnico';
 
   const texto = `${problemaReclamado ?? ''} ${causa ?? ''}`.toLowerCase();
   if (FINANCEIRO_KW.some((k) => texto.includes(k))) return 'Financeiro';
