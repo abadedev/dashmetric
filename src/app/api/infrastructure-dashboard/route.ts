@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
       citiesRaw,
       techniciansRaw,
       statusesRaw,
+      byClassificacaoResult,
     ] = await Promise.all([
       db
         .select({
@@ -168,6 +169,20 @@ export async function GET(req: NextRequest) {
         .from(serviceListings)
         .where(sql`${serviceListings.status} IS NOT NULL AND ${serviceListings.status} != ''`)
         .orderBy(serviceListings.status),
+
+      db
+        .select({
+          classificacao: serviceListings.classificacao,
+          quantidade: sql<number>`count(*)::int`,
+        })
+        .from(serviceListings)
+        .where(
+          condition
+            ? and(condition, sql`${serviceListings.classificacao} IS NOT NULL`)
+            : sql`${serviceListings.classificacao} IS NOT NULL`
+        )
+        .groupBy(serviceListings.classificacao)
+        .orderBy(desc(sql`count(*)`)),
     ]);
 
     const kpi = kpiResult[0] ?? { total: 0, pending: 0, resolved: 0, recurring: 0, avgResolutionDays: null };
@@ -269,6 +284,10 @@ export async function GET(req: NextRequest) {
         total: row.total,
       })),
       sla: slaSummary,
+      byClassificacao: byClassificacaoResult.map((row) => ({
+        classificacao: row.classificacao ?? 'Não classificado',
+        quantidade: row.quantidade,
+      })),
       filters: {
         cities: (() => {
           const seen = new Set<string>();

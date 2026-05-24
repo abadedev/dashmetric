@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ServiceListing } from '@/lib/db/infra-schema';
-import { INFRA_OCCURRENCE_OPTIONS } from '@/lib/listagem-servicos/infra-occurrences';
+import { CLASSIFICACAO_OPTIONS, INFRA_OCCURRENCE_OPTIONS } from '@/lib/listagem-servicos/infra-occurrences';
 import type { ModuleAccessLevel } from '@/lib/module-access';
 
 interface ServiceFormProps {
@@ -29,6 +29,7 @@ interface ServiceFormState {
   locationUrl: string;
   networkBox: string;
   tipoOcorrencia: string;
+  classificacao: string;
   observacaoInfra: string;
   status: string;
   solicitante: string;
@@ -89,6 +90,7 @@ const CITY_OPTIONS = [
 ] as const;
 
 const PRIORITY_LABELS: Record<string, string> = {
+  '0': '0 (Emergencial)',
   '1': '1 (Alta)',
   '2': '2 (Média)',
   '-': '- (Baixa)',
@@ -171,6 +173,7 @@ function getInitialState(editRecord?: ServiceListing | null): ServiceFormState {
       locationUrl: editRecord.locationUrl ?? '',
       networkBox: editRecord.networkBox ?? '',
       tipoOcorrencia: editRecord.tipoOcorrencia ?? '',
+      classificacao: editRecord.classificacao ?? '',
       observacaoInfra: editRecord.observacaoInfra ?? editRecord.problem ?? '',
       status: editRecord.status ?? 'pendente',
       solicitante: editRecord.solicitante ?? '',
@@ -185,6 +188,7 @@ function getInitialState(editRecord?: ServiceListing | null): ServiceFormState {
     locationUrl: '',
     networkBox: '',
     tipoOcorrencia: '',
+    classificacao: '',
     observacaoInfra: '',
     status: 'pendente',
     solicitante: '',
@@ -276,6 +280,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
         networkBox: normalizeSingleLine(form.networkBox) || null,
         problem: null,
         tipoOcorrencia: form.tipoOcorrencia,
+        classificacao: form.classificacao,
         observacaoInfra: normalizeMultiline(form.observacaoInfra) || null,
         status: form.status,
         fotoUrl: fotoUrl || null,
@@ -288,6 +293,10 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
 
       if (!payload.tipoOcorrencia) {
         throw new Error('Selecione o tipo de ocorrencia.');
+      }
+
+      if (!payload.classificacao) {
+        throw new Error('Selecione a classificação.');
       }
 
       if (!isGoogleMapsUrl(form.locationUrl)) {
@@ -425,6 +434,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[140px]">
                       <SelectItem value="none">{'\u2014'}</SelectItem>
+                      <SelectItem value="0">0 (Emergencial)</SelectItem>
                       <SelectItem value="1">1 (Alta)</SelectItem>
                       <SelectItem value="2">{'2 (M\u00E9dia)'}</SelectItem>
                       <SelectItem value="-">- (Baixa)</SelectItem>
@@ -452,6 +462,20 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
                   {isResolvedLocked && (
                     <p className="text-[11px] text-muted-foreground">{RESOLVED_TOOLTIP}</p>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sf-classificacao" className="text-sm font-medium">Classificação *</Label>
+                  <Select value={form.classificacao || undefined} onValueChange={(value) => { if (!isEditLocked) updateField('classificacao', value ?? ''); }}>
+                    <SelectTrigger id="sf-classificacao" className="h-10 w-full" disabled={isEditLocked}>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent alignItemWithTrigger={false} collisionAvoidance={{ side: 'none' }} className="min-w-[180px]">
+                      {CLASSIFICACAO_OPTIONS.map((opt) => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

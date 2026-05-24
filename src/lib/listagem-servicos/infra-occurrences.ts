@@ -29,6 +29,9 @@ export type InfraOccurrenceType = string;
 
 export const infraOccurrenceSchema = z.string().min(1, 'Selecione um tipo de ocorrência válido.');
 
+export const CLASSIFICACAO_OPTIONS = ['Reparo', 'Implementação', 'Preventiva'] as const;
+export type ClassificacaoType = (typeof CLASSIFICACAO_OPTIONS)[number];
+
 export const serviceListingPayloadSchema = z.object({
   referenceDate: z.string().min(1, 'Data de referência é obrigatória.'),
   priority: z.string().trim().max(10).nullable().optional(),
@@ -39,6 +42,7 @@ export const serviceListingPayloadSchema = z.object({
   networkBox: z.string().trim().max(255).nullable().optional(),
   problem: z.string().trim().nullable().optional(),
   tipoOcorrencia: infraOccurrenceSchema,
+  classificacao: z.enum(CLASSIFICACAO_OPTIONS, { message: 'Classificação é obrigatória.' }),
   observacaoInfra: z.string().trim().nullable().optional(),
   status: z.string().trim().max(50).optional(),
   occurrenceCreated: z.boolean().optional(),
@@ -93,6 +97,7 @@ export function normalizeCityArea(raw: string | null | undefined): string | null
 function formatPriorityLabel(value: string | null | undefined) {
   const priority = normalizeNullableText(value);
 
+  if (priority === '0') return '0 (Emergencial)';
   if (priority === '1') return '1 (Alta)';
   if (priority === '2') return '2 (Média)';
   if (priority === '-') return '- (Baixa)';
