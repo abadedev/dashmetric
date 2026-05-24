@@ -282,6 +282,7 @@ export async function POST(req: NextRequest) {
         networkBox: normalizeNullableText(payload.networkBox),
         problem: normalizeNullableText(payload.problem),
         tipoOcorrencia: payload.tipoOcorrencia,
+        classificacao: payload.classificacao,
         observacaoInfra: normalizeNullableText(payload.observacaoInfra),
         status: payload.status ?? 'pendente',
         occurrenceCreated: payload.occurrenceCreated ?? false,

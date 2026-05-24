@@ -124,6 +124,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         'networkBox',
         'problem',
         'tipoOcorrencia',
+        'classificacao',
         'observacaoInfra',
         'status',
         'occurrenceCreated',

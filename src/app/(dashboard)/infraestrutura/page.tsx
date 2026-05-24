@@ -2,7 +2,7 @@
 
 import { Suspense, type ElementType } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, Clock, Gauge, Network, RefreshCw, TrendingUp } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Gauge, Network, RefreshCw, ShieldCheck, TrendingUp, Wrench, Zap } from 'lucide-react';
 import { useQueryState } from 'nuqs';
 import { PageLayout } from '@/components/layout/page-layout';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ interface DashboardData {
   byCity: Array<{ city: string; total: number }>;
   byNetworkBox: Array<{ networkBox: string; total: number }>;
   byTechnician: Array<{ technician: string; total: number }>;
+  byClassificacao: Array<{ classificacao: string; quantidade: number }>;
   recurringIssues: Array<{ occurrenceType: string; city: string; networkBox: string; total: number }>;
   sla: Array<{
     prioridade: number;
@@ -109,6 +110,53 @@ function SlaPanel({ sla }: { sla: DashboardData['sla'] }) {
                   <span className="text-emerald-400">✓ {item.within} no prazo</span>
                   <span className="text-amber-400">⚠ {item.warning} alerta</span>
                   <span className="text-red-400">✗ {item.breached} ({breachedPct}%)</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+const CLASSIFICACAO_META: Record<string, { icon: ElementType; accent: string }> = {
+  Reparo: { icon: Wrench, accent: 'text-orange-400' },
+  'Implementação': { icon: Zap, accent: 'text-sky-400' },
+  Preventiva: { icon: ShieldCheck, accent: 'text-emerald-400' },
+};
+
+function ClassificacaoCard({ data }: { data: DashboardData['byClassificacao'] }) {
+  const ORDER = ['Reparo', 'Implementação', 'Preventiva'];
+  const byKey = new Map(data.map((row) => [row.classificacao, row.quantidade]));
+  const rows = ORDER.map((key) => ({ classificacao: key, quantidade: byKey.get(key) ?? 0 }));
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold">Por Classificação</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {rows.map((row) => {
+            const meta = CLASSIFICACAO_META[row.classificacao] ?? { icon: Network, accent: 'text-muted-foreground' };
+            const Icon = meta.icon;
+            return (
+              <div
+                key={row.classificacao}
+                className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 p-3"
+              >
+                <div className={cn('rounded-md bg-background/40 p-2', meta.accent)}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {row.classificacao}
+                  </span>
+                  <span className="text-xl font-bold tabular-nums text-foreground">
+                    {row.quantidade}
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">atividades</span>
+                  </span>
                 </div>
               </div>
             );
@@ -302,6 +350,12 @@ function InfraestruturaContent() {
         <Skeleton className="h-44 rounded-xl" />
       ) : (
         <SlaPanel sla={data?.sla ?? []} />
+      )}
+
+      {isLoading ? (
+        <Skeleton className="h-28 rounded-xl" />
+      ) : (
+        <ClassificacaoCard data={data?.byClassificacao ?? []} />
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">

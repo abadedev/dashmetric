@@ -288,11 +288,11 @@ async function exportarCSV(queryString: string) {
   const dados = json.data ?? [];
 
   const headers = ['Data', 'Prioridade', 'Cidade', 'Endereço',
-    'Rede/Caixa', 'Ocorrência', 'Observação', 'Status', 'Técnico', 'Solicitante', 'Solução', 'Data Conclusão'];
+    'Rede/Caixa', 'Ocorrência', 'Classificação', 'Observação', 'Status', 'Técnico', 'Solicitante', 'Solução', 'Data Conclusão'];
 
   const linhas = dados.map((r) =>
     [r.referenceDate, r.priority, r.cityArea, r.address,
-     r.networkBox, r.tipoOcorrencia, r.observacaoInfra, r.status,
+     r.networkBox, r.tipoOcorrencia, r.classificacao, r.observacaoInfra, r.status,
      r.technician, r.solicitante, r.solution, r.resolutionDate]
       .map((v) => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
       .join(',')
