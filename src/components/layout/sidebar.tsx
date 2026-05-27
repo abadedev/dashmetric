@@ -370,7 +370,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
             </div>
           </div>
           <p className="px-4 pb-3 text-[10px] text-sidebar-foreground/30 leading-tight">
-            NOC Performance Manager v1.5.0
+            DashMetric v1.5.0
           </p>
         </div>
       )}
