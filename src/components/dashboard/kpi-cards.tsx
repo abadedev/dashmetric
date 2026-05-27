@@ -77,12 +77,18 @@ function KpiCard({
 
 export function KpiCards({
   data,
+  inrReparos,
+  inrSuportePercent,
+  totalReparos,
   totalSuporte,
   clientesAtivos,
 }: {
   data: any;
-  totalSuporte?: number;
-  clientesAtivos?: number;
+  inrReparos: number | null;
+  inrSuportePercent: number | null;
+  totalReparos: number;
+  totalSuporte: number;
+  clientesAtivos: number;
 }) {
   if (!data) return null;
 
@@ -90,12 +96,7 @@ export function KpiCards({
   const slaGeral = data.slaGeral ?? data.slaCorridoGeral;
   const isSlaOk = slaGeral >= mSla;
 
-  const inrReparos: number | null = data.inrReparos ?? null;
-  const base = clientesAtivos ?? 0;
-  const totalSup = totalSuporte ?? 0;
-  const inrSuportePercent = totalSup > 0 && base > 0 ? (totalSup / base) * 100 : null;
-
-  const showInrPanel = inrReparos !== null || totalSup > 0;
+  const showInrPanel = inrReparos !== null || (totalSuporte ?? 0) > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -145,36 +146,36 @@ export function KpiCards({
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Indicadores operacionais
           </p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {inrReparos !== null && (
               <div>
                 <p className="mb-1 text-[11px] text-muted-foreground">
                   INR Reparos{' '}
-                  <span className="text-[10px] text-muted-foreground/60">(IQIv+IQRv / total reparos)</span>
+                  <span className="text-[10px] text-muted-foreground/60">(reparos / base ativa)</span>
                 </p>
                 <div className="flex items-baseline gap-2">
                   <span className={cn('text-lg font-semibold', inrReparos > 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400')}>
                     {inrReparos.toFixed(2).replace('.', ',')}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {data.totalReparos ?? 0} reparos · base {formatNumber(base)}
+                    {formatNumber(totalReparos)} reparos · base {formatNumber(clientesAtivos)}
                   </span>
                 </div>
               </div>
             )}
 
-            {totalSup > 0 && inrSuportePercent !== null && (
+            {(totalSuporte ?? 0) > 0 && inrSuportePercent !== null && (
               <div>
                 <p className="mb-1 text-[11px] text-muted-foreground">
                   INR Suporte{' '}
-                  <span className="text-[10px] text-muted-foreground/60">(total suporte / base ativa)</span>
+                  <span className="text-[10px] text-muted-foreground/60">(suporte / base ativa)</span>
                 </p>
                 <div className="flex items-baseline gap-2">
                   <span className={cn('text-lg font-semibold', inrSuportePercent > 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400')}>
                     {inrSuportePercent.toFixed(2).replace('.', ',')}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {totalSup} chamadas · base {formatNumber(base)}
+                    {formatNumber(totalSuporte)} chamadas · base {formatNumber(clientesAtivos)}
                   </span>
                 </div>
               </div>
