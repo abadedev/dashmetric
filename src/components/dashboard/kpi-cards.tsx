@@ -97,69 +97,77 @@ export function KpiCards({
 
   const fmtInr = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  const hasInr = inrReparos !== null || inrSuportePercent !== null;
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-      <KpiCard
-        title="Total de Atividades"
-        value={formatNumber(data.totalAtendimentos || 0)}
-        caption="Ordens abertas no recorte atual"
-        icon={Activity}
-        tone="info"
-        eyebrow="Volume"
-      />
-
-      <KpiCard
-        title="SLA"
-        value={formatPercent(slaGeral || 0)}
-        caption={`Meta operacional: ${formatPercent(mSla)} (24h corridas) — exclui Retirada de Kit`}
-        icon={TrendingUp}
-        tone={isSlaOk ? 'success' : 'alert'}
-        eyebrow={isSlaOk ? 'Dentro da meta' : 'Atencao'}
-        valueClassName="text-foreground"
-      />
-
-      <KpiCard
-        title="SLA Útil (informativo)"
-        value={formatPercent(data.slaUtilGeral || 0)}
-        caption="Considera apenas horario comercial"
-        icon={Timer}
-        tone="info"
-        eyebrow="Referencia"
-        valueClassName="text-foreground"
-      />
-
-      <KpiCard
-        title="Status Geral da Meta"
-        value={isSlaOk ? 'ATINGIDA' : 'Fora da Meta'}
-        caption="Baseado no SLA de 24h corridas"
-        icon={Target}
-        tone={isSlaOk ? 'success' : 'alert'}
-        eyebrow={isSlaOk ? 'Meta atingida' : 'Fora da meta'}
-        valueClassName={isSlaOk ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}
-      />
-
-      {inrReparos !== null && (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard
-          title="INR Reparos"
-          value={fmtInr(inrReparos)}
-          caption={`Reparos: ${data.totalReparos ?? 0} / Base: ${base.toLocaleString('pt-BR')}`}
-          icon={Wrench}
-          tone={inrReparos > 5 ? 'alert' : 'success'}
-          eyebrow="INR Reparos"
+          title="Total de Atividades"
+          value={formatNumber(data.totalAtendimentos || 0)}
+          caption="Ordens abertas no recorte atual"
+          icon={Activity}
+          tone="info"
+          eyebrow="Volume"
+        />
+
+        <KpiCard
+          title="SLA"
+          value={formatPercent(slaGeral || 0)}
+          caption={`Meta operacional: ${formatPercent(mSla)} (24h corridas) — exclui Retirada de Kit`}
+          icon={TrendingUp}
+          tone={isSlaOk ? 'success' : 'alert'}
+          eyebrow={isSlaOk ? 'Dentro da meta' : 'Atencao'}
           valueClassName="text-foreground"
         />
-      )}
 
-      {inrSuportePercent !== null && (
         <KpiCard
-          title="INR Suporte"
-          value={fmtInr(inrSuportePercent)}
-          caption={`Suporte: ${totalSup} / Base: ${base.toLocaleString('pt-BR')}`}
-          icon={Headphones}
-          tone={inrSuportePercent > 5 ? 'alert' : 'success'}
-          eyebrow="INR Suporte"
+          title="SLA Útil (informativo)"
+          value={formatPercent(data.slaUtilGeral || 0)}
+          caption="Considera apenas horario comercial"
+          icon={Timer}
+          tone="info"
+          eyebrow="Referencia"
           valueClassName="text-foreground"
         />
+
+        <KpiCard
+          title="Status Geral da Meta"
+          value={isSlaOk ? 'ATINGIDA' : 'Fora da Meta'}
+          caption="Baseado no SLA de 24h corridas"
+          icon={Target}
+          tone={isSlaOk ? 'success' : 'alert'}
+          eyebrow={isSlaOk ? 'Meta atingida' : 'Fora da meta'}
+          valueClassName={isSlaOk ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}
+        />
+      </div>
+
+      {hasInr && (
+        <div className="grid gap-4 md:grid-cols-2 xl:max-w-2xl">
+          {inrReparos !== null && (
+            <KpiCard
+              title="INR Reparos"
+              value={fmtInr(inrReparos)}
+              caption={`Reparos: ${data.totalReparos ?? 0} / Base: ${base.toLocaleString('pt-BR')}`}
+              icon={Wrench}
+              tone={inrReparos > 5 ? 'alert' : 'success'}
+              eyebrow="INR Reparos"
+              valueClassName="text-foreground"
+            />
+          )}
+
+          {inrSuportePercent !== null && (
+            <KpiCard
+              title="INR Suporte"
+              value={fmtInr(inrSuportePercent)}
+              caption={`Suporte: ${totalSup} / Base: ${base.toLocaleString('pt-BR')}`}
+              icon={Headphones}
+              tone={inrSuportePercent > 5 ? 'alert' : 'success'}
+              eyebrow="INR Suporte"
+              valueClassName="text-foreground"
+            />
+          )}
+        </div>
       )}
     </div>
   );

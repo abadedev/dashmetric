@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { atendimentos } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
-import { and, eq, ilike, desc, count, gte, lte, or, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, desc, count, or, sql, SQL } from 'drizzle-orm';
 import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 import { calculateValidAverage } from '@/lib/utils/average';
 import { qualityRecords } from '@/lib/db/schema';
@@ -93,8 +93,9 @@ export async function GET(req: NextRequest) {
     const reparoWhere = and(...periodoFilters, ilike(atendimentos.tipo, '%reparo%'));
 
     const qualityFilters: SQL[] = [eq(qualityRecords.workspaceId, ctx.workspaceId)];
-    if (fromStr) qualityFilters.push(gte(qualityRecords.openedAt, parseDateFrom(fromStr)));
-    if (toStr)   qualityFilters.push(lte(qualityRecords.openedAt, parseDateTo(toStr)));
+    const qDateRef = sql`COALESCE(${qualityRecords.openedAt}, ${qualityRecords.createdAt})`;
+    if (fromStr) qualityFilters.push(sql`${qDateRef} >= ${parseDateFrom(fromStr)}`);
+    if (toStr)   qualityFilters.push(sql`${qDateRef} <= ${parseDateTo(toStr)}`);
     const qualityWhere = and(...qualityFilters);
 
     const [rows, [totalRow], [slaRow], slaByTypeRaw, [reparoRow], qualityByIndicatorRaw] = await Promise.all([

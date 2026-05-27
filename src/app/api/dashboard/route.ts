@@ -34,10 +34,11 @@ export async function GET(req: NextRequest) {
     if (city && city !== 'all') atendFilters.push(eq(atendimentos.cidade, city));
     const atendWhere = atendFilters.length ? and(...atendFilters) : undefined;
 
-    // Filtro de data para qualidade (usa openedAt)
+    // Filtro de data para qualidade: usa openedAt com fallback para createdAt
     const qualityFilters: SQL[] = [eq(qualityRecords.workspaceId, result.context.workspaceId)];
-    if (fromStr) qualityFilters.push(gte(qualityRecords.openedAt, parseDateFrom(fromStr)));
-    if (toStr)   qualityFilters.push(lte(qualityRecords.openedAt, parseDateTo(toStr)));
+    const qDateRef = sql`COALESCE(${qualityRecords.openedAt}, ${qualityRecords.createdAt})`;
+    if (fromStr) qualityFilters.push(sql`${qDateRef} >= ${parseDateFrom(fromStr)}`);
+    if (toStr)   qualityFilters.push(sql`${qDateRef} <= ${parseDateTo(toStr)}`);
     if (city && city !== 'all') qualityFilters.push(eq(qualityRecords.city, city));
     const qualityWhere = qualityFilters.length ? and(...qualityFilters) : undefined;
 
