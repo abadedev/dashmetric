@@ -3,12 +3,13 @@ import { db } from '@/lib/db';
 import { atendimentos } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
-import { and, eq, ilike, desc, count, or, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, desc, count, gte, lte, or, sql, SQL } from 'drizzle-orm';
 import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 import { calculateValidAverage } from '@/lib/utils/average';
-import { getClientesAtivos } from '@/lib/utils/clientes-ativos';
+import { qualityRecords } from '@/lib/db/schema';
+import { SLA_TARGETS } from '@/lib/services/sla-engine';
 
-const REPARO_ACTIVITY_TYPES = new Set(['reparo', 'Reparo', 'Manutencao', 'Manutenção']);
+const RETIRADA_META_SECONDS = (SLA_TARGETS.retirada_kit ?? 72) * 3600;
 
 export const runtime = 'nodejs';
 
@@ -81,7 +82,22 @@ export async function GET(req: NextRequest) {
     const whereClause = filters.length ? and(...filters) : undefined;
     const offset = (page - 1) * pageSize;
 
-    const [rows, [totalRow], [slaRow], slaByTypeRaw] = await Promise.all([
+    // Filtros apenas de período (workspace + from/to), sem type/slaStatus/search,
+    // para os indicadores de INR Reparos que valem sempre sobre o período completo.
+    const periodoFilters: SQL[] = [eq(atendimentos.workspaceId, ctx.workspaceId)];
+    if (fromStr || toStr) {
+      const dataRef = sql`COALESCE(${atendimentos.finalizacaoAt}, ${atendimentos.aberturaAt}, ${atendimentos.createdAt})`;
+      if (fromStr) periodoFilters.push(sql`${dataRef} >= ${parseDateFrom(fromStr)}`);
+      if (toStr)   periodoFilters.push(sql`${dataRef} <= ${parseDateTo(toStr)}`);
+    }
+    const reparoWhere = and(...periodoFilters, ilike(atendimentos.tipo, '%reparo%'));
+
+    const qualityFilters: SQL[] = [eq(qualityRecords.workspaceId, ctx.workspaceId)];
+    if (fromStr) qualityFilters.push(gte(qualityRecords.openedAt, parseDateFrom(fromStr)));
+    if (toStr)   qualityFilters.push(lte(qualityRecords.openedAt, parseDateTo(toStr)));
+    const qualityWhere = and(...qualityFilters);
+
+    const [rows, [totalRow], [slaRow], slaByTypeRaw, [reparoRow], qualityByIndicatorRaw] = await Promise.all([
       db
         .select({
           id:                atendimentos.id,
@@ -133,12 +149,26 @@ export async function GET(req: NextRequest) {
           slaHoras:         atendimentos.slaHoras,
           total:            count(),
           concluded:        sql<number>`cast(sum(case when ${atendimentos.finalizacaoAt} is not null then 1 else 0 end) as int)`,
-          withinSlaCorrido: sql<number>`cast(sum(case when ${atendimentos.dentroSla} = true then 1 else 0 end) as int)`,
-          withinSlaUtil:    sql<number>`cast(sum(case when ${atendimentos.dentroSlaUtil} = true then 1 else 0 end) as int)`,
+          withinSlaCorrido: sql<number>`cast(sum(case
+            when ${atendimentos.dentroSla} = true then 1
+            when ${atendimentos.tipo} ilike '%retirada%' and ${atendimentos.finalizacaoAt} is not null and ${atendimentos.slaCorridoSegundos} is not null and ${atendimentos.slaCorridoSegundos} <= ${RETIRADA_META_SECONDS} then 1
+            else 0 end) as int)`,
+          withinSlaUtil:    sql<number>`cast(sum(case
+            when ${atendimentos.dentroSlaUtil} = true then 1
+            when ${atendimentos.tipo} ilike '%retirada%' and ${atendimentos.finalizacaoAt} is not null and ${atendimentos.slaUtilSegundos} is not null and ${atendimentos.slaUtilSegundos} <= ${RETIRADA_META_SECONDS} then 1
+            else 0 end) as int)`,
         })
         .from(atendimentos)
         .where(whereClause)
         .groupBy(atendimentos.tipo, atendimentos.slaHoras),
+
+      db.select({ total: count() }).from(atendimentos).where(reparoWhere),
+
+      db
+        .select({ indicator: qualityRecords.indicator, total: count() })
+        .from(qualityRecords)
+        .where(qualityWhere)
+        .groupBy(qualityRecords.indicator),
     ]);
 
     const slaByType = slaByTypeRaw.map((t) => {
@@ -163,12 +193,15 @@ export async function GET(req: NextRequest) {
     const slaCorridoGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaCorridoPercent));
     const slaUtilGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaUtilPercent));
 
-    const totalReparos = slaByType
-      .filter((t) => REPARO_ACTIVITY_TYPES.has(t.activityType))
-      .reduce((acc, t) => acc + Number(t.total), 0);
-
-    const baseAtiva = await getClientesAtivos();
-    const inrReparo = totalReparos > 0 ? Math.round((baseAtiva / totalReparos) * 100) / 100 : 0;
+    const byIndicator = {
+      IQIv: qualityByIndicatorRaw.find((q) => q.indicator === 'IQIv')?.total ?? 0,
+      IQRv: qualityByIndicatorRaw.find((q) => q.indicator === 'IQRv')?.total ?? 0,
+    };
+    const totalReparos = reparoRow?.total ?? 0;
+    const inrReparos =
+      totalReparos > 0
+        ? Math.round(((byIndicator.IQIv + byIndicator.IQRv) / totalReparos) * 100 * 100) / 100
+        : null;
 
     const total = totalRow?.total ?? 0;
     const withinSlaCorrido = Number(slaRow?.withinSlaCorrido ?? 0);
@@ -221,9 +254,9 @@ export async function GET(req: NextRequest) {
       slaByType,
       slaCorridoGeral,
       slaUtilGeral,
-      inrReparo,
-      baseAtiva,
       totalReparos,
+      byIndicator,
+      inrReparos,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),

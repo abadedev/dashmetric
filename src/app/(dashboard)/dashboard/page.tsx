@@ -40,6 +40,32 @@ function DashboardPageContent() {
     },
   });
 
+  const supportParams = new URLSearchParams();
+  if (from) supportParams.set('from', from.toISOString());
+  if (to) supportParams.set('to', to.toISOString());
+  const supportQs = supportParams.toString();
+
+  const { data: supportData } = useQuery({
+    queryKey: ['support-records', supportQs],
+    queryFn: async () => {
+      const res = await fetch(`/api/support-records?${supportQs}`);
+      if (!res.ok) throw new Error('support-records error');
+      return res.json() as Promise<{ total: number }>;
+    },
+    retry: false,
+  });
+
+  const { data: clientesAtivosData } = useQuery({
+    queryKey: ['clientes-ativos'],
+    queryFn: async () => {
+      const res = await fetch('/api/intranet/clientes-ativos');
+      if (!res.ok) throw new Error('clientes-ativos error');
+      return res.json() as Promise<{ total: number; source: string }>;
+    },
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+
   if (isLoadingDash || isLoadingRank) {
     return <PageSkeleton />;
   }
@@ -67,7 +93,11 @@ function DashboardPageContent() {
         </>
       }
     >
-      <KpiCards data={dashboardData} />
+      <KpiCards
+        data={dashboardData}
+        totalSuporte={supportData?.total ?? 0}
+        clientesAtivos={clientesAtivosData?.total ?? 24803}
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.9fr)]">
         <div className="min-w-0">

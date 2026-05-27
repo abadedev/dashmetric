@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, Target, Timer, TrendingUp } from 'lucide-react';
+import { Activity, Target, Timer, TrendingUp, Wrench, Headphones } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatPercent, formatNumber } from '@/lib/utils/format';
 import { cn } from '@/lib/utils';
@@ -75,15 +75,30 @@ function KpiCard({
   );
 }
 
-export function KpiCards({ data }: { data: any }) {
+export function KpiCards({
+  data,
+  totalSuporte,
+  clientesAtivos,
+}: {
+  data: any;
+  totalSuporte?: number;
+  clientesAtivos?: number;
+}) {
   if (!data) return null;
 
   const mSla = data.metaSLA || 0.95;
   const slaGeral = data.slaGeral ?? data.slaCorridoGeral;
   const isSlaOk = slaGeral >= mSla;
 
+  const inrReparos: number | null = data.inrReparos ?? null;
+  const base = clientesAtivos ?? 0;
+  const totalSup = totalSuporte ?? 0;
+  const inrSuportePercent = totalSup > 0 && base > 0 ? (totalSup / base) * 100 : null;
+
+  const fmtInr = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
       <KpiCard
         title="Total de Atividades"
         value={formatNumber(data.totalAtendimentos || 0)}
@@ -122,6 +137,30 @@ export function KpiCards({ data }: { data: any }) {
         eyebrow={isSlaOk ? 'Meta atingida' : 'Fora da meta'}
         valueClassName={isSlaOk ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}
       />
+
+      {inrReparos !== null && (
+        <KpiCard
+          title="INR Reparos"
+          value={fmtInr(inrReparos)}
+          caption={`Reparos: ${data.totalReparos ?? 0} / Base: ${base.toLocaleString('pt-BR')}`}
+          icon={Wrench}
+          tone={inrReparos > 5 ? 'alert' : 'success'}
+          eyebrow="INR Reparos"
+          valueClassName="text-foreground"
+        />
+      )}
+
+      {inrSuportePercent !== null && (
+        <KpiCard
+          title="INR Suporte"
+          value={fmtInr(inrSuportePercent)}
+          caption={`Suporte: ${totalSup} / Base: ${base.toLocaleString('pt-BR')}`}
+          icon={Headphones}
+          tone={inrSuportePercent > 5 ? 'alert' : 'success'}
+          eyebrow="INR Suporte"
+          valueClassName="text-foreground"
+        />
+      )}
     </div>
   );
 }
