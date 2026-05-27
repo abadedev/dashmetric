@@ -75,7 +75,9 @@ function DashboardPageContent() {
   const clientesAtivos = clientesAtivosData?.total ?? 24803;
   const totalReparos = dashboardData?.totalReparos ?? 0;
   const totalSuporte = supportData?.total ?? 0;
-  const inrReparos = totalReparos ? (totalReparos / clientesAtivos) * 100 : null;
+  const inrReparos = totalReparos > 0 && clientesAtivos > 0
+    ? (totalReparos / clientesAtivos) * 100
+    : null;
   const inrSuportePercent = totalSuporte ? (totalSuporte / clientesAtivos) * 100 : null;
 
   if (isLoadingDash || isLoadingRank) {
