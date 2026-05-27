@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { getSupportTypeSummary } from '@/lib/services/support-summary-service';
+import { getClientesAtivos } from '@/lib/utils/clientes-ativos';
 
 export const runtime = 'nodejs';
 
@@ -35,10 +36,17 @@ export async function GET(req: NextRequest) {
 
     const data = await getSupportTypeSummary({ from, to, workspaceId: result.context.workspaceId });
 
+    const baseAtiva = await getClientesAtivos();
+    const totalSupporte = data.total;
+    const inr = totalSupporte > 0 ? Math.round((baseAtiva / totalSupporte) * 100) / 100 : 0;
+
     return NextResponse.json({
       data: data.summary,
       total: data.total,
       triageByAttendant: data.triageByAttendant,
+      inr,
+      baseAtiva,
+      totalSupporte,
     });
   } catch (err) {
     console.error('[support-records]', err);

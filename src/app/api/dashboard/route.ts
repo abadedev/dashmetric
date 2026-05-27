@@ -131,8 +131,11 @@ export async function GET(req: NextRequest) {
       { indicator: 'ICT',  total: byIndicator['ICT'] ?? 0 },
     ].filter((q) => q.total > 0);
 
-    const slaCorridoGeral = calculateValidAverage(slaByType.map((t) => t.slaCorridoPercent));
-    const slaUtilGeral = calculateValidAverage(slaByType.map((t) => t.slaUtilPercent));
+    const tiposParaMetaGeral = slaByType.filter(
+      (t) => t.activityType !== 'retirada_kit' && t.activityType !== 'Retirada de Kit'
+    );
+    const slaCorridoGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaCorridoPercent));
+    const slaUtilGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaUtilPercent));
 
     return NextResponse.json({
       totalAtendimentos: totalRow?.total ?? 0,

@@ -5,6 +5,10 @@ import { requireAuth } from '@/lib/require-auth';
 import { runWithWorkspace } from '@/lib/with-workspace';
 import { and, eq, ilike, desc, count, or, sql, SQL } from 'drizzle-orm';
 import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
+import { calculateValidAverage } from '@/lib/utils/average';
+import { getClientesAtivos } from '@/lib/utils/clientes-ativos';
+
+const REPARO_ACTIVITY_TYPES = new Set(['reparo', 'Reparo', 'Manutencao', 'Manutenção']);
 
 export const runtime = 'nodejs';
 
@@ -77,7 +81,7 @@ export async function GET(req: NextRequest) {
     const whereClause = filters.length ? and(...filters) : undefined;
     const offset = (page - 1) * pageSize;
 
-    const [rows, [totalRow], [slaRow]] = await Promise.all([
+    const [rows, [totalRow], [slaRow], slaByTypeRaw] = await Promise.all([
       db
         .select({
           id:                atendimentos.id,
@@ -122,7 +126,49 @@ export async function GET(req: NextRequest) {
         withinSlaUtil: sql<number>`count(*) filter (where ${atendimentos.dentroSlaUtil} = true)`.as('within_sla_util'),
         outsideSlaUtil: sql<number>`count(*) filter (where ${atendimentos.dentroSlaUtil} = false and ${atendimentos.finalizacaoAt} is not null)`.as('outside_sla_util'),
       }).from(atendimentos).where(whereClause),
+
+      db
+        .select({
+          tipo:             atendimentos.tipo,
+          slaHoras:         atendimentos.slaHoras,
+          total:            count(),
+          concluded:        sql<number>`cast(sum(case when ${atendimentos.finalizacaoAt} is not null then 1 else 0 end) as int)`,
+          withinSlaCorrido: sql<number>`cast(sum(case when ${atendimentos.dentroSla} = true then 1 else 0 end) as int)`,
+          withinSlaUtil:    sql<number>`cast(sum(case when ${atendimentos.dentroSlaUtil} = true then 1 else 0 end) as int)`,
+        })
+        .from(atendimentos)
+        .where(whereClause)
+        .groupBy(atendimentos.tipo, atendimentos.slaHoras),
     ]);
+
+    const slaByType = slaByTypeRaw.map((t) => {
+      const concluded        = Number(t.concluded);
+      const withinSlaCorrido = Number(t.withinSlaCorrido);
+      const withinSlaUtil    = Number(t.withinSlaUtil);
+      return {
+        activityType:      t.tipo,
+        slaTargetHours:    t.slaHoras != null ? Number(t.slaHoras) : null,
+        total:             t.total,
+        concluded,
+        withinSlaCorrido,
+        slaCorridoPercent: concluded > 0 ? withinSlaCorrido / concluded : 0,
+        withinSlaUtil,
+        slaUtilPercent:    concluded > 0 ? withinSlaUtil / concluded : 0,
+      };
+    });
+
+    const tiposParaMetaGeral = slaByType.filter(
+      (t) => t.activityType !== 'retirada_kit' && t.activityType !== 'Retirada de Kit'
+    );
+    const slaCorridoGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaCorridoPercent));
+    const slaUtilGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaUtilPercent));
+
+    const totalReparos = slaByType
+      .filter((t) => REPARO_ACTIVITY_TYPES.has(t.activityType))
+      .reduce((acc, t) => acc + Number(t.total), 0);
+
+    const baseAtiva = await getClientesAtivos();
+    const inrReparo = totalReparos > 0 ? Math.round((baseAtiva / totalReparos) * 100) / 100 : 0;
 
     const total = totalRow?.total ?? 0;
     const withinSlaCorrido = Number(slaRow?.withinSlaCorrido ?? 0);
@@ -172,6 +218,12 @@ export async function GET(req: NextRequest) {
       withinSlaUtil,
       outsideSlaUtil,
       slaUtilPercent,
+      slaByType,
+      slaCorridoGeral,
+      slaUtilGeral,
+      inrReparo,
+      baseAtiva,
+      totalReparos,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),

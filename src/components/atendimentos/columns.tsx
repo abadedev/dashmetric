@@ -14,11 +14,6 @@ const TYPE_CLASSES: Record<string, string> = {
   mudanca_plano:                 'bg-violet-500/10  text-violet-700  border-violet-500/20  dark:text-violet-400',
   mudanca_endereco:              'bg-violet-500/10  text-violet-700  border-violet-500/20  dark:text-violet-400',
   retirada_kit:                  'bg-amber-500/10   text-amber-700   border-amber-500/20   dark:text-amber-400',
-  cancelado_reparo:              'bg-red-500/10     text-red-700     border-red-500/20     dark:text-red-400',
-  cancelado_retirada_kit:        'bg-red-500/10     text-red-700     border-red-500/20     dark:text-red-400',
-  cancelado_mudanca_endereco:    'bg-red-500/10     text-red-700     border-red-500/20     dark:text-red-400',
-  cancelado_retorno:             'bg-red-500/10     text-red-700     border-red-500/20     dark:text-red-400',
-  cancelado_reativacao_login:    'bg-red-500/10     text-red-700     border-red-500/20     dark:text-red-400',
 };
 
 function initials(name: string): string {

@@ -113,7 +113,7 @@ export const SLA_TARGETS: Record<string, number | null> = {
   reparo: 24,
   mudanca_endereco: 24,
   mudanca_plano: 24,
-  retirada_kit: null,
+  retirada_kit: 72,
   retorno: null,
 };
 

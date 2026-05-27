@@ -18,11 +18,6 @@ const TIPO_OPTIONS = [
   { value: 'mudanca_plano', label: 'Mudança de Plano' },
   { value: 'retorno', label: 'Retorno' },
   { value: 'atendimento_interno', label: 'Atendimento Interno' },
-  { value: 'cancelado_reparo', label: 'Cancelado – Reparo' },
-  { value: 'cancelado_retirada_kit', label: 'Cancelado – Retirada de Kit' },
-  { value: 'cancelado_mudanca_endereco', label: 'Cancelado – Mudança de Endereço' },
-  { value: 'cancelado_retorno', label: 'Cancelado – Retorno' },
-  { value: 'cancelado_reativacao_login', label: 'Cancelado – Reativação de Login' },
 ];
 
 interface FiltersProps {

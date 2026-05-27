@@ -5,6 +5,10 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 - Naming standard for new code and refactors: [docs/naming-conventions.md](docs/naming-conventions.md)
 - Current raw-import retention note: [docs/data-retention.md](docs/data-retention.md)
 
+## Environment Variables
+
+- `INTRANET_SESSION` — `PHPSESSID` da sessão autenticada da intranet DSTECH, usada para consultar a base de clientes ativos (KPIs de INR). Sem essa variável, o sistema usa um valor de fallback.
+
 ## Getting Started
 
 First, run the development server:
