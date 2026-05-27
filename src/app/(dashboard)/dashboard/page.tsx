@@ -12,20 +12,26 @@ import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-da
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageSkeleton } from '@/components/ui/state-display';
 import { useQueryState } from 'nuqs';
+import { startOfMonth, endOfMonth } from 'date-fns';
 
 function DashboardPageContent() {
   const [from] = useQueryState('from', parseAsLocalIsoDate);
   const [to] = useQueryState('to', parseAsLocalIsoDate);
   const [city, setCity] = useQueryState('city');
 
+  const effectiveFrom = from ?? startOfMonth(new Date());
+  const effectiveUntil = to ?? endOfMonth(new Date());
+  const fromIso = effectiveFrom.toISOString();
+  const untilIso = effectiveUntil.toISOString();
+
   const queryParams = new URLSearchParams();
-  if (from) queryParams.set('from', from.toISOString());
-  if (to) queryParams.set('to', to.toISOString());
+  queryParams.set('from', fromIso);
+  queryParams.set('to', untilIso);
   if (city) queryParams.set('city', city);
   const qs = queryParams.toString();
 
   const { data: dashboardData, isLoading: isLoadingDash } = useQuery({
-    queryKey: ['dashboard', qs],
+    queryKey: ['dashboard', fromIso, untilIso, city ?? ''],
     queryFn: async () => {
       const res = await fetch(`/api/dashboard?${qs}`);
       return res.json();
@@ -33,7 +39,7 @@ function DashboardPageContent() {
   });
 
   const { data: rankingData, isLoading: isLoadingRank } = useQuery({
-    queryKey: ['ranking', qs],
+    queryKey: ['ranking', fromIso, untilIso, city ?? ''],
     queryFn: async () => {
       const res = await fetch(`/api/ranking?${qs}`);
       return res.json();
@@ -41,12 +47,12 @@ function DashboardPageContent() {
   });
 
   const supportParams = new URLSearchParams();
-  if (from) supportParams.set('from', from.toISOString());
-  if (to) supportParams.set('to', to.toISOString());
+  supportParams.set('from', fromIso);
+  supportParams.set('to', untilIso);
   const supportQs = supportParams.toString();
 
   const { data: supportData } = useQuery({
-    queryKey: ['support-records', supportQs],
+    queryKey: ['support-records', fromIso, untilIso],
     queryFn: async () => {
       const res = await fetch(`/api/support-records?${supportQs}`);
       if (!res.ok) throw new Error('support-records error');
