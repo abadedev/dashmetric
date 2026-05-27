@@ -20,7 +20,6 @@ const SLUG_TO_TIPO: Record<string, string> = {
   retirada_kit: 'Retirada de Kit',
   mudanca_plano: 'Mudança de Plano',
   retorno: 'Retorno',
-  atendimento_interno: 'Atendimento Interno',
   cancelado_reparo: 'Cancelado – Reparo',
   cancelado_retirada_kit: 'Cancelado – Retirada de Kit',
   cancelado_mudanca_endereco: 'Cancelado – Mudança de Endereço',
