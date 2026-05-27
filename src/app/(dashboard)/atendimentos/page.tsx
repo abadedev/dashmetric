@@ -46,6 +46,14 @@ function MetricCard({
   );
 }
 
+function formatDateParam(date: Date | null) {
+  if (!date) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function AtendimentosPageContent() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<AtendimentoFilters>({
@@ -117,21 +125,23 @@ function AtendimentosPageContent() {
 
   const supportParams = useMemo(() => {
     const p = new URLSearchParams();
-    if (from) p.set('from', from.toISOString());
-    if (to)   p.set('to', to.toISOString());
+    const fromParam = formatDateParam(from);
+    const toParam = formatDateParam(to);
+    if (fromParam) p.set('from', fromParam);
+    if (toParam) p.set('to', toParam);
     return p.toString();
   }, [from, to]);
 
   const { data: supportData } = useQuery({
-    queryKey: ['support-records', supportParams],
+    queryKey: ['suporte-call-records', supportParams],
     queryFn: async () => {
-      const res = await fetch(`/api/support-records?${supportParams}`);
-      if (!res.ok) throw new Error('support-records error');
-      return res.json() as Promise<{ total: number }>;
+      const res = await fetch(`/api/suporte/call-records?${supportParams}`);
+      if (!res.ok) throw new Error('suporte-call-records error');
+      return res.json() as Promise<{ totalSupporte: number }>;
     },
     retry: false,
   });
-  const totalSuporteNoPeriodo = supportData?.total ?? 0;
+  const totalSuporteNoPeriodo = supportData?.totalSupporte ?? 0;
   const inrSuporte = totalSuporteNoPeriodo > 0 ? (totalSuporteNoPeriodo / clientesAtivos) * 100 : null;
 
   const totalReparos = data?.totalReparos ?? 0;
