@@ -23,6 +23,8 @@ function DashboardPageContent() {
   const effectiveUntil = to ?? endOfMonth(new Date());
   const fromIso = effectiveFrom.toISOString();
   const untilIso = effectiveUntil.toISOString();
+  const supportFromParam = formatDateParam(effectiveFrom);
+  const supportToParam = formatDateParam(effectiveUntil);
 
   const queryParams = new URLSearchParams();
   queryParams.set('from', fromIso);
@@ -47,16 +49,16 @@ function DashboardPageContent() {
   });
 
   const supportParams = new URLSearchParams();
-  supportParams.set('from', fromIso);
-  supportParams.set('to', untilIso);
+  supportParams.set('from', supportFromParam);
+  supportParams.set('to', supportToParam);
   const supportQs = supportParams.toString();
 
   const { data: supportData } = useQuery({
-    queryKey: ['support-records', fromIso, untilIso],
+    queryKey: ['suporte-call-records', supportFromParam, supportToParam],
     queryFn: async () => {
-      const res = await fetch(`/api/support-records?${supportQs}`);
-      if (!res.ok) throw new Error('support-records error');
-      return res.json() as Promise<{ total: number }>;
+      const res = await fetch(`/api/suporte/call-records?${supportQs}`);
+      if (!res.ok) throw new Error('suporte-call-records error');
+      return res.json() as Promise<{ totalSupporte: number }>;
     },
     retry: false,
   });
@@ -74,7 +76,7 @@ function DashboardPageContent() {
 
   const clientesAtivos = clientesAtivosData?.total ?? 24803;
   const totalReparos = dashboardData?.totalReparos ?? 0;
-  const totalSuporte = supportData?.total ?? 0;
+  const totalSuporte = supportData?.totalSupporte ?? 0;
   const inrReparos = totalReparos > 0 && clientesAtivos > 0
     ? (totalReparos / clientesAtivos) * 100
     : null;
@@ -131,6 +133,13 @@ function DashboardPageContent() {
       </div>
     </PageLayout>
   );
+}
+
+function formatDateParam(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export default function DashboardPage() {

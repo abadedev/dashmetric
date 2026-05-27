@@ -38,7 +38,8 @@ export async function GET(req: NextRequest) {
 
     const baseAtiva = await getClientesAtivos();
     const totalSupporte = data.total;
-    const inr = totalSupporte > 0 ? Math.round((baseAtiva / totalSupporte) * 100) / 100 : 0;
+    const inr =
+      baseAtiva > 0 ? Math.round((totalSupporte / baseAtiva) * 100 * 100) / 100 : 0;
 
     return NextResponse.json({
       data: data.summary,

@@ -8,7 +8,8 @@ import { classifySupportRecord, SUPPORT_CATEGORIES } from '@/lib/importacao/clas
 import { getClientesAtivos } from '@/lib/utils/clientes-ativos';
 
 function computeInr(baseAtiva: number, totalSupporte: number) {
-  const inr = totalSupporte > 0 ? Math.round((baseAtiva / totalSupporte) * 100) / 100 : 0;
+  const inr =
+    baseAtiva > 0 ? Math.round((totalSupporte / baseAtiva) * 100 * 100) / 100 : 0;
   return { inr, baseAtiva, totalSupporte };
 }
 
