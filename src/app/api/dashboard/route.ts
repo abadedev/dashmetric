@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { atendimentos, qualityRecords } from '@/lib/db/schema';
 import { calculateValidAverage } from '@/lib/utils/average';
 import { requireWorkspacePermission } from '@/lib/require-auth';
-import { and, count, eq, gte, ilike, lte, sql, SQL } from 'drizzle-orm';
+import { and, count, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 import { SLA_TARGETS } from '@/lib/services/sla-engine';
 
@@ -42,15 +42,7 @@ export async function GET(req: NextRequest) {
     if (city && city !== 'all') qualityFilters.push(eq(qualityRecords.city, city));
     const qualityWhere = qualityFilters.length ? and(...qualityFilters) : undefined;
 
-    // Filtro de reparos para RTV
-    const reparoFilters: SQL[] = [
-      eq(atendimentos.workspaceId, result.context.workspaceId),
-      ilike(atendimentos.tipo, 'reparo'),
-    ];
-    if (fromStr) reparoFilters.push(gte(atendimentos.aberturaAt, parseDateFrom(fromStr)));
-    if (toStr)   reparoFilters.push(lte(atendimentos.aberturaAt, parseDateTo(toStr)));
-    if (city && city !== 'all') reparoFilters.push(eq(atendimentos.cidade, city));
-    const reparoWhere = and(...reparoFilters);
+    const reparoWhere = and(atendWhere, ilike(atendimentos.tipo, '%reparo%'));
 
     // Cidades distintas para o filtro (escopo: workspace + data, sem filtro de cidade)
     const baseCityFilters: SQL[] = [eq(atendimentos.workspaceId, result.context.workspaceId)];
