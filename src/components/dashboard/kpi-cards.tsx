@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, Target, Timer, TrendingUp, Wrench, Headphones } from 'lucide-react';
+import { Activity, Target, Timer, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatPercent, formatNumber } from '@/lib/utils/format';
 import { cn } from '@/lib/utils';
@@ -95,9 +95,7 @@ export function KpiCards({
   const totalSup = totalSuporte ?? 0;
   const inrSuportePercent = totalSup > 0 && base > 0 ? (totalSup / base) * 100 : null;
 
-  const fmtInr = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  const hasInr = inrReparos !== null || inrSuportePercent !== null;
+  const showInrPanel = inrReparos !== null || totalSup > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -142,31 +140,46 @@ export function KpiCards({
         />
       </div>
 
-      {hasInr && (
-        <div className="grid gap-4 md:grid-cols-2 xl:max-w-2xl">
-          {inrReparos !== null && (
-            <KpiCard
-              title="INR Reparos"
-              value={fmtInr(inrReparos)}
-              caption={`Reparos: ${data.totalReparos ?? 0} / Base: ${base.toLocaleString('pt-BR')}`}
-              icon={Wrench}
-              tone={inrReparos > 5 ? 'alert' : 'success'}
-              eyebrow="INR Reparos"
-              valueClassName="text-foreground"
-            />
-          )}
+      {showInrPanel && (
+        <div className="mt-2 rounded-xl border border-border/75 bg-card px-5 py-4">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Indicadores operacionais
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            {inrReparos !== null && (
+              <div>
+                <p className="mb-1 text-[11px] text-muted-foreground">
+                  INR Reparos{' '}
+                  <span className="text-[10px] text-muted-foreground/60">(IQIv+IQRv / total reparos)</span>
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className={cn('text-lg font-semibold', inrReparos > 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400')}>
+                    {inrReparos.toFixed(2).replace('.', ',')}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {data.totalReparos ?? 0} reparos · base {formatNumber(base)}
+                  </span>
+                </div>
+              </div>
+            )}
 
-          {inrSuportePercent !== null && (
-            <KpiCard
-              title="INR Suporte"
-              value={fmtInr(inrSuportePercent)}
-              caption={`Suporte: ${totalSup} / Base: ${base.toLocaleString('pt-BR')}`}
-              icon={Headphones}
-              tone={inrSuportePercent > 5 ? 'alert' : 'success'}
-              eyebrow="INR Suporte"
-              valueClassName="text-foreground"
-            />
-          )}
+            {totalSup > 0 && inrSuportePercent !== null && (
+              <div>
+                <p className="mb-1 text-[11px] text-muted-foreground">
+                  INR Suporte{' '}
+                  <span className="text-[10px] text-muted-foreground/60">(total suporte / base ativa)</span>
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className={cn('text-lg font-semibold', inrSuportePercent > 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400')}>
+                    {inrSuportePercent.toFixed(2).replace('.', ',')}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {totalSup} chamadas · base {formatNumber(base)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
