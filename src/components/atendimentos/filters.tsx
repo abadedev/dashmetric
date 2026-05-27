@@ -17,7 +17,6 @@ const TIPO_OPTIONS = [
   { value: 'retirada_kit', label: 'Retirada de Kit' },
   { value: 'mudanca_plano', label: 'Mudança de Plano' },
   { value: 'retorno', label: 'Retorno' },
-  { value: 'atendimento_interno', label: 'Atendimento Interno' },
 ];
 
 interface FiltersProps {

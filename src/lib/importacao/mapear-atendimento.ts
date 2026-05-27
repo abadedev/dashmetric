@@ -16,7 +16,6 @@ const TIPO_MAP: Record<string, string> = {
   'reativacao de login':           'Instalação (Reativação)',
   'reparo':                        'Reparo',
   'atendimento externo':           'Reparo',
-  'atendimento interno':           'Atendimento Interno',
   'manutencao':                    'Reparo',
   'manutenção':                    'Reparo',
   'mudanca de endereco':           'Mudança de Endereço',
