@@ -147,11 +147,6 @@ export async function GET(req: NextRequest) {
     const slaCorridoGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaCorridoPercent));
     const slaUtilGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaUtilPercent));
 
-    const iqiv = byIndicator['IQIv'] ?? 0;
-    const iqrv = byIndicator['IQRv'] ?? 0;
-    const inrReparos =
-      totalReparos > 0 ? Math.round(((iqiv + iqrv) / totalReparos) * 100 * 100) / 100 : null;
-
     return NextResponse.json({
       totalAtendimentos: totalRow?.total ?? 0,
       slaGeral:        slaCorridoGeral,
@@ -161,8 +156,6 @@ export async function GET(req: NextRequest) {
       slaByType,
       qualityIndicators,
       totalReparos,
-      byIndicator: { IQIv: iqiv, IQRv: iqrv },
-      inrReparos,
       cities: citiesRaw
         .map((r) => r.cidade)
         .filter((v): v is string => Boolean(v))

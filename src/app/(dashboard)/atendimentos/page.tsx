@@ -134,7 +134,10 @@ function AtendimentosPageContent() {
   const totalSuporteNoPeriodo = supportData?.total ?? 0;
   const inrSuporte = totalSuporteNoPeriodo > 0 ? (totalSuporteNoPeriodo / clientesAtivos) * 100 : null;
 
-  const inrReparosVisible = data?.inrReparos != null;
+  const totalReparos = data?.totalReparos ?? 0;
+  const inrReparos = totalReparos ? (totalReparos / clientesAtivos) * 100 : null;
+
+  const inrReparosVisible = inrReparos != null;
   const inrSuporteVisible = inrSuporte != null;
   const metricCols = 3 + (inrReparosVisible ? 1 : 0) + (inrSuporteVisible ? 1 : 0);
 
@@ -173,11 +176,11 @@ function AtendimentosPageContent() {
           subtitle={data?.total ? `${formatPercent((data.outsideSla ?? data.outsideSlaCorrido ?? 0) / data.total)} fora da meta` : undefined}
           valueClass="text-red-500 dark:text-red-400"
         />
-        {inrReparosVisible && (
+        {inrReparos != null && (
           <MetricCard
             label="INR Reparos"
-            value={(data.inrReparos as number).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            subtitle={`Reparos: ${data.totalReparos} / Base ativa: ${clientesAtivos.toLocaleString('pt-BR')}`}
+            value={inrReparos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            subtitle={`Reparos: ${totalReparos} / Base ativa: ${clientesAtivos.toLocaleString('pt-BR')}`}
           />
         )}
         {inrSuporte != null && (

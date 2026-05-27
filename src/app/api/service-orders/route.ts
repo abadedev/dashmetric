@@ -6,7 +6,6 @@ import { runWithWorkspace } from '@/lib/with-workspace';
 import { and, eq, ilike, desc, count, or, sql, SQL } from 'drizzle-orm';
 import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
 import { calculateValidAverage } from '@/lib/utils/average';
-import { qualityRecords } from '@/lib/db/schema';
 import { SLA_TARGETS } from '@/lib/services/sla-engine';
 
 const RETIRADA_META_SECONDS = (SLA_TARGETS.retirada_kit ?? 72) * 3600;
@@ -92,13 +91,7 @@ export async function GET(req: NextRequest) {
     }
     const reparoWhere = and(...periodoFilters, ilike(atendimentos.tipo, '%reparo%'));
 
-    const qualityFilters: SQL[] = [eq(qualityRecords.workspaceId, ctx.workspaceId)];
-    const qDateRef = sql`COALESCE(${qualityRecords.openedAt}, ${qualityRecords.createdAt})`;
-    if (fromStr) qualityFilters.push(sql`${qDateRef} >= ${parseDateFrom(fromStr)}`);
-    if (toStr)   qualityFilters.push(sql`${qDateRef} <= ${parseDateTo(toStr)}`);
-    const qualityWhere = and(...qualityFilters);
-
-    const [rows, [totalRow], [slaRow], slaByTypeRaw, [reparoRow], qualityByIndicatorRaw] = await Promise.all([
+    const [rows, [totalRow], [slaRow], slaByTypeRaw, [reparoRow]] = await Promise.all([
       db
         .select({
           id:                atendimentos.id,
@@ -164,12 +157,6 @@ export async function GET(req: NextRequest) {
         .groupBy(atendimentos.tipo, atendimentos.slaHoras),
 
       db.select({ total: count() }).from(atendimentos).where(reparoWhere),
-
-      db
-        .select({ indicator: qualityRecords.indicator, total: count() })
-        .from(qualityRecords)
-        .where(qualityWhere)
-        .groupBy(qualityRecords.indicator),
     ]);
 
     const slaByType = slaByTypeRaw.map((t) => {
@@ -194,15 +181,7 @@ export async function GET(req: NextRequest) {
     const slaCorridoGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaCorridoPercent));
     const slaUtilGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaUtilPercent));
 
-    const byIndicator = {
-      IQIv: qualityByIndicatorRaw.find((q) => q.indicator === 'IQIv')?.total ?? 0,
-      IQRv: qualityByIndicatorRaw.find((q) => q.indicator === 'IQRv')?.total ?? 0,
-    };
     const totalReparos = reparoRow?.total ?? 0;
-    const inrReparos =
-      totalReparos > 0
-        ? Math.round(((byIndicator.IQIv + byIndicator.IQRv) / totalReparos) * 100 * 100) / 100
-        : null;
 
     const total = totalRow?.total ?? 0;
     const withinSlaCorrido = Number(slaRow?.withinSlaCorrido ?? 0);
@@ -256,8 +235,6 @@ export async function GET(req: NextRequest) {
       slaCorridoGeral,
       slaUtilGeral,
       totalReparos,
-      byIndicator,
-      inrReparos,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),

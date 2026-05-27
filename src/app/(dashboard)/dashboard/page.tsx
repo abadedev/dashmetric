@@ -72,6 +72,12 @@ function DashboardPageContent() {
     retry: false,
   });
 
+  const clientesAtivos = clientesAtivosData?.total ?? 24803;
+  const totalReparos = dashboardData?.totalReparos ?? 0;
+  const totalSuporte = supportData?.total ?? 0;
+  const inrReparos = totalReparos ? (totalReparos / clientesAtivos) * 100 : null;
+  const inrSuportePercent = totalSuporte ? (totalSuporte / clientesAtivos) * 100 : null;
+
   if (isLoadingDash || isLoadingRank) {
     return <PageSkeleton />;
   }
@@ -101,8 +107,11 @@ function DashboardPageContent() {
     >
       <KpiCards
         data={dashboardData}
-        totalSuporte={supportData?.total ?? 0}
-        clientesAtivos={clientesAtivosData?.total ?? 24803}
+        inrReparos={inrReparos}
+        inrSuportePercent={inrSuportePercent}
+        totalReparos={totalReparos}
+        totalSuporte={totalSuporte}
+        clientesAtivos={clientesAtivos}
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.9fr)]">
