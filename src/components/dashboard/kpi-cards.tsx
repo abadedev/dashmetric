@@ -96,7 +96,7 @@ export function KpiCards({ data }: { data: any }) {
       <KpiCard
         title="SLA"
         value={formatPercent(slaGeral || 0)}
-        caption={`Meta operacional: ${formatPercent(mSla)} (24h corridas)`}
+        caption={`Meta operacional: ${formatPercent(mSla)} (24h corridas) — exclui Retirada de Kit`}
         icon={TrendingUp}
         tone={isSlaOk ? 'success' : 'alert'}
         eyebrow={isSlaOk ? 'Dentro da meta' : 'Atencao'}

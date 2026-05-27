@@ -16,13 +16,19 @@ import { useQueryState } from 'nuqs';
 import { PageLayout } from '@/components/layout/page-layout';
 import { Button } from '@/components/ui/button';
 
-type RespostaDetalhada = {
+type InrFields = {
+  inr: number;
+  baseAtiva: number;
+  totalSupporte: number;
+};
+
+type RespostaDetalhada = InrFields & {
   fonte: 'detalhado';
   linhas: LinhaDetalhada[];
   totais: TotaisDetalhados;
 };
 
-type RespostaLegado = {
+type RespostaLegado = InrFields & {
   fonte: 'legado';
   dadosLegado: {
     summary: Array<{ tipo: string; quantidade: number; percentual: number }>;
@@ -38,6 +44,22 @@ type RespostaLegado = {
 };
 
 type Resposta = RespostaDetalhada | RespostaLegado;
+
+function InrCard({ inr, baseAtiva, totalSupporte }: InrFields) {
+  return (
+    <div className="rounded-xl border bg-card px-5 py-4 flex flex-col gap-1.5">
+      <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        INR — Índice de Necessidade de Reparo
+      </span>
+      <span className="text-2xl font-semibold tabular-nums">
+        {inr.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </span>
+      <span className="text-xs text-muted-foreground">
+        Base ativa: {baseAtiva.toLocaleString('pt-BR')} / Suporte: {totalSupporte}
+      </span>
+    </div>
+  );
+}
 
 function formatDateParam(date: Date | null) {
   if (!date) return null;
@@ -72,6 +94,12 @@ function SuportePageContent() {
       description="Resumo dos atendimentos de suporte por telefone — classificação por segmento (Comercial, Financeiro, Técnico) ou agregação histórica."
       actions={<GlobalDateFilter />}
     >
+      {data && (data.fonte === 'detalhado' || data.fonte === 'legado') && data.inr != null && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <InrCard inr={data.inr} baseAtiva={data.baseAtiva} totalSupporte={data.totalSupporte} />
+        </div>
+      )}
+
       {isLoading ? (
         <TableSkeleton />
       ) : isError ? (

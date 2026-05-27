@@ -5,6 +5,12 @@ import { supportCallRecords } from '@/lib/db/schema';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { getSupportTypeSummary } from '@/lib/services/support-summary-service';
 import { classifySupportRecord, SUPPORT_CATEGORIES } from '@/lib/importacao/classify-support';
+import { getClientesAtivos } from '@/lib/utils/clientes-ativos';
+
+function computeInr(baseAtiva: number, totalSupporte: number) {
+  const inr = totalSupporte > 0 ? Math.round((baseAtiva / totalSupporte) * 100) / 100 : 0;
+  return { inr, baseAtiva, totalSupporte };
+}
 
 export const runtime = 'nodejs';
 
@@ -167,6 +173,8 @@ export async function GET(req: NextRequest) {
           );
         });
 
+      const baseAtiva = await getClientesAtivos();
+
       return NextResponse.json({
         fonte: 'detalhado' as const,
         linhas,
@@ -185,6 +193,7 @@ export async function GET(req: NextRequest) {
               ? Number(((totalPorSegmento.Financeiro / totalGeral) * 100).toFixed(2))
               : 0,
         },
+        ...computeInr(baseAtiva, totalGeral),
       });
     }
 
@@ -194,6 +203,8 @@ export async function GET(req: NextRequest) {
       workspaceId: result.context.workspaceId,
     });
 
+    const baseAtiva = await getClientesAtivos();
+
     return NextResponse.json({
       fonte: 'legado' as const,
       dadosLegado: {
@@ -201,6 +212,7 @@ export async function GET(req: NextRequest) {
         total: legado.total,
         triageByAttendant: legado.triageByAttendant,
       },
+      ...computeInr(baseAtiva, legado.total),
     });
   } catch (err) {
     console.error('[suporte/call-records]', err);

@@ -6,6 +6,8 @@ import { Filters } from '@/components/atendimentos/filters';
 import type { AtendimentoFilters } from '@/components/atendimentos/filters';
 import { Columns } from '@/components/atendimentos/columns';
 import { OsDetailSheet } from '@/components/atendimentos/os-detail-sheet';
+import { SlaPorTipo } from '@/components/atendimentos/sla-por-tipo';
+import { SolucaoBreakdown } from '@/components/atendimentos/solucao-breakdown';
 import { GlobalDateFilter, parseAsLocalIsoDate } from '@/components/ui/global-date-filter';
 import { useQueryState } from 'nuqs';
 import {
@@ -115,7 +117,7 @@ function AtendimentosPageContent() {
       actions={<GlobalDateFilter />}
     >
       {/* Metric cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className={cn('grid gap-4', data?.totalReparos > 0 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-3')}>
         <MetricCard label="Total de OS" value={data?.total ?? '—'} />
         <MetricCard
           label="Dentro da meta"
@@ -129,7 +131,20 @@ function AtendimentosPageContent() {
           subtitle={data?.total ? `${formatPercent((data.outsideSla ?? data.outsideSlaCorrido ?? 0) / data.total)} fora da meta` : undefined}
           valueClass="text-red-500 dark:text-red-400"
         />
+        {data?.totalReparos > 0 && (
+          <MetricCard
+            label="INR Reparos"
+            value={(data?.inrReparo ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            subtitle={`Reparos: ${data.totalReparos} / Base ativa: ${(data?.baseAtiva ?? 0).toLocaleString('pt-BR')}`}
+          />
+        )}
       </div>
+
+      {/* SLA por tipo de atividade */}
+      <SlaPorTipo data={data?.slaByType} />
+
+      {/* Classificação de solução dos reparos */}
+      <SolucaoBreakdown data={data?.data} type={filters.type} />
 
       {/* Filters bar */}
       <div className="rounded-xl border bg-card px-4 py-3">

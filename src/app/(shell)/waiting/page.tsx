@@ -558,7 +558,7 @@ export default function WaitingPage() {
           <div className="wcard rise-3" style={{ padding: 0, overflow: 'hidden' }}>
             <div className="card-header">
               <span className="section-label">Sobre o projeto</span>
-              <span className="version-pill">v 1.1.0</span>
+              <span className="version-pill">v 1.5.0</span>
             </div>
 
             <div className="card-body">

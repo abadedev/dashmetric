@@ -4,7 +4,6 @@ Plataforma de inteligência operacional desenvolvida para a DSTech Telecom. Cent
 
 ---
 
-## O que é
 
 O DashMetric nasceu de uma necessidade real: os dados da operação existiam, mas estavam espalhados em planilhas de Excel, exports manuais e sistemas sem integração. A consolidação era feita na mão, era lenta e imprecisa.
 
