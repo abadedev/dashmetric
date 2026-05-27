@@ -103,6 +103,41 @@ function AtendimentosPageContent() {
     retry: false,
   });
 
+  const { data: clientesAtivosData } = useQuery({
+    queryKey: ['clientes-ativos'],
+    queryFn: async () => {
+      const res = await fetch('/api/intranet/clientes-ativos');
+      if (!res.ok) throw new Error('clientes-ativos error');
+      return res.json() as Promise<{ total: number; source: string }>;
+    },
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+  const clientesAtivos = clientesAtivosData?.total ?? 24803;
+
+  const supportParams = useMemo(() => {
+    const p = new URLSearchParams();
+    if (from) p.set('from', from.toISOString());
+    if (to)   p.set('to', to.toISOString());
+    return p.toString();
+  }, [from, to]);
+
+  const { data: supportData } = useQuery({
+    queryKey: ['support-records', supportParams],
+    queryFn: async () => {
+      const res = await fetch(`/api/support-records?${supportParams}`);
+      if (!res.ok) throw new Error('support-records error');
+      return res.json() as Promise<{ total: number }>;
+    },
+    retry: false,
+  });
+  const totalSuporteNoPeriodo = supportData?.total ?? 0;
+  const inrSuporte = totalSuporteNoPeriodo > 0 ? (totalSuporteNoPeriodo / clientesAtivos) * 100 : null;
+
+  const inrReparosVisible = data?.inrReparos != null;
+  const inrSuporteVisible = inrSuporte != null;
+  const metricCols = 3 + (inrReparosVisible ? 1 : 0) + (inrSuporteVisible ? 1 : 0);
+
   const table = useReactTable({
     data: data?.data || [],
     columns: Columns,
@@ -117,7 +152,14 @@ function AtendimentosPageContent() {
       actions={<GlobalDateFilter />}
     >
       {/* Metric cards */}
-      <div className={cn('grid gap-4', data?.totalReparos > 0 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-3')}>
+      <div
+        className={cn(
+          'grid gap-4',
+          metricCols === 3 && 'grid-cols-3',
+          metricCols === 4 && 'sm:grid-cols-2 lg:grid-cols-4',
+          metricCols === 5 && 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
+        )}
+      >
         <MetricCard label="Total de OS" value={data?.total ?? '—'} />
         <MetricCard
           label="Dentro da meta"
@@ -131,11 +173,18 @@ function AtendimentosPageContent() {
           subtitle={data?.total ? `${formatPercent((data.outsideSla ?? data.outsideSlaCorrido ?? 0) / data.total)} fora da meta` : undefined}
           valueClass="text-red-500 dark:text-red-400"
         />
-        {data?.totalReparos > 0 && (
+        {inrReparosVisible && (
           <MetricCard
             label="INR Reparos"
-            value={(data?.inrReparo ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            subtitle={`Reparos: ${data.totalReparos} / Base ativa: ${(data?.baseAtiva ?? 0).toLocaleString('pt-BR')}`}
+            value={(data.inrReparos as number).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            subtitle={`Reparos: ${data.totalReparos} / Base ativa: ${clientesAtivos.toLocaleString('pt-BR')}`}
+          />
+        )}
+        {inrSuporte != null && (
+          <MetricCard
+            label="INR Suporte"
+            value={inrSuporte.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            subtitle={`Suporte: ${totalSuporteNoPeriodo} / Base ativa: ${clientesAtivos.toLocaleString('pt-BR')}`}
           />
         )}
       </div>

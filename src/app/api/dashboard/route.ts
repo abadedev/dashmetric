@@ -5,8 +5,11 @@ import { calculateValidAverage } from '@/lib/utils/average';
 import { requireWorkspacePermission } from '@/lib/require-auth';
 import { and, count, eq, gte, ilike, lte, sql, SQL } from 'drizzle-orm';
 import { parseDateFrom, parseDateTo } from '@/lib/utils/date-filters';
+import { SLA_TARGETS } from '@/lib/services/sla-engine';
 
 export const runtime = 'nodejs';
+
+const RETIRADA_META_SECONDS = (SLA_TARGETS.retirada_kit ?? 72) * 3600;
 
 export async function GET(req: NextRequest) {
   const result = await requireWorkspacePermission(req, 'dashboard.view', {
@@ -72,8 +75,14 @@ export async function GET(req: NextRequest) {
           slaHoras:         atendimentos.slaHoras,
           total:            count(),
           concluded:        sql<number>`cast(sum(case when ${atendimentos.finalizacaoAt} is not null then 1 else 0 end) as int)`,
-          withinSlaCorrido: sql<number>`cast(sum(case when ${atendimentos.dentroSla} = true then 1 else 0 end) as int)`,
-          withinSlaUtil:    sql<number>`cast(sum(case when ${atendimentos.dentroSlaUtil} = true then 1 else 0 end) as int)`,
+          withinSlaCorrido: sql<number>`cast(sum(case
+            when ${atendimentos.dentroSla} = true then 1
+            when ${atendimentos.tipo} ilike '%retirada%' and ${atendimentos.finalizacaoAt} is not null and ${atendimentos.slaCorridoSegundos} is not null and ${atendimentos.slaCorridoSegundos} <= ${RETIRADA_META_SECONDS} then 1
+            else 0 end) as int)`,
+          withinSlaUtil:    sql<number>`cast(sum(case
+            when ${atendimentos.dentroSlaUtil} = true then 1
+            when ${atendimentos.tipo} ilike '%retirada%' and ${atendimentos.finalizacaoAt} is not null and ${atendimentos.slaUtilSegundos} is not null and ${atendimentos.slaUtilSegundos} <= ${RETIRADA_META_SECONDS} then 1
+            else 0 end) as int)`,
           avgCorridoSeconds:sql<number>`avg(case when ${atendimentos.finalizacaoAt} is not null then ${atendimentos.slaCorridoSegundos} else null end)`,
           avgUtilSeconds:   sql<number>`avg(case when ${atendimentos.finalizacaoAt} is not null then ${atendimentos.slaUtilSegundos} else null end)`,
         })
@@ -137,6 +146,11 @@ export async function GET(req: NextRequest) {
     const slaCorridoGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaCorridoPercent));
     const slaUtilGeral = calculateValidAverage(tiposParaMetaGeral.map((t) => t.slaUtilPercent));
 
+    const iqiv = byIndicator['IQIv'] ?? 0;
+    const iqrv = byIndicator['IQRv'] ?? 0;
+    const inrReparos =
+      totalReparos > 0 ? Math.round(((iqiv + iqrv) / totalReparos) * 100 * 100) / 100 : null;
+
     return NextResponse.json({
       totalAtendimentos: totalRow?.total ?? 0,
       slaGeral:        slaCorridoGeral,
@@ -145,6 +159,9 @@ export async function GET(req: NextRequest) {
       metaSLA: 0.95,
       slaByType,
       qualityIndicators,
+      totalReparos,
+      byIndicator: { IQIv: iqiv, IQRv: iqrv },
+      inrReparos,
       cities: citiesRaw
         .map((r) => r.cidade)
         .filter((v): v is string => Boolean(v))
