@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
@@ -346,9 +347,30 @@ export function Sidebar({ mobile = false }: SidebarProps) {
       </div>
 
       {!effectiveCollapsed && (
-        <div className="shrink-0 border-t border-sidebar-border/80 px-4 py-3">
-          <p className="text-[10px] text-sidebar-foreground/30 leading-tight">
-            NOC Performance Manager v1.1.0
+        <div className="shrink-0 border-t border-sidebar-border/80">
+          <div
+            onClick={() => window.open('https://www.linkedin.com/in/rafael-abade/', '_blank', 'noopener,noreferrer')}
+            className="cursor-pointer px-4 py-3"
+          >
+            <div className="flex items-center gap-3">
+              <Image
+                src="https://lh3.googleusercontent.com/a/ACg8ocJOhWkGNQHE-zbn2F7bopSptXBrEh9nCAZKyTCUv2lp2eZWynFS=s288-c-no"
+                alt="Rafael de S Abade Junior"
+                width={36}
+                height={36}
+                className="rounded-full ring-1 ring-sidebar-border/60 shrink-0"
+                unoptimized
+              />
+              <div className="min-w-0 flex flex-col">
+                <span className="truncate text-xs font-medium text-sidebar-foreground/90 leading-tight">
+                  Rafael de S Abade Junior
+                </span>
+                <span className="text-[10px] text-sidebar-foreground/45 leading-tight">Criador/Desenvolvedor</span>
+              </div>
+            </div>
+          </div>
+          <p className="px-4 pb-3 text-[10px] text-sidebar-foreground/30 leading-tight">
+            NOC Performance Manager v1.5.0
           </p>
         </div>
       )}
