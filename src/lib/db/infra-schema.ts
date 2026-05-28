@@ -49,3 +49,30 @@ export const serviceListingLogs = pgTable('service_listing_logs', {
 
 export type ServiceListingLog = typeof serviceListingLogs.$inferSelect;
 export type NewServiceListingLog = typeof serviceListingLogs.$inferInsert;
+
+export const monitoramentoItems = pgTable('monitoramento_items', {
+  id: serial('id').primaryKey(),
+  workspaceId: varchar('workspace_id', { length: 100 }),
+  dataPostagem: date('data_postagem').notNull(),
+  areaCity: varchar('area_city', { length: 100 }),
+  cliente: text('cliente'),
+  login: varchar('login', { length: 50 }),
+  rede: varchar('rede', { length: 100 }),
+  serialMac: varchar('serial_mac', { length: 100 }),
+  problema: varchar('problema', { length: 50 }),
+  qtdDesconexao: integer('qtd_desconexao'),
+  observacoes: text('observacoes'),
+  solucao: text('solucao'),
+  dataSolucao: date('data_solucao'),
+  atendAberto: boolean('atend_aberto').default(false),
+  sensor: varchar('sensor', { length: 50 }),
+  status: varchar('status', { length: 30 }).notNull().default('0_aguardando_rede'),
+  criadoPor: varchar('criado_por', { length: 255 }),
+  resolvidoPor: varchar('resolvido_por', { length: 255 }),
+  resolvidoAt: timestamp('resolvido_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export type MonitoramentoItem = typeof monitoramentoItems.$inferSelect;
+export type NewMonitoramentoItem = typeof monitoramentoItems.$inferInsert;

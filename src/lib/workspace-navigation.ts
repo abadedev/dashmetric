@@ -14,6 +14,7 @@ const RESERVED_SEGMENTS = new Set([
   'vendas',
   'cancelamentos',
   'infraestrutura',
+  'monitoramento',
 ]);
 
 export function getWorkspaceSlugFromPathname(pathname: string) {
