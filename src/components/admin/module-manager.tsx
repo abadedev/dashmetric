@@ -106,6 +106,7 @@ const iconList = [
   { value: 'TrendingUp', label: 'Crescimento / Em Alta' },
   { value: 'UserMinus', label: 'Gestão de Usuários' },
   { value: 'Network', label: 'Rede / Integrações' },
+  { value: 'PiMonitor', label: 'Monitor' },
   { value: 'BarChart', label: 'Gráfico Simples' },
   { value: 'BarChart3', label: 'Gráfico Detalhado' },
   { value: 'Upload', label: 'Upload / Envio de Arquivos' },

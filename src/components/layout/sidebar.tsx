@@ -17,7 +17,6 @@ import {
   Network,
   PanelLeftClose,
   PanelLeftOpen,
-  Radio,
   Receipt,
   Settings,
   TrendingUp,
@@ -26,6 +25,7 @@ import {
   UserMinus,
   Wrench,
 } from 'lucide-react';
+import { PiMonitor } from 'react-icons/pi';
 import { DstechLogo } from '@/components/brand/dstech-logo';
 import { useSidebar } from '@/components/layout/sidebar-context';
 import { useSession } from '@/lib/auth-client';
@@ -89,7 +89,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { name: 'Infraestrutura', href: '/infraestrutura', icon: Network },
       { name: 'Listagem de Serviços', href: '/listagem-servicos', icon: ClipboardList },
-      { name: 'Monitoramento N2', href: '/monitoramento', icon: Radio },
+      { name: 'Monitoramento N2', href: '/monitoramento', icon: PiMonitor },
     ],
   },
 ];
