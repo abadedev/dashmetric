@@ -5,7 +5,6 @@ import { getUserWorkspaces } from '@/lib/workspace';
 import { Sidebar } from '@/components/layout/sidebar';
 import { SidebarProvider } from '@/components/layout/sidebar-context';
 import { SidebarAwareContent } from '@/components/layout/sidebar-aware-content';
-import { DashielWidget } from '@/components/ai/dashiel-widget';
 
 export default async function WorkspaceLayout({
   children,
@@ -29,9 +28,7 @@ export default async function WorkspaceLayout({
         <div className="hidden md:block">
           <Sidebar />
         </div>
-        <SidebarAwareContent widget={<DashielWidget workspaceSlug={workspaceSlug} />}>
-          {children}
-        </SidebarAwareContent>
+        <SidebarAwareContent>{children}</SidebarAwareContent>
       </div>
     </SidebarProvider>
   );
