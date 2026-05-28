@@ -26,9 +26,8 @@ export async function GET(req: NextRequest) {
         if (!module.isActive || !module.showInSidebar) return false;
         if (hasGlobalRole(ctx, 'admin')) return true;
         if (ctx.workspaceRole === null) return false;
-        // Use group-based module access — hide only when explicitly denied ('none')
         const level = ctx.moduleAccess[module.slug];
-        return level !== 'none';
+        return Boolean(level && level !== 'none');
       })
       .map((module) => ({
         id: module.id,
