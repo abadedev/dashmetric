@@ -17,6 +17,7 @@ import {
   Network,
   PanelLeftClose,
   PanelLeftOpen,
+  Radio,
   Receipt,
   Settings,
   TrendingUp,
@@ -88,6 +89,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { name: 'Infraestrutura', href: '/infraestrutura', icon: Network },
       { name: 'Listagem de Serviços', href: '/listagem-servicos', icon: ClipboardList },
+      { name: 'Monitoramento N2', href: '/monitoramento', icon: Radio },
     ],
   },
 ];

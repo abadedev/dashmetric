@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   ListTodo,
   Network,
+  Radio,
   Shield,
   TrendingUp,
   Trophy,
@@ -34,6 +35,7 @@ const iconMap = {
   Upload,
   TrendingUp,
   UserMinus,
+  Radio,
   Network,
 } as const;
 

@@ -284,6 +284,22 @@ const DEFAULT_MODULES: Array<{
   },
   {
     module: {
+      name: 'Monitoramento N2',
+      slug: 'monitoramento',
+      description: 'Acompanhamento de casos N2: clientes intermitentes, CAs, OLTs e links fora do horário comercial.',
+      icon: 'Radio',
+      href: '/monitoramento',
+      sortOrder: 87,
+      isActive: true,
+      showInSidebar: true,
+      allowImport: false,
+      requiredRole: 'user',
+      templateSource: 'infraestrutura',
+      isEditable: false,
+    },
+  },
+  {
+    module: {
       name: 'Infraestrutura',
       slug: 'infraestrutura',
       description: 'Dashboard visual dos dados de infraestrutura de rede.',
