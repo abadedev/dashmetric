@@ -94,12 +94,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       updateData.resolvedBy = userEmail;
     } else if (body.occurrenceCreated !== undefined && Object.keys(body).length === 1) {
       updateData.occurrenceCreated = body.occurrenceCreated;
-    } else if (body.status !== undefined && Object.keys(body).length === 1) {
+    } else if (
+      body.status !== undefined &&
+      (
+        Object.keys(body).length === 1 ||
+        (body.status === 'tecnico_direcionado' && Object.keys(body).length === 2 && 'technician' in body)
+      )
+    ) {
       const VALID_STATUSES = ['pendente', 'tecnico_direcionado', 'em_andamento', 'em_monitoramento', 'resolvido', 'nao_resolvido'];
       if (!VALID_STATUSES.includes(body.status)) {
         return NextResponse.json({ error: 'Status inválido.' }, { status: 400 });
       }
       updateData.status = body.status;
+      if (body.status === 'tecnico_direcionado' && body.technician) {
+        updateData.technician = normalizeNullableText(body.technician);
+      }
     } else {
       const managePermission = await requireWorkspacePermission(req, 'listagem-servicos.manage', {
         moduleSlug: 'listagem-servicos',
