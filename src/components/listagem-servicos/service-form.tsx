@@ -93,7 +93,7 @@ const PRIORITY_LABELS: Record<string, string> = {
   '0': '0 (Emergencial)',
   '1': '1 (Alta)',
   '2': '2 (Média)',
-  '-': '- (Baixa)',
+  '-': '3 (Baixa)',
 };
 
 const STATUSES = [
@@ -436,7 +436,7 @@ export function ServiceForm({ open, onClose, queryKey, editRecord, moduleAccessL
                       <SelectItem value="0">0 (Emergencial)</SelectItem>
                       <SelectItem value="1">1 (Alta)</SelectItem>
                       <SelectItem value="2">{'2 (M\u00E9dia)'}</SelectItem>
-                      <SelectItem value="-">- (Baixa)</SelectItem>
+                      <SelectItem value="3">3 (Baixa)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
