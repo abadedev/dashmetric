@@ -100,7 +100,7 @@ function formatPriorityLabel(value: string | null | undefined) {
   if (priority === '0') return '0 (Emergencial)';
   if (priority === '1') return '1 (Alta)';
   if (priority === '2') return '2 (Média)';
-  if (priority === '-') return '- (Baixa)';
+  if (priority === '-') return '3 (Baixa)';
 
   return priority ?? '-';
 }
