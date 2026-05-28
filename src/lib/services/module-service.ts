@@ -287,7 +287,7 @@ const DEFAULT_MODULES: Array<{
       name: 'Monitoramento N2',
       slug: 'monitoramento',
       description: 'Acompanhamento de casos N2: clientes intermitentes, CAs, OLTs e links fora do horário comercial.',
-      icon: 'Radio',
+      icon: 'PiMonitor',
       href: '/monitoramento',
       sortOrder: 87,
       isActive: true,

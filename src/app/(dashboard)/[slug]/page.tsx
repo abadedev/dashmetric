@@ -8,13 +8,13 @@ import {
   LayoutDashboard,
   ListTodo,
   Network,
-  Radio,
   Shield,
   TrendingUp,
   Trophy,
   Upload,
   UserMinus,
 } from 'lucide-react';
+import { PiMonitor } from 'react-icons/pi';
 import { auth } from '@/lib/auth';
 import { buildAuthorizationContext, canAccessModule } from '@/lib/authorization';
 import { getModuleBySlug, type AppRole } from '@/lib/services/module-service';
@@ -35,7 +35,7 @@ const iconMap = {
   Upload,
   TrendingUp,
   UserMinus,
-  Radio,
+  PiMonitor,
   Network,
 } as const;
 
