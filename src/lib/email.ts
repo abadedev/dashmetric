@@ -1,14 +1,16 @@
 import { Resend } from 'resend';
 import { getRequiredEnv } from '@/lib/env';
 
-export const resend = new Resend(getRequiredEnv('RESEND_API_KEY'));
+function getResendClient() {
+  return new Resend(getRequiredEnv('RESEND_API_KEY'));
+}
 
 export async function sendMagicLink(email: string, url: string) {
   try {
     const fromDomain = process.env.EMAIL_FROM || 'Acme <onboarding@resend.dev>';
     
     // Validate if fallback Resend.Dev is used, it only works with verified emails
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: fromDomain,
       to: email,
       subject: 'Seu acesso seguro ao sistema',
