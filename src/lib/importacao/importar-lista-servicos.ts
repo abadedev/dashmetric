@@ -95,7 +95,6 @@ function mapStatus(raw: string): string {
   if (s === 'nao resolvido') return 'pendente';
   if (s === 'em manutencao') return 'em_andamento';
   if (s === 'tecnico direcionado') return 'tecnico_direcionado';
-  if (s === 'em monitoramento') return 'em_andamento';
   return 'pendente';
 }
 

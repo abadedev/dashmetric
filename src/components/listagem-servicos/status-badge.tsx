@@ -25,7 +25,6 @@ const STATUS_CONFIG: Record<string, { label: string; className: string; dotClass
   resolvido: { label: 'Resolvido', className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', dotClass: 'bg-emerald-400' },
   nao_resolvido: { label: 'Não resolvido', className: 'bg-red-500/15 text-red-400 border-red-500/30', dotClass: 'bg-red-400' },
   tecnico_direcionado: { label: 'Técnico direcionado', className: 'bg-purple-500/15 text-purple-400 border-purple-500/30', dotClass: 'bg-purple-400' },
-  em_monitoramento: { label: 'Em monitoramento', className: 'bg-amber-500/15 text-amber-400 border-amber-500/30', dotClass: 'bg-amber-400' },
 };
 
 const FALLBACK_CONFIG = { label: '—', className: 'bg-muted text-muted-foreground border-border', dotClass: 'bg-muted-foreground' };
