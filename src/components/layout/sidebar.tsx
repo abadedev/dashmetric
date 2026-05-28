@@ -101,6 +101,23 @@ const DEFAULT_GROUP_STATE: GroupState = {
   infraestrutura: true,
 };
 
+const MODULE_SLUG_BY_HREF: Record<string, string> = {
+  '/dashboard': 'dashboard',
+  '/resumo-sla': 'resumo-sla',
+  '/atendimentos': 'atendimentos',
+  '/ranking': 'ranking',
+  '/qualidade': 'qualidade',
+  '/suporte': 'suporte',
+  '/omnichannel': 'omnichannel',
+  '/cancelamentos': 'cancelamentos',
+  '/cobranca': 'cobranca',
+  '/vendas': 'vendas',
+  '/infraestrutura': 'infraestrutura',
+  '/listagem-servicos': 'listagem-servicos',
+  '/monitoramento': 'monitoramento',
+  '/upload': 'upload',
+};
+
 function loadGroupState(): GroupState {
   if (typeof window === 'undefined') return DEFAULT_GROUP_STATE;
   try {
@@ -141,6 +158,7 @@ export function Sidebar({ mobile = false }: SidebarProps) {
   const isPlatformAdmin = sessionUser?.role === 'admin';
 
   const [canSeeConfig, setCanSeeConfig] = useState(false);
+  const [moduleAccess, setModuleAccess] = useState<Record<string, string> | null>(null);
   const [groupState, setGroupState] = useState<GroupState>(DEFAULT_GROUP_STATE);
 
   useEffect(() => {
@@ -150,18 +168,39 @@ export function Sidebar({ mobile = false }: SidebarProps) {
   useEffect(() => {
     if (isPlatformAdmin) {
       setCanSeeConfig(true);
+      setModuleAccess({});
       return;
     }
     fetch('/api/me/module-access')
-      .then((r) => r.json())
-      .then((json: { data?: { moduleAccess?: Record<string, string> } }) => {
-        const access = json.data?.moduleAccess ?? {};
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: { data?: { moduleAccess?: Record<string, string> } } | null) => {
+        const access = json?.data?.moduleAccess ?? {};
+        setModuleAccess(access);
         setCanSeeConfig(
-          access['infraestrutura'] === 'admin' || access['listagem-servicos'] === 'admin'
+          access['infraestrutura'] === 'admin' ||
+          access['listagem-servicos'] === 'admin' ||
+          access['monitoramento'] === 'admin'
         );
       })
-      .catch(() => {});
+      .catch(() => {
+        setModuleAccess({});
+      });
   }, [isPlatformAdmin]);
+
+  function canSeeNavItem(item: NavItem) {
+    if (isPlatformAdmin) return true;
+    const moduleSlug = MODULE_SLUG_BY_HREF[item.href];
+    if (!moduleSlug) return false;
+    const level = moduleAccess?.[moduleSlug];
+    return Boolean(level && level !== 'none');
+  }
+
+  const visibleTopItems = TOP_ITEMS.filter(canSeeNavItem);
+  const visibleGroups = NAV_GROUPS
+    .map((group) => ({ ...group, items: group.items.filter(canSeeNavItem) }))
+    .filter((group) => group.items.length > 0);
+  const uploadItem = { name: 'Importar Dados', href: '/upload', icon: Upload };
+  const canSeeUpload = canSeeNavItem(uploadItem);
 
   function isGroupOpen(group: NavGroup): boolean {
     // Retorna explicitamente o estado salvo pelo usuário (que por padrão é true)
@@ -214,9 +253,9 @@ export function Sidebar({ mobile = false }: SidebarProps) {
   }
 
   const allFlatItems: NavItem[] = [
-    ...TOP_ITEMS,
-    ...NAV_GROUPS.flatMap((g) => g.items),
-    { name: 'Importar Dados', href: '/upload', icon: Upload },
+    ...visibleTopItems,
+    ...visibleGroups.flatMap((g) => g.items),
+    ...(canSeeUpload ? [uploadItem] : []),
     ...(canSeeConfig
       ? [{ name: 'Configurações', href: '/admin', icon: Settings }]
       : []),
@@ -284,13 +323,13 @@ export function Sidebar({ mobile = false }: SidebarProps) {
             ))
           ) : (
             <>
-              {TOP_ITEMS.map((item) => (
+              {visibleTopItems.map((item) => (
                 <NavLink key={item.href} item={item} />
               ))}
 
-              <div className="my-1 h-px bg-border/50" />
+              {visibleGroups.length > 0 && <div className="my-1 h-px bg-border/50" />}
 
-              {NAV_GROUPS.map((group) => {
+              {visibleGroups.map((group) => {
                 const open = isGroupOpen(group);
                 const GroupIcon = group.icon;
                 const hasActiveChild = group.items.some((item) =>
@@ -335,10 +374,10 @@ export function Sidebar({ mobile = false }: SidebarProps) {
                 );
               })}
 
-              <div className="my-1 h-px bg-border/50" />
+              {(canSeeUpload || canSeeConfig) && <div className="my-1 h-px bg-border/50" />}
 
               <div className="mt-2 flex flex-col gap-1 pt-2">
-                <NavLink item={{ name: 'Importar Dados', href: '/upload', icon: Upload }} />
+                {canSeeUpload && <NavLink item={uploadItem} />}
                 {canSeeConfig && (
                   <NavLink item={{ name: 'Configurações', href: '/admin', icon: Settings }} />
                 )}
