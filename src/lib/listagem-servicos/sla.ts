@@ -13,9 +13,10 @@ export interface SlaMeta {
 
 const WARNING_THRESHOLD = 0.8;
 
-/** Mapeia o valor de prioridade (string/number) para 0, 1, 2 ou 3. Retorna null se inválido. */
+/** Mapeia o valor de prioridade (string/number) para 0, 1, 2 ou 3. "-" é alias de 3/Baixa. */
 export function parsePriority(raw: string | number | null | undefined): number | null {
   if (raw === null || raw === undefined || raw === '') return null;
+  if (raw === '-') return 3;
   const n = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
   if (n === 0 || n === 1 || n === 2 || n === 3) return n;
   return null;

@@ -24,7 +24,6 @@ export const STATUS_LABELS: Record<string, string> = {
   pendente: 'Pendente',
   em_andamento: 'Em andamento',
   tecnico_direcionado: 'Técnico direcionado',
-  em_monitoramento: 'Em monitoramento',
   resolvido: 'Resolvido',
   nao_resolvido: 'Não resolvido',
 };
